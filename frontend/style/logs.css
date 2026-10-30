@@ -1,0 +1,95 @@
+/* ====================================================================
+   MODULE CSS: HISTORY LOGS & TIMELINE
+   Tệp styling chuyên biệt cho tab Lịch sử hoạt động và Log Item
+   ==================================================================== */
+
+/* ====================================================================
+   LOG LIST CONTAINER & CARDS
+   ==================================================================== */
+body.light-mode #logListContainer > div {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode #logListContainer > div:hover {
+  border-color: #1677ff !important;
+  box-shadow: 0 4px 8px -1px rgba(22, 119, 255, 0.12) !important;
+}
+
+/* Log item active border màu xanh hệ thống khi mở xem chi tiết */
+.log-item-card.log-item-active,
+body.light-mode .log-item-card.log-item-active,
+body.dark-mode .log-item-card.log-item-active {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 1px #1677ff, 0 2px 8px rgba(22, 119, 255, 0.15) !important;
+}
+
+/* ====================================================================
+   LOG FILTER BUTTONS (All, Task, Git)
+   ==================================================================== */
+#logFilter_all.active-log-filter,
+#logFilter_TASK.active-log-filter,
+#logFilter_GIT.active-log-filter,
+body.light-mode #logFilter_all.active-log-filter,
+body.light-mode #logFilter_TASK.active-log-filter,
+body.light-mode #logFilter_GIT.active-log-filter,
+body.dark-mode #logFilter_all.active-log-filter,
+body.dark-mode #logFilter_TASK.active-log-filter,
+body.dark-mode #logFilter_GIT.active-log-filter {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+#logFilter_all.active-log-filter *,
+#logFilter_TASK.active-log-filter *,
+#logFilter_GIT.active-log-filter *,
+body.light-mode #logFilter_all.active-log-filter *,
+body.light-mode #logFilter_TASK.active-log-filter *,
+body.light-mode #logFilter_GIT.active-log-filter *,
+body.dark-mode #logFilter_all.active-log-filter *,
+body.dark-mode #logFilter_TASK.active-log-filter *,
+body.dark-mode #logFilter_GIT.active-log-filter * {
+  color: #ffffff !important;
+}
+
+body.light-mode #view_log button[id^="logFilter_"]:not(.active-log-filter) {
+  color: #475569 !important;
+}
+body.light-mode #view_log button[id^="logFilter_"]:not(.active-log-filter):hover {
+  color: #0f172a !important;
+  background-color: rgba(226, 232, 240, 0.6) !important;
+}
+body.dark-mode #view_log button[id^="logFilter_"]:not(.active-log-filter) {
+  color: #cbd5e1 !important;
+}
+body.dark-mode #view_log button[id^="logFilter_"]:not(.active-log-filter):hover {
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ====================================================================
+   LOG ITEM DELETE BUTTON
+   ==================================================================== */
+.log-item-delete-btn,
+body.light-mode .log-item-delete-btn,
+body.dark-mode .log-item-delete-btn {
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(239, 68, 68, 0.5) !important;
+}
+.log-item-delete-btn:hover,
+body.light-mode .log-item-delete-btn:hover,
+body.dark-mode .log-item-delete-btn:hover {
+  background-color: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+.log-item-delete-btn svg,
+.log-item-delete-btn svg *,
+body.light-mode .log-item-delete-btn svg,
+body.light-mode .log-item-delete-btn svg *,
+body.dark-mode .log-item-delete-btn svg,
+body.dark-mode .log-item-delete-btn svg * {
+  stroke: #ffffff !important;
+  color: #ffffff !important;
+}

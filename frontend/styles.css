@@ -1,0 +1,2738 @@
+/* ====================================================================
+   EASYSALON STUDIO - GLOBAL SYSTEM STYLES & COLOR VARIABLES
+   Tệp chính chứa biến màu hệ thống (Light/Dark mode) và System Customs
+   ==================================================================== */
+
+:root {
+  --primary-color: #1677ff;
+  --primary-hover: #4096ff;
+  --primary-active: #0958d9;
+  --header-bg: #182c4f;
+  --header-border: #244170;
+
+  /* Dark mode default tokens */
+  --bg-main: #0a1220;
+  --card-bg: #101e38;
+  --card-border: #244170;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --font-sans: 'Be Vietnam Pro', Inter, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, monospace;
+}
+
+body.light-mode {
+  --bg-main: #f8fafc;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+body.dark-mode {
+  --bg-main: #0a1220;
+  --card-bg: #101e38;
+  --card-border: #244170;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  background-color: #0a1220 !important;
+  color: #f1f5f9 !important;
+}
+
+/* ====================================================================
+   BASE TYPOGRAPHY & RESETS
+   ==================================================================== */
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+  line-height: 1.6;
+}
+
+pre, code, kbd, samp {
+  font-family: var(--font-mono) !important;
+}
+
+/* Ensure hidden class always has highest priority */
+.hidden,
+[hidden],
+#btnStartTask.hidden,
+#btnStopTask.hidden,
+#btnStopAllParallel.hidden {
+  display: none !important;
+}
+
+/* ====================================================================
+   SCROLLBARS THEO THEME
+   ==================================================================== */
+body.light-mode ::-webkit-scrollbar-track { background: #f1f5f9 !important; }
+body.light-mode ::-webkit-scrollbar-thumb { background: #cbd5e1 !important; border-radius: 3px; }
+body.light-mode ::-webkit-scrollbar-thumb:hover { background: #94a3b8 !important; }
+
+body.dark-mode ::-webkit-scrollbar-track { background: #0a1220 !important; }
+body.dark-mode ::-webkit-scrollbar-thumb { background: #1e3a66 !important; border-radius: 3px; }
+body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #2d5699 !important; }
+
+/* ====================================================================
+   BUTTONS (ANT DESIGN STYLE UTILITIES)
+   ==================================================================== */
+.ant-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  line-height: 1.5715;
+  position: relative;
+  font-weight: 500;
+  white-space: nowrap;
+  text-align: center;
+  background-image: none;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  user-select: none;
+  height: 34px;
+  padding: 4px 14px;
+  font-size: 13px;
+  border-radius: 6px !important;
+  outline: none;
+  background-color: #ffffff;
+  color: #334155;
+  font-family: inherit;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.ant-btn:hover,
+.ant-btn:focus,
+.ant-btn:active {
+  filter: none !important;
+  transform: none !important;
+}
+
+.ant-btn-primary {
+  color: #ffffff !important;
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 4px rgba(22, 119, 255, 0.25) !important;
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus,
+.ant-btn-primary:active {
+  background-color: #4096ff !important;
+  border-color: #4096ff !important;
+  color: #ffffff !important;
+  transform: none !important;
+}
+
+.ant-btn-danger {
+  color: #ffffff !important;
+  background-color: #ff4d4f !important;
+  border-color: #ff4d4f !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 4px rgba(255, 77, 79, 0.2) !important;
+}
+
+.ant-btn-danger:hover,
+.ant-btn-danger:focus,
+.ant-btn-danger:active {
+  background-color: #ff7875 !important;
+  border-color: #ff7875 !important;
+  color: #ffffff !important;
+}
+
+body.light-mode .ant-btn {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+  border-radius: 6px !important;
+}
+body.light-mode .ant-btn:hover,
+body.light-mode .ant-btn:focus {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+body.light-mode .ant-btn-primary {
+  color: #ffffff !important;
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  border-radius: 6px !important;
+}
+body.light-mode .ant-btn-primary:hover,
+body.light-mode .ant-btn-primary:focus {
+  background-color: #4096ff !important;
+  border-color: #4096ff !important;
+}
+
+body.dark-mode .ant-btn {
+  background-color: #101e38 !important;
+  border-color: #244170 !important;
+  color: #e2e8f0 !important;
+  border-radius: 6px !important;
+}
+body.dark-mode .ant-btn:hover,
+body.dark-mode .ant-btn:focus {
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+}
+body.dark-mode .ant-btn-primary {
+  color: #ffffff !important;
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  border-radius: 6px !important;
+}
+
+/* Light mode text general overrides */
+body.light-mode main .text-white,
+body.light-mode main .text-slate-100,
+body.light-mode main .text-slate-200 {
+  color: #0f172a !important;
+}
+body.light-mode main .text-slate-300,
+body.light-mode main .text-slate-400 {
+  color: #475569 !important;
+}
+body.light-mode main .text-slate-500 {
+  color: #64748b !important;
+}
+body.light-mode main .text-cyan-400,
+body.light-mode main .text-cyan-300,
+body.light-mode main .text-\[\#38bdf8\] {
+  color: #0958d9 !important;
+}
+
+/* Border overrides in light mode */
+body.light-mode main .border-\[\#244170\],
+body.light-mode main .border-\[\#2e528f\],
+body.light-mode main .border-\[\#182c4f\] {
+  border-color: #e2e8f0 !important;
+}
+body.light-mode main .bg-\[\#182c4f\] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Card backgrounds in light mode */
+body.light-mode main .bg-\[\#101e38\],
+body.light-mode main .bg-\[\#13223f\],
+body.light-mode #antdModalCard {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Semi-transparent overlays in light mode */
+body.light-mode main .bg-\[\#101e38\]\/90,
+body.light-mode main .bg-\[\#0e192c\]\/90 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Form inputs & controls in light mode */
+body.light-mode main .bg-\[\#0e192c\],
+body.light-mode main .bg-\[\#0a1222\],
+body.light-mode main input[type="text"],
+body.light-mode main input[type="number"],
+body.light-mode main textarea,
+body.light-mode main select {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode main select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+body.light-mode main input::placeholder,
+body.light-mode main textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+body.light-mode main input:focus,
+body.light-mode main textarea:focus,
+body.light-mode main select:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15) !important;
+  outline: none !important;
+}
+
+/* Generic badges in light mode */
+body.light-mode main .bg-cyan-950,
+body.light-mode main .bg-cyan-950\/80,
+body.light-mode main .bg-cyan-950\/70 {
+  background-color: rgba(22, 119, 255, 0.08) !important;
+  border-color: rgba(22, 119, 255, 0.3) !important;
+  color: #1677ff !important;
+}
+body.light-mode main .bg-emerald-950,
+body.light-mode main .bg-emerald-950\/80,
+body.light-mode main .bg-emerald-950\/70 {
+  background-color: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+  color: #059669 !important;
+}
+body.light-mode main .bg-amber-950,
+body.light-mode main .bg-amber-950\/70 {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+  color: #b45309 !important;
+}
+body.light-mode main .bg-purple-950,
+body.light-mode main .bg-purple-950\/80 {
+  background-color: #faf5ff !important;
+  border-color: #e9d5ff !important;
+  color: #7e22ce !important;
+}
+body.light-mode main .bg-indigo-950,
+body.light-mode main .bg-indigo-950\/70,
+body.light-mode main .bg-indigo-950\/80 {
+  background-color: #eef2ff !important;
+  border-color: #c7d2fe !important;
+  color: #4338ca !important;
+}
+body.light-mode main .bg-blue-950,
+body.light-mode main .bg-blue-950\/70,
+body.light-mode main .bg-blue-950\/80 {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #1d4ed8 !important;
+}
+
+/* ====================================================================
+   HEADER & NAVBAR (BẢO TOÀN TÔNG MÀU #182c4f VÀ #ffffff)
+   ==================================================================== */
+header {
+  background-color: #182c4f !important;
+  border-bottom: 1px solid #244170 !important;
+  color: #ffffff !important;
+}
+header .bg-\[\#101e38\] {
+  background-color: #101e38 !important;
+  border-color: #244170 !important;
+  color: #cbd5e1 !important;
+}
+header .bg-\[\#0d1c33\] {
+  background-color: #0d1c33 !important;
+  border-color: #244170 !important;
+}
+header .text-slate-300 { color: #cbd5e1 !important; }
+header .text-slate-200 { color: #e2e8f0 !important; }
+header .text-white { color: #ffffff !important; }
+header .border-\[\#244170\] { border-color: #244170 !important; }
+
+/* Notification Bell & Dropdown */
+#notifBellBtn,
+body.light-mode #notifBellBtn {
+  background-color: transparent !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+#notifBellBtn:hover,
+body.light-mode #notifBellBtn:hover {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+#notifBadge,
+body.light-mode #notifBadge {
+  border-color: #182c4f !important;
+}
+#notifDropdownMenu,
+body.light-mode #notifDropdownMenu {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+}
+#notifDropdownMenu > div:first-child {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+#notifDropdownMenu > div:first-child span.text-black {
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+#notifFilterTabs {
+  background-color: #ffffff !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+#notifItemsList {
+  background-color: #ffffff !important;
+}
+#notifItemsList .notif-item {
+  transition: background-color 0.15s ease;
+}
+#notifItemsList .notif-item:hover {
+  background-color: #eef7ff !important;
+}
+#notifItemsList .notif-item.is-unread:hover {
+  background-color: #e0f0ff !important;
+}
+#notifItemsList .text-black {
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+.notif-tag-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+.notif-tag-done {
+  background-color: #f6ffed !important;
+  border: 1px solid #b7eb8f !important;
+  color: #389e0d !important;
+}
+.notif-tag-done:hover { background-color: #d9f7be !important; }
+.notif-tag-running {
+  background-color: #fffbe6 !important;
+  border: 1px solid #ffe58f !important;
+  color: #d48806 !important;
+}
+.notif-tag-running:hover { background-color: #fff1b8 !important; }
+.notif-tag-stopped {
+  background-color: #e6f4ff !important;
+  border: 1px solid #91caff !important;
+  color: #1677ff !important;
+}
+.notif-tag-stopped:hover { background-color: #bae0ff !important; }
+.notif-tag-default {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+.notif-tag-git-pull {
+  background-color: #fffbe6 !important;
+  border: 1px solid #ffe58f !important;
+  color: #d48806 !important;
+}
+.notif-tag-git-pull:hover { background-color: #fff1b8 !important; }
+.notif-tag-git-done {
+  background-color: #f6ffed !important;
+  border: 1px solid #b7eb8f !important;
+  color: #389e0d !important;
+}
+.notif-title-done { color: #389e0d !important; }
+.notif-title-running { color: #d48806 !important; }
+.notif-title-stopped { color: #1677ff !important; }
+.notif-title-default { color: #0f172a !important; }
+
+/* ====================================================================
+   ANT DESIGN MODAL (CONFIRM / ALERT DIALOG)
+   ==================================================================== */
+body.light-mode #antdModalCard {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+body.light-mode #antdModalTitle { color: #0f172a !important; }
+body.light-mode #antdModalContent { color: #475569 !important; }
+body.light-mode #antdModalRoot { background-color: rgba(15, 23, 42, 0.45) !important; }
+
+body.dark-mode #antdModalCard {
+  background-color: #101e38 !important;
+  border-color: #244170 !important;
+  color: #f1f5f9 !important;
+}
+body.dark-mode #antdModalTitle { color: #ffffff !important; }
+body.dark-mode #antdModalContent { color: #94a3b8 !important; }
+
+#antdModalOkBtn,
+#antdModalOkBtn:hover,
+#antdModalOkBtn:focus,
+#antdModalOkBtn:active {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  outline: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* ====================================================================
+   TOAST NOTIFICATION (Nền trắng, chữ đen sắc nét)
+   ==================================================================== */
+#studioToast,
+body.dark-mode #studioToast,
+body.light-mode #studioToast {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+#studioToast span,
+body.dark-mode #studioToast span,
+body.light-mode #studioToast span {
+  color: #0f172a !important;
+}
+
+/* ====================================================================
+   MODULE STYLESHEET IMPORTS
+   ==================================================================== */
+
+
+/* ====================================================================
+   MODULE CSS: TASK EXECUTION & TERMINAL / DIFF / EDITOR
+   Tệp styling chuyên biệt cho tab Tác vụ, Step Logs, Diff và File Editor
+   ==================================================================== */
+
+/* ====================================================================
+   FEED & MESSAGE CARDS
+   ==================================================================== */
+div[id^="sessWrap_"],
+body.light-mode div[id^="sessWrap_"] {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+div[id^="sessHeader_"],
+body.light-mode div[id^="sessHeader_"] {
+  background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%) !important;
+  border: 1px solid #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.2) !important;
+}
+body.light-mode div[id^="sessHeader_"] .text-slate-100,
+body.light-mode div[id^="sessHeader_"] .text-slate-200,
+body.light-mode div[id^="sessHeader_"] .text-slate-300,
+body.light-mode div[id^="sessHeader_"] .text-white {
+  color: #ffffff !important;
+}
+
+/* Chat turn message cards trong feed */
+body.light-mode #taskFeed div[id^="turnCard_"],
+body.light-mode #taskFeed div[id^="taskTurnCard_"],
+body.light-mode #taskFeed div[id^="fixTurnCard_"] {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+}
+body.light-mode #taskFeed div[id^="turnCard_"].bg-\[\#0f172a\],
+body.light-mode #taskFeed div[id^="taskTurnCard_"].bg-\[\#0f172a\],
+body.light-mode #taskFeed div[id^="fixTurnCard_"].bg-\[\#0f172a\],
+body.light-mode #taskFeed div[id^="turnCard_"].bg-\[\#091518\],
+body.light-mode #taskFeed div[id^="taskTurnCard_"].bg-\[\#091518\],
+body.light-mode #taskFeed div[id^="fixTurnCard_"].bg-\[\#091518\] {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+}
+body.light-mode #taskFeed div[id^="turnCard_"] .text-cyan-400 { color: #0958d9 !important; }
+body.light-mode #taskFeed div[id^="turnCard_"] .text-emerald-400 { color: #047857 !important; }
+body.light-mode #taskFeed div[id^="taskHeader_"],
+body.light-mode #taskFeed div[id^="fixHeader_"] {
+  background-color: #ffffff !important;
+  border-color: rgba(22, 119, 255, 0.3) !important;
+}
+
+/* Feed filter tabs & Empty state in light mode */
+body.light-mode #feedTaskFilterTabs {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+body.light-mode #feedTaskFilterTabs button,
+body.light-mode #feedTaskFilterTabs > div {
+  color: #475569 !important;
+}
+body.light-mode #feedTaskFilterTabs button:hover,
+body.light-mode #feedTaskFilterTabs > div:hover {
+  color: #0f172a !important;
+}
+body.light-mode #feedTaskFilterTabs button.bg-\[\#199cff\],
+body.light-mode #feedTaskFilterTabs > div.bg-\[\#199cff\] {
+  background-color: #1677ff !important;
+  color: #ffffff !important;
+}
+
+body.light-mode #taskEmptyState {
+  color: #64748b !important;
+}
+body.light-mode #taskEmptyTitle {
+  color: #334155 !important;
+}
+body.light-mode #taskEmptySubtitle {
+  color: #64748b !important;
+}
+
+/* ====================================================================
+   TERMINAL & TOOL STEP LOGS
+   ==================================================================== */
+body.light-mode .tool-step-box {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode .tool-step-box > div:first-child,
+body.light-mode .tool-step-header {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  color: #0f172a !important;
+}
+body.light-mode .tool-step-header span.text-white {
+  color: #0f172a !important;
+}
+body.light-mode div[id^="stepLogsBody_"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+body.light-mode .tool-step-item,
+body.light-mode .terminal-step-item {
+  background-color: #ffffff !important;
+  border: 1px solid #f1f5f9 !important;
+  color: #0f172a !important;
+}
+body.light-mode .terminal-step-item:hover {
+  background-color: #fafbfc !important;
+  border-color: #e2e8f0 !important;
+}
+body.light-mode .tool-step-item span.text-slate-200,
+body.light-mode .terminal-step-item span.text-slate-100 {
+  color: #0f172a !important;
+}
+
+/* KHỐI KẾT QUẢ THỰC THI LỆNH (COMMAND OUTPUT) - BẢO TOÀN CHỮ ĐEN DỄ ĐỌC TRONG SÁNG */
+body.light-mode .terminal-step-item div[id^="step_out_"],
+body.light-mode div[id^="step_out_"] {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+body.light-mode div[id^="step_out_"] .step-out-lines,
+body.light-mode div[id^="step_out_"] .step-out-lines > div,
+body.light-mode div[id^="step_out_"] .select-text,
+body.light-mode div[id^="step_out_"] .step-cmd-line,
+body.light-mode div[id^="step_out_"] div.font-mono,
+body.light-mode div[id^="step_out_"] .text-slate-700,
+body.light-mode div[id^="step_out_"] .text-slate-500,
+body.light-mode div[id^="step_out_"] .text-slate-400,
+body.light-mode div[id^="step_out_"] .text-slate-300 {
+  color: #0f172a !important;
+}
+body.light-mode div[id^="step_out_"] .step-out-header span.text-slate-400,
+body.light-mode div[id^="step_out_"] .step-out-header span.text-slate-500 {
+  color: #475569 !important;
+}
+
+body.dark-mode .terminal-step-item div[id^="step_out_"],
+body.dark-mode div[id^="step_out_"] {
+  background-color: #060a12 !important;
+  border: 1px solid #1e3458 !important;
+  color: #f1f5f9 !important;
+}
+body.dark-mode div[id^="step_out_"] .step-out-lines,
+body.dark-mode div[id^="step_out_"] .step-out-lines > div,
+body.dark-mode div[id^="step_out_"] .select-text,
+body.dark-mode div[id^="step_out_"] .step-cmd-line {
+  color: #e2e8f0 !important;
+}
+
+body.light-mode .step-out-header {
+  border-bottom-color: #f1f5f9 !important;
+}
+
+/* ====================================================================
+   GREP OUTPUT ROWS (GỌN GÀNG, ĐỀU ĐẶN, KHÔNG THANH CUỘN LẺ TỪNG DÒNG)
+   ==================================================================== */
+.step-grep-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  transition: background-color 0.15s ease;
+}
+.step-grep-row:hover {
+  background-color: rgba(22, 119, 255, 0.06);
+}
+body.light-mode .step-grep-row:hover {
+  background-color: #f0f7ff !important;
+}
+body.dark-mode .step-grep-row:hover {
+  background-color: rgba(30, 58, 102, 0.4) !important;
+}
+
+.step-grep-file {
+  font-weight: 600;
+  color: #1677ff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.step-grep-file:hover {
+  text-decoration: underline;
+}
+body.light-mode .step-grep-file {
+  color: #1677ff !important;
+}
+body.dark-mode .step-grep-file {
+  color: #38bdf8 !important;
+}
+
+.step-grep-line {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  user-select: all;
+}
+body.light-mode .step-grep-line {
+  background-color: #fffbe6 !important;
+  border: 1px solid #ffe58f !important;
+  color: #d48806 !important;
+}
+body.dark-mode .step-grep-line {
+  background-color: rgba(120, 53, 15, 0.3) !important;
+  border: 1px solid rgba(180, 83, 9, 0.5) !important;
+  color: #fde68a !important;
+}
+
+.step-grep-code {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+body.light-mode .step-grep-code {
+  color: #0f172a !important;
+}
+body.dark-mode .step-grep-code {
+  color: #f1f5f9 !important;
+}
+
+/* Streaming preview */
+body.light-mode .streaming-step-preview {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0958d9 !important;
+}
+body.light-mode .streaming-step-preview span.text-slate-200,
+body.light-mode .streaming-step-preview span.truncate {
+  color: #334155 !important;
+}
+body.light-mode .streaming-step-preview .text-cyan-400 {
+  color: #1677ff !important;
+}
+body.light-mode div[id$="_running"] {
+  background-color: #ffffff !important;
+  border: 1px solid #bfdbfe !important;
+}
+body.light-mode div[id$="_running"] .bg-\[\#060a12\] {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+}
+body.light-mode div[id$="_running"] .text-cyan-400,
+body.light-mode div[id$="_running"] .text-cyan-300 {
+  color: #0284c7 !important;
+}
+body.light-mode div[id$="_running"] .text-slate-400 {
+  color: #64748b !important;
+}
+
+/* ====================================================================
+   IN-APP FILE EDITOR MODAL (VS CODE SIMULATED EDITOR)
+   ==================================================================== */
+#fileEditorModalCard {
+  background-color: #1e1e1e !important;
+  border: 1px solid #333333 !important;
+  color: #cccccc !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8) !important;
+}
+#fileEditorFilePath {
+  color: #38bdf8 !important;
+  font-weight: 700 !important;
+}
+#fileEditorLineNumbers,
+body.light-mode #fileEditorLineNumbers {
+  font-family: 'JetBrains Mono', Consolas, 'Fira Code', 'Courier New', monospace !important;
+  background-color: #1e1e1e !important;
+  color: #858585 !important;
+  border-right: 1px solid #333333 !important;
+  user-select: none !important;
+  pointer-events: none !important;
+}
+#fileEditorTextarea,
+body.light-mode #fileEditorTextarea {
+  font-family: 'JetBrains Mono', Consolas, 'Fira Code', 'Courier New', monospace !important;
+  background-color: #1e1e1e !important;
+  color: #d4d4d4 !important;
+  caret-color: #38bdf8 !important;
+  tab-size: 2;
+  -moz-tab-size: 2;
+}
+#fileEditorTextarea::selection,
+body.light-mode #fileEditorTextarea::selection {
+  background-color: #264f78 !important;
+  color: #ffffff !important;
+}
+
+/* Active line highlight & Indent guides for File Editor (VS Code simulation) */
+.file-editor-active-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16) !important;
+  background-color: rgba(255, 255, 255, 0.035) !important;
+  z-index: 5;
+  box-sizing: border-box;
+}
+
+#fileEditorLineNumbers .line-num {
+  display: block !important;
+  height: 20px !important;
+  line-height: 20px !important;
+  padding-right: 6px !important;
+  color: #858585 !important;
+  font-family: 'JetBrains Mono', Consolas, monospace !important;
+}
+
+#fileEditorLineNumbers .line-num.active-line-num {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border-left: 2px solid #38bdf8 !important;
+}
+
+.vscode-indent-guides {
+  background-image: repeating-linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0.08) 0px,
+    rgba(255, 255, 255, 0.08) 1px,
+    transparent 1px,
+    transparent calc(var(--char-w, 7.22px) * 2)
+  ) !important;
+  background-position: 14px 0 !important;
+  background-repeat: repeat-y !important;
+}
+
+body.light-mode #fileEditorModalCard {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1f2328 !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+body.light-mode #fileEditorFilePath {
+  color: #0958d9 !important;
+  font-weight: 700 !important;
+}
+body.light-mode #fileEditorModalCard .bg-\[\#13223f\] {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+body.light-mode #fileEditorModalCard .bg-\[\#0e192c\] {
+  background-color: #f8fafc !important;
+  border-top: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+}
+body.light-mode #fileEditorModalCard kbd {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+/* ====================================================================
+   GIT DIFF VIEWER (VS CODE SIMULATED DIFF EDITOR)
+   ==================================================================== */
+.git-diff-container,
+.vscode-diff-editor {
+  background-color: #1e1e1e !important;
+  border: 1px solid #333333 !important;
+  border-radius: 6px !important;
+  overflow-x: auto !important;
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace !important;
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+  color: #d4d4d4 !important;
+}
+
+body.light-mode .git-diff-container,
+body.light-mode .vscode-diff-editor {
+  background-color: #ffffff !important;
+  border: 1px solid #e1e4e8 !important;
+  color: #1f2328 !important;
+}
+
+.git-diff-hunk {
+  background-color: #252526 !important;
+  color: #569cd6 !important;
+  padding: 4px 12px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  font-family: 'JetBrains Mono', Consolas, monospace !important;
+  border-top: 1px solid #333333 !important;
+  border-bottom: 1px solid #333333 !important;
+  user-select: none !important;
+  display: block !important;
+  width: 100% !important;
+}
+
+body.light-mode .git-diff-hunk {
+  background-color: #f1f5f9 !important;
+  color: #0969da !important;
+  border-top: 1px solid #e2e8f0 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.git-diff-row {
+  display: flex !important;
+  align-items: stretch !important;
+  min-width: 100% !important;
+  width: max-content !important;
+  font-family: 'JetBrains Mono', Consolas, monospace !important;
+  transition: background-color 0.1s ease !important;
+}
+
+.git-diff-row:hover {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+body.light-mode .git-diff-row:hover {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+.git-diff-ln {
+  width: 42px !important;
+  min-width: 42px !important;
+  padding: 0 8px !important;
+  text-align: right !important;
+  user-select: none !important;
+  font-size: 11px !important;
+  color: #858585 !important;
+  border-right: 1px solid #2d2d2d !important;
+  flex-shrink: 0 !important;
+  background-color: #1e1e1e !important;
+  opacity: 1 !important;
+}
+
+body.light-mode .git-diff-ln {
+  color: #6e7681 !important;
+  background-color: #f6f8fa !important;
+  border-right: 1px solid #e1e4e8 !important;
+}
+
+.git-diff-sign {
+  width: 22px !important;
+  min-width: 22px !important;
+  text-align: center !important;
+  user-select: none !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  flex-shrink: 0 !important;
+  color: #858585 !important;
+}
+
+.git-diff-code {
+  padding: 0 14px 0 6px !important;
+  white-space: pre !important;
+  flex: 1 !important;
+  font-family: 'JetBrains Mono', Consolas, monospace !important;
+  color: #d4d4d4 !important;
+}
+
+body.light-mode .git-diff-code {
+  color: #1f2328 !important;
+}
+
+/* Dòng giữ nguyên (Context) */
+.git-diff-ctx {
+  background-color: transparent !important;
+}
+.git-diff-ctx .git-diff-code {
+  color: #d4d4d4 !important;
+}
+body.light-mode .git-diff-ctx .git-diff-code {
+  color: #1f2328 !important;
+}
+
+/* Dòng thêm mới (+): Chuẩn VS Code Modern */
+.git-diff-add {
+  background-color: rgba(46, 160, 67, 0.16) !important;
+  border-left: 3px solid #2ea043 !important;
+}
+.git-diff-add .git-diff-ln {
+  background-color: rgba(46, 160, 67, 0.22) !important;
+  color: #73c991 !important;
+}
+.git-diff-add .git-diff-sign {
+  color: #73c991 !important;
+  font-weight: 700 !important;
+}
+.git-diff-add .git-diff-code {
+  color: #e6edf3 !important;
+}
+
+body.light-mode .git-diff-add {
+  background-color: rgba(46, 160, 67, 0.12) !important;
+  border-left: 3px solid #1a7f37 !important;
+}
+body.light-mode .git-diff-add .git-diff-ln {
+  background-color: rgba(46, 160, 67, 0.16) !important;
+  color: #1a7f37 !important;
+}
+body.light-mode .git-diff-add .git-diff-sign {
+  color: #1a7f37 !important;
+}
+body.light-mode .git-diff-add .git-diff-code {
+  color: #1f2328 !important;
+}
+
+/* Dòng xóa đi (-): Chuẩn VS Code Modern */
+.git-diff-del {
+  background-color: rgba(248, 81, 73, 0.16) !important;
+  border-left: 3px solid #f85149 !important;
+}
+.git-diff-del .git-diff-ln {
+  background-color: rgba(248, 81, 73, 0.22) !important;
+  color: #ffa198 !important;
+}
+.git-diff-del .git-diff-sign {
+  color: #ffa198 !important;
+  font-weight: 700 !important;
+}
+.git-diff-del .git-diff-code {
+  color: #e6edf3 !important;
+}
+
+body.light-mode .git-diff-del {
+  background-color: rgba(248, 81, 73, 0.12) !important;
+  border-left: 3px solid #cf222e !important;
+}
+body.light-mode .git-diff-del .git-diff-ln {
+  background-color: rgba(248, 81, 73, 0.16) !important;
+  color: #cf222e !important;
+}
+body.light-mode .git-diff-del .git-diff-sign {
+  color: #cf222e !important;
+}
+body.light-mode .git-diff-del .git-diff-code {
+  color: #1f2328 !important;
+}
+
+/* Thẻ file thay đổi (File Card) kiểu VS Code Editor Tab */
+.changed-file-card {
+  border: 1px solid #333333 !important;
+  background-color: #1e1e1e !important;
+  border-radius: 6px !important;
+}
+.changed-file-header {
+  background-color: #252526 !important;
+  border-bottom: 1px solid #333333 !important;
+  color: #cccccc !important;
+}
+body.light-mode .changed-file-card {
+  border: 1px solid #e1e4e8 !important;
+  background-color: #ffffff !important;
+}
+body.light-mode .changed-file-header {
+  background-color: #f3f3f3 !important;
+  border-bottom: 1px solid #e1e4e8 !important;
+  color: #1f2328 !important;
+}
+
+.file-tag-preexisting {
+  color: #facc15 !important;
+  background-color: rgba(234, 179, 8, 0.15) !important;
+  border: 1px solid rgba(234, 179, 8, 0.35) !important;
+}
+body.light-mode .file-tag-preexisting {
+  color: #b45309 !important;
+  background-color: #fef3c7 !important;
+  border: 1px solid #fcd34d !important;
+}
+
+.file-tag-ai {
+  color: #60a5fa !important;
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  border: 1px solid rgba(59, 130, 246, 0.35) !important;
+}
+body.light-mode .file-tag-ai {
+  color: #1d4ed8 !important;
+  background-color: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+}
+
+.file-edit-btn {
+  color: #38bdf8 !important;
+}
+body.light-mode .file-edit-btn {
+  color: #0284c7 !important;
+}
+body.light-mode .file-edit-btn:hover {
+  background-color: #f0f9ff !important;
+  color: #0369a1 !important;
+}
+
+/* Khối tổng hợp thay đổi mã nguồn (Changed Files Box) */
+.changed-files-box {
+  border: 1px solid #333333 !important;
+  background-color: #181818 !important;
+  border-radius: 8px !important;
+}
+.changed-files-header {
+  background-color: #252526 !important;
+  border-bottom: 1px solid #333333 !important;
+  color: #e2e8f0 !important;
+}
+body.light-mode .changed-files-box {
+  border: 1px solid #e1e4e8 !important;
+  background-color: #f8fafc !important;
+}
+body.light-mode .changed-files-header {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e1e4e8 !important;
+  color: #0f172a !important;
+}
+
+/* ====================================================================
+   WAVE DOTS LOADING ANIMATION (3 CHẤM DẠNG SÓNG)
+   ==================================================================== */
+.wave-dots {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4.5px !important;
+  vertical-align: middle !important;
+}
+
+.wave-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background-color: #38bdf8 !important;
+  display: inline-block !important;
+  animation: waveDotBounce 1.4s ease-in-out infinite both !important;
+}
+
+.wave-dot:nth-child(1) {
+  animation-delay: -0.32s !important;
+}
+.wave-dot:nth-child(2) {
+  animation-delay: -0.16s !important;
+}
+.wave-dot:nth-child(3) {
+  animation-delay: 0s !important;
+}
+
+@keyframes waveDotBounce {
+  0%, 80%, 100% {
+    transform: scale(0.6) translateY(0);
+    opacity: 0.35;
+  }
+  40% {
+    transform: scale(1.2) translateY(-5px);
+    opacity: 1;
+  }
+}
+
+body.light-mode .wave-dot {
+  background-color: #1677ff !important;
+}
+
+
+/* ====================================================================
+   PARALLEL TASK TABS
+   ==================================================================== */
+#parallelTaskTabs > div.active-task-tab {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+}
+#parallelTaskTabs > div.active-task-tab * { color: #ffffff !important; }
+
+body.light-mode #parallelTaskTabs > div {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+body.light-mode #parallelTaskTabs > div:hover {
+  border-color: #1677ff !important;
+  color: #0f172a !important;
+}
+body.light-mode #parallelTaskTabs > div.active-task-tab {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+}
+body.light-mode #parallelTaskTabs > .task-tab-editing {
+  background-color: #ffffff !important;
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15) !important;
+}
+body.light-mode #parallelTaskTabs > .task-tab-editing input {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Nút bắt đầu / Tiếp tục task luôn là màu trắng #ffffff và căn giữa chuẩn flex */
+#btnStartTask:not(.hidden),
+#btnStopTask:not(.hidden) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border-radius: 6px !important;
+}
+
+#btnStartTask.hidden,
+#btnStopTask.hidden,
+#btnStopAllParallel.hidden {
+  display: none !important;
+}
+
+#btnStartTask svg,
+#btnStopTask svg {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+#btnStartTask,
+#btnStartTask *,
+#btnStartTaskText,
+[id^="sessContinueBox_"] button,
+[id^="sessContinueBox_"] button *,
+body.light-mode #btnStartTask,
+body.light-mode #btnStartTask *,
+body.light-mode #btnStartTaskText,
+body.light-mode [id^="sessContinueBox_"] button,
+body.light-mode [id^="sessContinueBox_"] button * {
+  color: #ffffff !important;
+}
+
+/* ====================================================================
+   SKILL PICKER DROPDOWN & TAGS
+   ==================================================================== */
+body.light-mode #taskSkillPickerTrigger {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+body.light-mode #taskSkillPickerTrigger:hover {
+  border-color: #1677ff !important;
+}
+body.light-mode #taskSkillDropdown {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
+}
+body.light-mode #taskSkillDropdown input {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.skill-option-item:hover,
+.skill-option-item.is-selected,
+#taskSkillOptionList > div:hover,
+#taskSkillOptionList > div.is-selected,
+body.light-mode #taskSkillOptionList > div:hover,
+body.light-mode #taskSkillOptionList > div.is-selected {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+}
+.skill-option-item:hover *,
+.skill-option-item.is-selected *,
+#taskSkillOptionList > div:hover *,
+#taskSkillOptionList > div.is-selected *,
+body.light-mode #taskSkillOptionList > div:hover *,
+body.light-mode #taskSkillOptionList > div.is-selected * {
+  color: #ffffff !important;
+}
+
+#taskSelectedTags > span,
+body.light-mode #taskSelectedTags > span {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(22, 119, 255, 0.3) !important;
+}
+#taskSelectedTags > span *,
+body.light-mode #taskSelectedTags > span * {
+  color: #ffffff !important;
+}
+
+/* ====================================================================
+   MARKDOWN BODY & SYNTAX HIGHLIGHTING
+   ==================================================================== */
+.markdown-body {
+  font-family: 'Be Vietnam Pro', Inter, system-ui, sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.82;
+  letter-spacing: 0.012em;
+  color: #f1f5f9;
+}
+.markdown-body p,
+.markdown-body ul,
+.markdown-body ol {
+  margin-bottom: 0.9rem;
+  line-height: 1.82;
+}
+.markdown-body li {
+  margin-bottom: 0.45rem;
+  line-height: 1.8;
+  color: #f1f5f9;
+}
+.markdown-body strong, .markdown-body b {
+  font-weight: 700;
+  color: #ffffff;
+}
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  font-weight: 700;
+  color: #ffffff;
+  margin-top: 1.1rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.015em;
+}
+.markdown-body h2 { font-size: 1.08rem; }
+.markdown-body h3 { font-size: 0.98rem; }
+.markdown-body a {
+  color: #38bdf8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 500;
+}
+.markdown-body a:hover { color: #7dd3fc; }
+
+body.light-mode .markdown-body { color: #1e293b !important; }
+body.light-mode .markdown-body strong,
+body.light-mode .markdown-body b { color: #0f172a !important; }
+body.light-mode .markdown-body li { color: #1e293b !important; }
+body.light-mode .markdown-body h1,
+body.light-mode .markdown-body h2,
+body.light-mode .markdown-body h3 { color: #0f172a !important; }
+body.light-mode .markdown-body a { color: #0284c7 !important; }
+body.light-mode .markdown-body a:hover { color: #0369a1 !important; }
+
+/* VS Code editor card */
+.vscode-editor-card {
+  background: #1e1e1e !important;
+  border: 1px solid #2d2d2d !important;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 0.85rem 0;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace !important;
+  text-align: left;
+}
+
+
+/* ====================================================================
+   MODULE CSS: GIT CONTROL (PULL SYNC, BRANCH, CHERRY-PICK, MERGE)
+   Tệp styling chuyên biệt cho các tính năng Quản lý Git & Conflict
+   ==================================================================== */
+
+/* ====================================================================
+   GIT SUBTAB BUTTONS (Active background #1677ff, text white)
+   ==================================================================== */
+#gitSubTabBtn_branch.active-git-subtab,
+#gitSubTabBtn_cherry_pick.active-git-subtab,
+#gitSubTabBtn_pull_sync.active-git-subtab,
+#gitSubTabBtn_merge.active-git-subtab,
+body.light-mode #gitSubTabBtn_branch.active-git-subtab,
+body.light-mode #gitSubTabBtn_cherry_pick.active-git-subtab,
+body.light-mode #gitSubTabBtn_pull_sync.active-git-subtab,
+body.light-mode #gitSubTabBtn_merge.active-git-subtab,
+body.dark-mode #gitSubTabBtn_branch.active-git-subtab,
+body.dark-mode #gitSubTabBtn_cherry_pick.active-git-subtab,
+body.dark-mode #gitSubTabBtn_pull_sync.active-git-subtab,
+body.dark-mode #gitSubTabBtn_merge.active-git-subtab {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+#gitSubTabBtn_branch.active-git-subtab *,
+#gitSubTabBtn_cherry_pick.active-git-subtab *,
+#gitSubTabBtn_pull_sync.active-git-subtab *,
+#gitSubTabBtn_merge.active-git-subtab *,
+body.light-mode #gitSubTabBtn_branch.active-git-subtab *,
+body.light-mode #gitSubTabBtn_cherry_pick.active-git-subtab *,
+body.light-mode #gitSubTabBtn_pull_sync.active-git-subtab *,
+body.light-mode #gitSubTabBtn_merge.active-git-subtab *,
+body.dark-mode #gitSubTabBtn_branch.active-git-subtab *,
+body.dark-mode #gitSubTabBtn_cherry_pick.active-git-subtab *,
+body.dark-mode #gitSubTabBtn_pull_sync.active-git-subtab *,
+body.dark-mode #gitSubTabBtn_merge.active-git-subtab * {
+  color: #ffffff !important;
+}
+
+body.light-mode #gitSubTabBtn_branch,
+body.light-mode #gitSubTabBtn_cherry_pick,
+body.light-mode #gitSubTabBtn_pull_sync,
+body.light-mode #gitSubTabBtn_merge {
+  border: 1px solid #cbd5e1 !important;
+}
+
+/* Nút Làm mới: Không đổi màu khi hover */
+#btnRefreshGit {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+#btnRefreshGit:hover,
+#btnRefreshGit:focus,
+#btnRefreshGit:active {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Nút quay về nhánh trước đó */
+body.light-mode #btnPrevFe, 
+body.light-mode #btnPrevBe {
+  background-color: rgba(22, 119, 255, 0.08) !important;
+  border-color: rgba(22, 119, 255, 0.35) !important;
+  color: #1677ff !important;
+}
+body.light-mode #btnPrevFe:hover, 
+body.light-mode #btnPrevBe:hover {
+  background-color: rgba(22, 119, 255, 0.16) !important;
+  border-color: #1677ff !important;
+  color: #0958d9 !important;
+}
+body.light-mode #fePrevBranchLabel, 
+body.light-mode #bePrevBranchLabel {
+  color: #1677ff !important;
+}
+
+body.dark-mode #btnPrevFe, 
+body.dark-mode #btnPrevBe {
+  background-color: #182c4f !important;
+  border-color: #2e528f !important;
+  color: #38bdf8 !important;
+}
+body.dark-mode #btnPrevFe:hover, 
+body.dark-mode #btnPrevBe:hover {
+  background-color: #244170 !important;
+  color: #ffffff !important;
+}
+
+/* Hộp thông báo kết quả Git action */
+body.light-mode #gitActionAlert {
+  background-color: rgba(22, 119, 255, 0.08) !important;
+  border-color: #1677ff !important;
+  color: #0369a1 !important;
+}
+body.dark-mode #gitActionAlert {
+  background-color: rgba(36, 65, 112, 0.3) !important;
+  border-color: #244170 !important;
+  color: #38bdf8 !important;
+}
+
+/* Pull Staging / Master - nút không đổi màu khi hover */
+.btn-pull-no-hover {
+  transition: none !important;
+  cursor: pointer;
+  outline: none !important;
+}
+.btn-pull-no-hover:hover,
+.btn-pull-no-hover:active,
+.btn-pull-no-hover:focus {
+  filter: none !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+.btn-pull-staging-theme,
+.btn-pull-master-theme,
+.btn-pull-beta-theme,
+[id^="btnFePull"],
+[id^="btnBePull"] {
+  background-color: #1677ff !important;
+  border: 1px solid #1677ff !important;
+  color: #ffffff !important;
+  border-radius: 6px !important;
+}
+.btn-pull-staging-theme:hover,
+.btn-pull-staging-theme:active,
+.btn-pull-staging-theme:focus,
+.btn-pull-master-theme:hover,
+.btn-pull-master-theme:active,
+.btn-pull-master-theme:focus {
+  background-color: #1677ff !important;
+  border: 1px solid #1677ff !important;
+  color: #ffffff !important;
+}
+
+/* Badge Đồng bộ Git (Pull) */
+.badge-git-sync-pull,
+body.dark-mode .badge-git-sync-pull {
+  background-color: rgba(22, 119, 255, 0.18) !important;
+  border: 1px solid rgba(22, 119, 255, 0.45) !important;
+  color: #38bdf8 !important;
+}
+body.light-mode .badge-git-sync-pull {
+  background-color: #f0f9ff !important;
+  border: 1px solid #bae6fd !important;
+  color: #0284c7 !important;
+}
+
+/* Commits preview box trong Pull Staging / Master */
+.commit-item-card {
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+.commit-item-card:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+.commit-detail-box {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+.sync-file-item {
+  background-color: rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+.sync-file-path {
+  color: #38bdf8 !important;
+  transition: color 0.15s ease;
+}
+.sync-diff-wrapper {
+  background-color: #1e1e1e !important;
+  border: 1px solid #333333 !important;
+  border-radius: 6px !important;
+  max-height: 520px !important;
+  min-height: 140px;
+  overflow: auto !important;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Enforce dark simulated VS Code code editor theme even in Light Mode */
+body.light-mode .sync-diff-wrapper {
+  background-color: #1e1e1e !important;
+  border: 1px solid #333333 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+.sync-diff-wrapper .git-diff-container,
+.sync-diff-wrapper .vscode-diff-editor,
+body.light-mode .sync-diff-wrapper .git-diff-container,
+body.light-mode .sync-diff-wrapper .vscode-diff-editor {
+  background-color: #1e1e1e !important;
+  border: none !important;
+  border-radius: 0 !important;
+  color: #d4d4d4 !important;
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace !important;
+  font-size: 11.5px !important;
+  line-height: 1.6 !important;
+}
+
+.sync-diff-wrapper .git-diff-hunk,
+body.light-mode .sync-diff-wrapper .git-diff-hunk {
+  background-color: #252526 !important;
+  color: #569cd6 !important;
+  border-top: 1px solid #333333 !important;
+  border-bottom: 1px solid #333333 !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+.sync-diff-wrapper .git-diff-row,
+body.light-mode .sync-diff-wrapper .git-diff-row {
+  display: flex !important;
+  align-items: stretch !important;
+  min-width: 100% !important;
+  width: max-content !important;
+  font-family: 'JetBrains Mono', Consolas, monospace !important;
+}
+
+.sync-diff-wrapper .git-diff-row:hover,
+body.light-mode .sync-diff-wrapper .git-diff-row:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.sync-diff-wrapper .git-diff-ln,
+body.light-mode .sync-diff-wrapper .git-diff-ln {
+  width: 42px !important;
+  min-width: 42px !important;
+  padding: 0 8px !important;
+  text-align: right !important;
+  user-select: none !important;
+  font-size: 11px !important;
+  color: #858585 !important;
+  border-right: 1px solid #2d2d2d !important;
+  background-color: #1e1e1e !important;
+}
+
+.sync-diff-wrapper .git-diff-sign,
+body.light-mode .sync-diff-wrapper .git-diff-sign {
+  width: 22px !important;
+  min-width: 22px !important;
+  text-align: center !important;
+  user-select: none !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  color: #858585 !important;
+}
+
+.sync-diff-wrapper .git-diff-code,
+body.light-mode .sync-diff-wrapper .git-diff-code {
+  padding: 0 14px 0 6px !important;
+  white-space: pre !important;
+  flex: 1 !important;
+  font-family: 'JetBrains Mono', Consolas, monospace !important;
+  color: #d4d4d4 !important;
+}
+
+.sync-diff-wrapper .git-diff-ctx .git-diff-code,
+body.light-mode .sync-diff-wrapper .git-diff-ctx .git-diff-code {
+  color: #d4d4d4 !important;
+}
+
+.sync-diff-wrapper .git-diff-add,
+body.light-mode .sync-diff-wrapper .git-diff-add {
+  background-color: rgba(46, 160, 67, 0.18) !important;
+  border-left: 3px solid #2ea043 !important;
+}
+.sync-diff-wrapper .git-diff-add .git-diff-ln,
+body.light-mode .sync-diff-wrapper .git-diff-add .git-diff-ln {
+  background-color: rgba(46, 160, 67, 0.25) !important;
+  color: #73c991 !important;
+}
+.sync-diff-wrapper .git-diff-add .git-diff-sign,
+body.light-mode .sync-diff-wrapper .git-diff-add .git-diff-sign {
+  color: #73c991 !important;
+}
+.sync-diff-wrapper .git-diff-add .git-diff-code,
+body.light-mode .sync-diff-wrapper .git-diff-add .git-diff-code {
+  color: #e6edf3 !important;
+}
+
+.sync-diff-wrapper .git-diff-del,
+body.light-mode .sync-diff-wrapper .git-diff-del {
+  background-color: rgba(248, 81, 73, 0.18) !important;
+  border-left: 3px solid #f85149 !important;
+}
+.sync-diff-wrapper .git-diff-del .git-diff-ln,
+body.light-mode .sync-diff-wrapper .git-diff-del .git-diff-ln {
+  background-color: rgba(248, 81, 73, 0.25) !important;
+  color: #ffa198 !important;
+}
+.sync-diff-wrapper .git-diff-del .git-diff-sign,
+body.light-mode .sync-diff-wrapper .git-diff-del .git-diff-sign {
+  color: #ffa198 !important;
+}
+.sync-diff-wrapper .git-diff-del .git-diff-code,
+body.light-mode .sync-diff-wrapper .git-diff-del .git-diff-code {
+  color: #e6edf3 !important;
+}
+
+.sync-diff-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.sync-diff-wrapper::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+.sync-diff-wrapper::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 4px;
+}
+.sync-diff-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #555555;
+}
+
+.sync-file-view-btn {
+  color: #38bdf8 !important;
+}
+body.light-mode .sync-file-view-btn {
+  color: #0284c7 !important;
+}
+body.light-mode .sync-file-view-btn:hover {
+  background-color: #f0f9ff !important;
+  color: #0369a1 !important;
+}
+
+.sync-diff-view-full-btn {
+  color: #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.3) !important;
+}
+body.light-mode .sync-diff-view-full-btn {
+  color: #0284c7 !important;
+  border-color: #bae6fd !important;
+  background-color: #f0f9ff !important;
+}
+body.light-mode .sync-diff-view-full-btn:hover {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+}
+
+body.light-mode #gitSubView_pull_sync .sync-commits-box {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode .commit-item-card {
+  border: 1px solid #e2e8f0 !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02) !important;
+}
+body.light-mode .commit-item-card:hover {
+  background-color: #f1f5f9 !important;
+}
+body.light-mode .commit-detail-box {
+  background-color: #f8fafc !important;
+  border-top: 1px solid #e2e8f0 !important;
+}
+body.light-mode .sync-file-item {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+}
+body.light-mode .sync-file-path {
+  color: #0958d9 !important;
+  font-weight: 600 !important;
+}
+body.light-mode .sync-file-path:hover {
+  color: #1677ff !important;
+}
+body.light-mode #gitSubView_pull_sync .sync-commits-box .text-amber-300,
+body.light-mode #gitSubView_pull_sync .sync-commits-box .text-amber-200,
+body.light-mode #gitSubView_pull_sync .sync-commit-header {
+  color: #b45309 !important;
+  font-weight: 700 !important;
+}
+body.light-mode #gitSubView_pull_sync .sync-commits-box .text-amber-400 {
+  color: #d97706 !important;
+}
+body.light-mode #gitSubView_pull_sync .sync-commits-box .border-amber-500\/20,
+body.light-mode #gitSubView_pull_sync .sync-commits-box .border-amber-500\/30 {
+  border-color: #fde68a !important;
+}
+body.light-mode #gitSubView_pull_sync .sync-commits-box .bg-cyan-950\/80 {
+  background-color: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border: 1px solid #bfdbfe !important;
+}
+body.light-mode #gitSubView_pull_sync .sync-commits-box .text-cyan-400 {
+  color: #0284c7 !important;
+}
+body.light-mode #gitSubView_pull_sync .sync-commits-box .text-slate-200 { color: #0f172a !important; }
+body.light-mode #gitSubView_pull_sync .sync-commits-box .text-slate-300 { color: #334155 !important; }
+body.light-mode #gitSubView_pull_sync .sync-commits-box .text-slate-400 { color: #64748b !important; }
+body.light-mode #gitSubView_pull_sync .sync-commits-box .hover\:bg-white\/5:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+body.light-mode #syncCheckSummaryBadge {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+/* ====================================================================
+   PULL SYNC & MERGE LIGHT MODE CARDS
+   ==================================================================== */
+body.light-mode #gitSubView_pull_sync .bg-\[\#101e38\],
+body.light-mode #gitSubView_merge .bg-\[\#101e38\],
+body.light-mode #gitSubView_merge .merge-col-card,
+body.light-mode #gitSubView_merge .merge-info-card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+}
+body.light-mode #gitSubView_pull_sync .bg-\[\#0e192c\],
+body.light-mode #gitSubView_merge .bg-\[\#0e192c\],
+body.light-mode #gitSubView_merge .merge-branch-box {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+}
+body.light-mode #gitSubView_merge .border-amber-800\/60,
+body.light-mode #gitSubView_merge .border-cyan-800\/60,
+body.light-mode #gitSubView_merge .border-emerald-800\/60 {
+  border-color: #e2e8f0 !important;
+}
+body.light-mode #gitSubView_merge .bg-amber-950 {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+  border-color: #fde68a !important;
+}
+body.light-mode #gitSubView_merge .bg-cyan-950 {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  border-color: #bae6fd !important;
+}
+body.light-mode #gitSubView_merge .bg-emerald-950 {
+  background-color: #dcfce7 !important;
+  color: #15803d !important;
+  border-color: #bbf7d0 !important;
+}
+body.light-mode #gitSubView_pull_sync .text-slate-100,
+body.light-mode #gitSubView_pull_sync .text-slate-200,
+body.light-mode #gitSubView_merge .text-slate-100,
+body.light-mode #gitSubView_merge .text-slate-200 {
+  color: #0f172a !important;
+}
+body.light-mode #gitSubView_pull_sync .text-slate-300,
+body.light-mode #gitSubView_pull_sync .text-slate-400,
+body.light-mode #gitSubView_merge .text-slate-300,
+body.light-mode #gitSubView_merge .text-slate-400 {
+  color: #475569 !important;
+}
+body.light-mode #gitSubView_merge input[type="text"],
+body.light-mode #gitSubView_merge select {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode #gitSubView_merge .merge-trigger-btn,
+body.light-mode #feMergeSourceTrigger,
+body.light-mode #feMergeTargetTrigger,
+body.light-mode #beMergeSourceTrigger,
+body.light-mode #beMergeTargetTrigger {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode #gitSubView_merge .merge-trigger-btn:hover,
+body.light-mode #feMergeSourceTrigger:hover,
+body.light-mode #feMergeTargetTrigger:hover,
+body.light-mode #beMergeSourceTrigger:hover,
+body.light-mode #beMergeTargetTrigger:hover {
+  border-color: #1677ff !important;
+}
+
+/* Cherry-pick & Merge status boxes */
+body.light-mode #feCherrySuccessBox,
+body.light-mode #beCherrySuccessBox {
+  background-color: #f0fdf4 !important;
+  border-color: #86efac !important;
+  color: #166534 !important;
+}
+body.light-mode #feCherryErrorBox,
+body.light-mode #beCherryErrorBox {
+  background-color: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+  color: #991b1b !important;
+}
+body.light-mode #feCherryCommitMsgInput,
+body.light-mode #beCherryCommitMsgInput {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #feMergeSuccessBox,
+body.light-mode #beMergeSuccessBox {
+  background-color: #ffffff !important;
+  border: 1px solid #86efac !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08) !important;
+}
+body.light-mode #feMergeSuccessTitle,
+body.light-mode #beMergeSuccessTitle { color: #166534 !important; }
+body.light-mode #feMergeSuccessText,
+body.light-mode #beMergeSuccessText { color: #1e293b !important; }
+body.light-mode #feMergeReturnBranchWrap,
+body.light-mode #beMergeReturnBranchWrap,
+body.light-mode #feCherryReturnBranchWrap,
+body.light-mode #beCherryReturnBranchWrap {
+  border-top-color: #e2e8f0 !important;
+}
+body.light-mode #feMergeReturnBranchWrap span,
+body.light-mode #beMergeReturnBranchWrap span,
+body.light-mode #feCherryReturnBranchWrap span,
+body.light-mode #beCherryReturnBranchWrap span {
+  color: #166534 !important;
+}
+body.light-mode #feMergeConflictBox,
+body.light-mode #beMergeConflictBox {
+  background-color: #ffffff !important;
+  border: 1px solid #fcd34d !important;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.08) !important;
+}
+body.light-mode #feMergeErrorBox,
+body.light-mode #beMergeErrorBox {
+  background-color: #ffffff !important;
+  border: 1px solid #fecdd3 !important;
+  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.08) !important;
+}
+body.light-mode #feSyncResultBox,
+body.light-mode #beSyncResultBox {
+  background-color: #f0fdf4 !important;
+  border-color: #86efac !important;
+  color: #166534 !important;
+}
+body.light-mode #feSyncResultOutput,
+body.light-mode #beSyncResultOutput {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Branch dropdown menus */
+body.light-mode #feCherryBranchTrigger,
+body.light-mode #feCherrySourceBranchTrigger {
+  background-color: #ffffff !important;
+  border-color: rgba(22, 119, 255, 0.5) !important;
+  color: #0958d9 !important;
+}
+body.light-mode #beCherryBranchTrigger,
+body.light-mode #beCherrySourceBranchTrigger {
+  background-color: #ffffff !important;
+  border-color: rgba(16, 185, 129, 0.5) !important;
+  color: #059669 !important;
+}
+body.light-mode #feCherryBranchDropdownMenu,
+body.light-mode #beCherryBranchDropdownMenu,
+body.light-mode #feCherrySourceBranchDropdownMenu,
+body.light-mode #beCherrySourceBranchDropdownMenu,
+body.light-mode #feMergeTargetDropdownMenu,
+body.light-mode #beMergeTargetDropdownMenu,
+body.light-mode #feMergeSourceDropdownMenu,
+body.light-mode #beMergeSourceDropdownMenu {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+body.light-mode #feCherryBranchSearchInput,
+body.light-mode #beCherryBranchSearchInput,
+body.light-mode #feCherrySourceBranchSearchInput,
+body.light-mode #beCherrySourceBranchSearchInput,
+body.light-mode #feMergeTargetSearchInput,
+body.light-mode #beMergeTargetSearchInput,
+body.light-mode #feMergeSourceSearchInput,
+body.light-mode #beMergeSourceSearchInput {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+body.light-mode .cherry-branch-opt,
+body.light-mode .merge-branch-opt {
+  color: #334155 !important;
+}
+body.light-mode .cherry-branch-opt:hover,
+body.light-mode .merge-branch-opt:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+body.light-mode .cherry-branch-opt.active-branch,
+body.light-mode .merge-branch-opt.active-branch {
+  background-color: rgba(22, 119, 255, 0.12) !important;
+  color: #0958d9 !important;
+  font-weight: 700 !important;
+}
+
+body.dark-mode #feCherryBranchDropdownMenu,
+body.dark-mode #beCherryBranchDropdownMenu,
+body.dark-mode #feCherrySourceBranchDropdownMenu,
+body.dark-mode #beCherrySourceBranchDropdownMenu,
+body.dark-mode #feMergeTargetDropdownMenu,
+body.dark-mode #beMergeTargetDropdownMenu,
+body.dark-mode #feMergeSourceDropdownMenu,
+body.dark-mode #beMergeSourceDropdownMenu {
+  background-color: #101e38 !important;
+  border-color: #244170 !important;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5) !important;
+}
+body.dark-mode #feCherryBranchSearchInput,
+body.dark-mode #beCherryBranchSearchInput,
+body.dark-mode #feCherrySourceBranchSearchInput,
+body.dark-mode #beCherrySourceBranchSearchInput,
+body.dark-mode #feMergeTargetSearchInput,
+body.dark-mode #beMergeTargetSearchInput,
+body.dark-mode #feMergeSourceSearchInput,
+body.dark-mode #beMergeSourceSearchInput {
+  background-color: #0e192c !important;
+  border-color: #244170 !important;
+  color: #f1f5f9 !important;
+}
+body.dark-mode .cherry-branch-opt,
+body.dark-mode .merge-branch-opt {
+  color: #cbd5e1 !important;
+}
+body.dark-mode .cherry-branch-opt:hover,
+body.dark-mode .merge-branch-opt:hover {
+  background-color: #182c4f !important;
+  color: #ffffff !important;
+}
+body.dark-mode .cherry-branch-opt.active-branch,
+body.dark-mode .merge-branch-opt.active-branch {
+  background-color: rgba(6, 182, 212, 0.2) !important;
+  color: #38bdf8 !important;
+  font-weight: 700 !important;
+}
+
+body.light-mode #feCherryTopBranch {
+  background-color: rgba(22, 119, 255, 0.1) !important;
+  border-color: rgba(22, 119, 255, 0.35) !important;
+  color: #0958d9 !important;
+}
+body.light-mode #beCherryTopBranch {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  color: #059669 !important;
+}
+
+/* ====================================================================
+   VS CODE THEME FOR GIT DIFFSTAT / MERGE LOG OUTPUT
+   ==================================================================== */
+.vscode-git-output,
+#feMergeSuccessLogText,
+#beMergeSuccessLogText,
+#feMergeConflictLogText,
+#beMergeConflictLogText {
+  background-color: #1e1e1e !important;
+  border: 1px solid #333333 !important;
+  color: #d4d4d4 !important;
+  font-family: "JetBrains Mono", Consolas, "Courier New", monospace !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+  border-radius: 6px !important;
+  line-height: 1.6 !important;
+  padding: 10px 12px !important;
+}
+.vscode-git-file { color: #9cdcfe !important; }
+.vscode-git-pipe { color: #64748b !important; font-weight: bold; }
+.vscode-git-num { color: #dcdcaa !important; font-weight: 600; }
+.vscode-git-add { color: #4ec9b0 !important; }
+.vscode-git-del { color: #f14c4c !important; }
+.vscode-git-files { color: #d4d4d4 !important; }
+.vscode-git-strategy { color: #c586c0 !important; }
+.vscode-git-info { color: #858585 !important; }
+.vscode-git-keyword { color: #569cd6 !important; }
+.vscode-git-hash { color: #b5cea8 !important; }
+.vscode-git-conflict { color: #f14c4c !important; }
+.vscode-git-muted { color: #858585 !important; }
+
+body.light-mode .vscode-git-output,
+body.light-mode #feMergeSuccessLogText,
+body.light-mode #beMergeSuccessLogText,
+body.light-mode #feMergeConflictLogText,
+body.light-mode #beMergeConflictLogText {
+  background-color: #f6f8fa !important;
+  border: 1px solid #d0d7de !important;
+  color: #24292f !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode .vscode-git-file { color: #0969da !important; }
+body.light-mode .vscode-git-pipe { color: #8c959f !important; font-weight: bold; }
+body.light-mode .vscode-git-num { color: #953800 !important; font-weight: 600; }
+body.light-mode .vscode-git-add { color: #1a7f37 !important; }
+body.light-mode .vscode-git-del { color: #cf222e !important; }
+body.light-mode .vscode-git-files { color: #24292f !important; }
+body.light-mode .vscode-git-strategy { color: #8250df !important; }
+body.light-mode .vscode-git-info { color: #57606a !important; }
+body.light-mode .vscode-git-keyword { color: #0550ae !important; }
+body.light-mode .vscode-git-hash { color: #116329 !important; }
+body.light-mode .vscode-git-conflict { color: #cf222e !important; }
+body.light-mode .vscode-git-muted { color: #6e7781 !important; }
+
+
+/* ====================================================================
+   MODULE CSS: ARCHITECTURE LINKAGE DIAGRAM & TREE VIEW
+   Tệp styling chuyên biệt cho tab Sơ đồ liên kết (Mermaid) và Sơ đồ Tree
+   ==================================================================== */
+
+/* ====================================================================
+   MERMAID ARCHITECTURE DIAGRAM
+   ==================================================================== */
+#mermaidDiagram svg {
+  max-width: none !important;
+  overflow: visible !important;
+  font-family: 'Be Vietnam Pro', Inter, system-ui, -apple-system, sans-serif !important;
+}
+#mermaidDiagram svg text {
+  font-family: 'Be Vietnam Pro', Inter, system-ui, -apple-system, sans-serif !important;
+  letter-spacing: 0.01em !important;
+}
+
+#mermaidDiagram svg .cluster rect {
+  rx: 10px !important;
+  ry: 10px !important;
+  stroke-width: 1.5px !important;
+  transition: all 0.2s ease !important;
+}
+body.dark-mode #mermaidDiagram svg .cluster rect {
+  fill: #0c182d !important;
+  stroke: #244170 !important;
+}
+body.dark-mode #mermaidDiagram svg .cluster text {
+  fill: #f1f5f9 !important;
+  font-weight: 700 !important;
+  font-size: 13.5px !important;
+}
+
+body.light-mode #mermaidDiagram {
+  background-color: #ffffff !important;
+}
+body.light-mode .absolute.top-3.right-3 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+body.dark-mode #mermaidDiagram {
+  background-color: #0d1726 !important;
+}
+body.dark-mode .absolute.top-3.right-3 {
+  background-color: rgba(16, 30, 56, 0.95) !important;
+  border-color: #244170 !important;
+}
+
+/* Animations for Diagram Link Lines */
+@keyframes arrowStreamDash {
+  0% { stroke-dashoffset: 56; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes arrowTipGlowFeApi {
+  0%, 55%, 100% {
+    stroke: rgba(56, 189, 248, 0.45);
+    filter: none;
+  }
+  72%, 92% {
+    stroke: #a855f7;
+    filter: drop-shadow(0 0 4px rgba(168, 85, 247, 0.85));
+  }
+}
+@keyframes arrowTipGlowApiBe {
+  0%, 55%, 100% {
+    stroke: rgba(168, 85, 247, 0.45);
+    filter: none;
+  }
+  72%, 92% {
+    stroke: #10b981;
+    filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.85));
+  }
+}
+.arrow-stream-line {
+  stroke-dasharray: 28 28;
+  animation: arrowStreamDash 1.2s linear infinite;
+}
+.arrow-head-fe-api {
+  animation: arrowTipGlowFeApi 1.2s linear infinite;
+}
+.arrow-head-api-be {
+  animation: arrowTipGlowApiBe 1.2s linear infinite;
+}
+
+/* ====================================================================
+   DIAGRAM FLOW GRID (TRẢI RỘNG 3 CỘT: FRONTEND ↔ API ↔ BACKEND)
+   ==================================================================== */
+.diagram-flow-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1.4fr) 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+.diagram-flow-arrow {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 0.125rem !important;
+  user-select: none !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+.diagram-flow-spacer {
+  display: block !important;
+  width: 100% !important;
+}
+@media (max-width: 1023px) {
+  .diagram-flow-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0.5rem;
+  }
+  .diagram-flow-arrow,
+  .diagram-flow-spacer {
+    display: none !important;
+  }
+}
+@media (min-width: 1024px) {
+  .diagram-flow-header {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1.4fr) 52px minmax(0, 1fr);
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+  }
+}
+.diagram-flow-header {
+  display: none;
+}
+.diagram-col-box {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  gap: 0.625rem;
+}
+
+/* ====================================================================
+   SƠ ĐỒ CÂY 4 CẤP (TREE VIEW)
+   ==================================================================== */
+.tree-node {
+  transition: all 0.18s ease-in-out;
+}
+.tree-module {
+  background-color: #101e38;
+  border: 1px solid #244170;
+}
+body.light-mode #treeContent .tree-module {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode #treeContent .bg-\[\#0a1220\],
+body.light-mode #treeContent .bg-\[\#0d1726\] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+body.light-mode #treeContent .border-l-2 {
+  border-color: #e2e8f0 !important;
+}
+
+/* Module lookup detail list in light mode */
+body.light-mode #moduleLookupList .bg-\[\#0e192c\],
+body.light-mode #moduleLookupList .bg-\[\#101e38\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+body.light-mode #moduleLookupList .bg-\[\#0b1626\],
+body.light-mode #moduleLookupList .bg-\[\#0b1424\] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+body.light-mode #moduleLookupList .bg-\[\#121c33\] {
+  background-color: #f5f3ff !important;
+  border-color: #ddd6fe !important;
+}
+body.light-mode #moduleLookupList .text-cyan-300,
+body.light-mode #moduleLookupList .text-cyan-400 {
+  color: #0284c7 !important;
+}
+body.light-mode #moduleLookupList .text-emerald-300,
+body.light-mode #moduleLookupList .text-emerald-400 {
+  color: #059669 !important;
+}
+body.light-mode #moduleLookupList .text-purple-200,
+body.light-mode #moduleLookupList .text-purple-300 {
+  color: #6b21a8 !important;
+}
+
+
+/* ====================================================================
+   MODULE CSS: SETTINGS & MODEL CONFIGURATION
+   Tệp styling chuyên biệt cho tab Cài đặt (Effort, Engine, Model, API, Env)
+   Quy tắc AGENTS.md: Background active LUÔN LÀ MÀU XANH DƯƠNG (#1677ff),
+   chữ trắng, font-sans đồng bộ, không dùng màu tối hay emoji rườm rà.
+   ==================================================================== */
+
+/* ============================================================
+   SETTINGS SIDEBAR NAVIGATION BUTTONS
+   ============================================================ */
+.settings-sidebar-btn {
+  transition: all 0.15s ease-in-out;
+  font-family: inherit;
+}
+.settings-sidebar-btn:not(.is-active) {
+  background-color: #0c1628 !important;
+  border: 1px solid rgba(36, 65, 112, 0.45) !important;
+  color: #94a3b8 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18) !important;
+}
+.settings-sidebar-btn:not(.is-active):hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+.settings-sidebar-btn:not(.is-active) .settings-nav-badge {
+  background-color: #182c4f !important;
+  color: #94a3b8 !important;
+}
+.settings-sidebar-btn:not(.is-active) .settings-nav-desc {
+  color: #64748b !important;
+}
+
+body.light-mode .settings-sidebar-btn:not(.is-active) {
+  background-color: #ffffff !important;
+  border: 1px solid #dbe2ea !important;
+  color: #475569 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode .settings-sidebar-btn:not(.is-active):hover {
+  background-color: #ffffff !important;
+  border-color: #1677ff !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08) !important;
+}
+body.light-mode .settings-sidebar-btn:not(.is-active) .settings-nav-desc {
+  color: #64748b !important;
+}
+
+/* Active Sidebar Tab: Nền LUÔN LUÔN là màu xanh (#1677ff) phẳng */
+.settings-sidebar-btn.is-active,
+body.light-mode .settings-sidebar-btn.is-active,
+body.dark-mode .settings-sidebar-btn.is-active {
+  background-color: #1677ff !important;
+  background-image: none !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.35) !important;
+}
+.settings-sidebar-btn.is-active *,
+body.light-mode .settings-sidebar-btn.is-active *,
+body.dark-mode .settings-sidebar-btn.is-active * {
+  color: #ffffff !important;
+}
+.settings-sidebar-btn.is-active .settings-nav-desc,
+body.light-mode .settings-sidebar-btn.is-active .settings-nav-desc {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+.settings-sidebar-btn.is-active .settings-nav-badge,
+body.light-mode .settings-sidebar-btn.is-active .settings-nav-badge {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  color: #ffffff !important;
+}
+
+/* ============================================================
+   AI EXECUTION ENGINE CARDS (Gemini CLI / OpenCode)
+   ============================================================ */
+.engine-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-width: 1.5px;
+}
+.engine-card:not(.is-active) {
+  background-color: #0c1628;
+  border-color: #244170;
+  color: #94a3b8;
+}
+.engine-card:not(.is-active) .engine-card-title { color: #ffffff; }
+.engine-card:not(.is-active) .engine-card-sub { color: #64748b; }
+.engine-card:not(.is-active) .engine-card-desc { color: #94a3b8; }
+.engine-card:not(.is-active) .engine-card-footer {
+  border-top-color: rgba(36, 65, 112, 0.5);
+  color: #64748b;
+}
+.engine-card:not(.is-active) .engine-card-status { color: #10b981; }
+.engine-card:not(.is-active) .engine-card-badge {
+  background-color: #082f49;
+  border: 1px solid #0369a1;
+  color: #38bdf8;
+}
+.engine-card:not(.is-active) .engine-code {
+  background-color: #081222;
+  color: #38bdf8;
+}
+
+body.light-mode .engine-card:not(.is-active) {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+body.light-mode .engine-card:not(.is-active):hover {
+  border-color: #1677ff !important;
+  background-color: #f8fafc !important;
+  box-shadow: 0 4px 12px 0 rgba(22, 119, 255, 0.1);
+}
+body.light-mode .engine-card:not(.is-active) .engine-card-title { color: #0f172a !important; }
+body.light-mode .engine-card:not(.is-active) .engine-card-sub { color: #64748b !important; }
+body.light-mode .engine-card:not(.is-active) .engine-card-desc { color: #475569 !important; }
+body.light-mode .engine-card:not(.is-active) .engine-card-footer {
+  border-top-color: #e2e8f0 !important;
+  color: #64748b !important;
+}
+body.light-mode .engine-card:not(.is-active) .engine-card-status { color: #059669 !important; }
+body.light-mode .engine-card:not(.is-active) .engine-card-badge {
+  background-color: #f0fdf4 !important;
+  border: 1px solid #bbf7d0 !important;
+  color: #15803d !important;
+}
+body.light-mode .engine-card:not(.is-active) .engine-code {
+  background-color: #f1f5f9 !important;
+  color: #0284c7 !important;
+}
+
+/* ACTIVE Engine Card - Nền xanh Ant Design (#1677ff), Chữ màu trắng */
+.engine-card.is-active,
+body.light-mode .engine-card.is-active,
+body.dark-mode .engine-card.is-active {
+  background-color: #1677ff !important;
+  background-image: none !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.3) !important;
+}
+.engine-card.is-active *,
+body.light-mode .engine-card.is-active *,
+body.dark-mode .engine-card.is-active * {
+  color: #ffffff !important;
+}
+.engine-card.is-active .engine-card-sub,
+body.light-mode .engine-card.is-active .engine-card-sub {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+.engine-card.is-active .engine-card-desc,
+body.light-mode .engine-card.is-active .engine-card-desc {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+.engine-card.is-active .engine-card-footer,
+body.light-mode .engine-card.is-active .engine-card-footer {
+  border-top-color: rgba(255, 255, 255, 0.3) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+.engine-card.is-active .engine-card-badge,
+body.light-mode .engine-card.is-active .engine-card-badge {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  color: #0958d9 !important;
+  font-weight: 700 !important;
+}
+.engine-card.is-active .engine-card-badge *,
+body.light-mode .engine-card.is-active .engine-card-badge * {
+  color: #0958d9 !important;
+}
+.engine-card.is-active .engine-card-status,
+body.light-mode .engine-card.is-active .engine-card-status {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+.engine-card.is-active .engine-code,
+body.light-mode .engine-card.is-active .engine-code {
+  background-color: rgba(0, 0, 0, 0.25) !important;
+  color: #ffffff !important;
+}
+.engine-card.is-active input[type="radio"],
+body.light-mode .engine-card.is-active input[type="radio"] {
+  accent-color: #ffffff !important;
+  outline: 2px solid #ffffff !important;
+  outline-offset: 1px !important;
+}
+
+/* ============================================================
+   REASONING EFFORT CARDS (MỨC ĐỘ SUY LUẬN)
+   ============================================================ */
+.effort-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-width: 1.5px;
+}
+.effort-card:not(.is-active) {
+  background-color: #0c1628;
+  border-color: #244170;
+  color: #94a3b8;
+}
+.effort-card:not(.is-active) .effort-card-title { color: #e2e8f0; }
+.effort-card:not(.is-active) .effort-card-desc { color: #94a3b8; }
+.effort-card:not(.is-active) .effort-card-badge {
+  background-color: #082f49;
+  border: 1px solid #0369a1;
+  color: #38bdf8;
+}
+
+body.light-mode .effort-card:not(.is-active) {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+body.light-mode .effort-card:not(.is-active):hover {
+  border-color: #1677ff !important;
+  background-color: #f8fafc !important;
+  box-shadow: 0 4px 12px 0 rgba(22, 119, 255, 0.1);
+}
+body.light-mode .effort-card:not(.is-active) .effort-card-title { color: #0f172a !important; }
+body.light-mode .effort-card:not(.is-active) .effort-card-desc { color: #475569 !important; }
+body.light-mode .effort-card:not(.is-active) .effort-card-badge {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+/* ACTIVE Effort Card - Nền xanh (#1677ff), Chữ màu trắng */
+.effort-card.is-active,
+body.light-mode .effort-card.is-active,
+body.dark-mode .effort-card.is-active {
+  background-color: #1677ff !important;
+  background-image: none !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.3) !important;
+}
+.effort-card.is-active *,
+body.light-mode .effort-card.is-active *,
+body.dark-mode .effort-card.is-active * {
+  color: #ffffff !important;
+}
+.effort-card.is-active .effort-card-desc,
+body.light-mode .effort-card.is-active .effort-card-desc {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+.effort-card.is-active .effort-card-badge,
+body.light-mode .effort-card.is-active .effort-card-badge {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  color: #ffffff !important;
+}
+.effort-card.is-active input[type="radio"],
+body.light-mode .effort-card.is-active input[type="radio"] {
+  accent-color: #ffffff !important;
+}
+
+/* ============================================================
+   MODEL FAMILY TABS (GEMINI / CLAUDE / OPENAI)
+   ============================================================ */
+.model-family-tab {
+  transition: all 0.15s ease-in-out;
+  font-family: inherit;
+}
+.model-family-tab:not(.is-active) {
+  background-color: #0c1628;
+  border: 1px solid #244170;
+  color: #94a3b8;
+}
+.model-family-tab:not(.is-active):hover {
+  border-color: #1677ff;
+  color: #ffffff;
+}
+.model-family-tab:not(.is-active) .tab-pill {
+  background-color: rgba(36, 65, 112, 0.5);
+  color: #94a3b8;
+}
+
+body.light-mode .model-family-tab:not(.is-active) {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+body.light-mode .model-family-tab:not(.is-active):hover {
+  border-color: #1677ff !important;
+  color: #0f172a !important;
+  background-color: #e2e8f0 !important;
+}
+body.light-mode .model-family-tab:not(.is-active) .tab-pill {
+  background-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+.model-family-tab.is-active,
+body.light-mode .model-family-tab.is-active {
+  background-color: #1677ff !important;
+  background-image: none !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.35) !important;
+}
+.model-family-tab.is-active *,
+body.light-mode .model-family-tab.is-active * {
+  color: #ffffff !important;
+}
+.model-family-tab.is-active .tab-pill,
+body.light-mode .model-family-tab.is-active .tab-pill {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
+}
+
+/* ============================================================
+   API PROVIDER SELECTION BUTTONS
+   ============================================================ */
+.api-provider-btn {
+  transition: all 0.15s ease-in-out;
+  font-family: inherit;
+}
+.api-provider-btn:not(.is-active) {
+  background-color: #0c1628;
+  border: 1px solid #244170;
+  color: #94a3b8;
+}
+.api-provider-btn:not(.is-active):hover {
+  border-color: #1677ff;
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.04);
+}
+body.light-mode .api-provider-btn:not(.is-active) {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+body.light-mode .api-provider-btn:not(.is-active):hover {
+  border-color: #1677ff !important;
+  color: #0f172a !important;
+  background-color: #e2e8f0 !important;
+}
+.api-provider-btn.is-active,
+body.light-mode .api-provider-btn.is-active {
+  background-color: #1677ff !important;
+  background-image: none !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.35) !important;
+}
+.api-provider-btn.is-active *,
+body.light-mode .api-provider-btn.is-active * {
+  color: #ffffff !important;
+}
+
+/* ============================================================
+   NÚT LƯU CÀI ĐẶT: SÁNG MÀU XANH (#1677ff) KHI DIRTY
+   ============================================================ */
+#btnSaveSettingsPage.is-dirty,
+body.light-mode #btnSaveSettingsPage.is-dirty,
+body.dark-mode #btnSaveSettingsPage.is-dirty {
+  background-color: #1677ff !important;
+  background-image: none !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.35) !important;
+  cursor: pointer !important;
+  opacity: 1 !important;
+}
+#btnSaveSettingsPage.is-dirty:hover,
+body.light-mode #btnSaveSettingsPage.is-dirty:hover,
+body.dark-mode #btnSaveSettingsPage.is-dirty:hover {
+  background-color: #4096ff !important;
+  border-color: #4096ff !important;
+  color: #ffffff !important;
+}
+#btnSaveSettingsPage.is-dirty *,
+body.light-mode #btnSaveSettingsPage.is-dirty *,
+body.dark-mode #btnSaveSettingsPage.is-dirty * {
+  color: #ffffff !important;
+}
+body.light-mode #btnSaveSettingsPage:not(.is-dirty) {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+body.light-mode #btnSaveSettingsPage:not(.is-dirty) * {
+  color: #94a3b8 !important;
+}
+body.dark-mode #btnSaveSettingsPage:not(.is-dirty),
+#btnSaveSettingsPage:not(.is-dirty) {
+  background-color: rgba(51, 65, 85, 0.6) !important;
+  border-color: rgba(71, 85, 105, 0.5) !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+body.dark-mode #btnSaveSettingsPage:not(.is-dirty) *,
+#btnSaveSettingsPage:not(.is-dirty) * {
+  color: #94a3b8 !important;
+}
+
+
+/* ====================================================================
+   MODULE CSS: HISTORY LOGS & TIMELINE
+   Tệp styling chuyên biệt cho tab Lịch sử hoạt động và Log Item
+   ==================================================================== */
+
+/* ====================================================================
+   LOG LIST CONTAINER & CARDS
+   ==================================================================== */
+body.light-mode #logListContainer > div {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode #logListContainer > div:hover {
+  border-color: #1677ff !important;
+  box-shadow: 0 4px 8px -1px rgba(22, 119, 255, 0.12) !important;
+}
+
+/* Log item active border màu xanh hệ thống khi mở xem chi tiết */
+.log-item-card.log-item-active,
+body.light-mode .log-item-card.log-item-active,
+body.dark-mode .log-item-card.log-item-active {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 1px #1677ff, 0 2px 8px rgba(22, 119, 255, 0.15) !important;
+}
+
+/* ====================================================================
+   LOG FILTER BUTTONS (All, Task, Git)
+   ==================================================================== */
+#logFilter_all.active-log-filter,
+#logFilter_TASK.active-log-filter,
+#logFilter_GIT.active-log-filter,
+body.light-mode #logFilter_all.active-log-filter,
+body.light-mode #logFilter_TASK.active-log-filter,
+body.light-mode #logFilter_GIT.active-log-filter,
+body.dark-mode #logFilter_all.active-log-filter,
+body.dark-mode #logFilter_TASK.active-log-filter,
+body.dark-mode #logFilter_GIT.active-log-filter {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+#logFilter_all.active-log-filter *,
+#logFilter_TASK.active-log-filter *,
+#logFilter_GIT.active-log-filter *,
+body.light-mode #logFilter_all.active-log-filter *,
+body.light-mode #logFilter_TASK.active-log-filter *,
+body.light-mode #logFilter_GIT.active-log-filter *,
+body.dark-mode #logFilter_all.active-log-filter *,
+body.dark-mode #logFilter_TASK.active-log-filter *,
+body.dark-mode #logFilter_GIT.active-log-filter * {
+  color: #ffffff !important;
+}
+
+body.light-mode #view_log button[id^="logFilter_"]:not(.active-log-filter) {
+  color: #475569 !important;
+}
+body.light-mode #view_log button[id^="logFilter_"]:not(.active-log-filter):hover {
+  color: #0f172a !important;
+  background-color: rgba(226, 232, 240, 0.6) !important;
+}
+body.dark-mode #view_log button[id^="logFilter_"]:not(.active-log-filter) {
+  color: #cbd5e1 !important;
+}
+body.dark-mode #view_log button[id^="logFilter_"]:not(.active-log-filter):hover {
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ====================================================================
+   LOG ITEM DELETE BUTTON
+   ==================================================================== */
+.log-item-delete-btn,
+body.light-mode .log-item-delete-btn,
+body.dark-mode .log-item-delete-btn {
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(239, 68, 68, 0.5) !important;
+}
+.log-item-delete-btn:hover,
+body.light-mode .log-item-delete-btn:hover,
+body.dark-mode .log-item-delete-btn:hover {
+  background-color: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+.log-item-delete-btn svg,
+.log-item-delete-btn svg *,
+body.light-mode .log-item-delete-btn svg,
+body.light-mode .log-item-delete-btn svg *,
+body.dark-mode .log-item-delete-btn svg,
+body.dark-mode .log-item-delete-btn svg * {
+  stroke: #ffffff !important;
+  color: #ffffff !important;
+}

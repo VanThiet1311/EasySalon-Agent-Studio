@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -e
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$DIR"
+
+# -------------------------------------------------------------
+# 1. Kiểm tra và tự động cài đặt Python 3 nếu chưa có
+# -------------------------------------------------------------
+ensure_python() {
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "⚠️ Không tìm thấy Python 3 trên hệ thống. Đang tiến hành cài đặt..."
+        if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y python3 python3-pip python3-venv
+        elif command -v dnf >/dev/null 2>&1; then
+            sudo dnf install -y python3 python3-pip
+        elif command -v yum >/dev/null 2>&1; then
+            sudo yum install -y python3 python3-pip
+        elif command -v pacman >/dev/null 2>&1; then
+            sudo pacman -Sy --noconfirm python python-pip
+        elif command -v zypper >/dev/null 2>&1; then
+            sudo zypper install -y python3 python3-pip
+        elif command -v apk >/dev/null 2>&1; then
+            sudo apk add --no-cache python3 py3-pip
+        elif command -v brew >/dev/null 2>&1; then
+            brew install python3
+        else
+            echo "❌ Không thể tự động cài đặt Python 3. Vui lòng cài đặt Python 3 thủ công rồi chạy lại script."
+            exit 1
+        fi
+    fi
+}
+
+# -------------------------------------------------------------
+# 2. Kiểm tra và tự động cài đặt các thư viện phụ thuộc (requirements)
+# -------------------------------------------------------------
+ensure_dependencies() {
+    local needs_install=false
+    if ! python3 -c "import telebot" >/dev/null 2>&1; then
+        needs_install=true
+    fi
+
+    if [ "$needs_install" = true ]; then
+        echo "📦 Đang cài đặt các thư viện Python cần thiết (pyTelegramBotAPI...)..."
+        if ! python3 -m pip --version >/dev/null 2>&1; then
+            echo "ℹ️ Đang kích hoạt pip..."
+            python3 -m ensurepip --default-pip >/dev/null 2>&1 || true
+        fi
+
+        if [ -f "$DIR/requirements.txt" ]; then
+            python3 -m pip install -q -r "$DIR/requirements.txt" 2>/dev/null || \
+            python3 -m pip install -q --break-system-packages -r "$DIR/requirements.txt" 2>/dev/null || \
+            python3 -m pip install -q --user -r "$DIR/requirements.txt" 2>/dev/null || \
+            python3 -m pip install -q --user --break-system-packages -r "$DIR/requirements.txt" || {
+                echo "⚠️ Cảnh báo: Không thể cài đặt tự động qua pip. Thử cài pyTelegramBotAPI trực tiếp..."
+                python3 -m pip install -q pyTelegramBotAPI --break-system-packages 2>/dev/null || true
+            }
+        else
+            python3 -m pip install -q pyTelegramBotAPI --break-system-packages 2>/dev/null || \
+            python3 -m pip install -q --user pyTelegramBotAPI 2>/dev/null || true
+        fi
+        echo "✅ Đã nạp xong thư viện phụ thuộc."
+    fi
+}
+
+ensure_python
+ensure_dependencies
+
+# Nếu không truyền tham số hoặc truyền cờ (--watch, -w, --port...), mặc định mở Web Studio UI kèm Auto-Watch Hot Reload
+if [ $# -eq 0 ]; then
+    echo "🚀 Đang khởi động EasySalon Web Studio (Auto-Watch Hot Reload) tại http://localhost:8765 ..."
+    exec python3 "$DIR/bridge.py" web --watch
+elif [[ "$1" == -* ]]; then
+    echo "🚀 Đang khởi động EasySalon Web Studio (Auto-Watch Hot Reload) tại http://localhost:8765 ..."
+    exec python3 "$DIR/bridge.py" web --watch "$@"
+else
+    exec python3 "$DIR/bridge.py" "$@"
+fi

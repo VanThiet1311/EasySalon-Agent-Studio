@@ -1,0 +1,705 @@
+/* ====================================================================
+   MODULE CSS: GIT CONTROL (PULL SYNC, BRANCH, CHERRY-PICK, MERGE)
+   Tệp styling chuyên biệt cho các tính năng Quản lý Git & Conflict
+   ==================================================================== */
+
+/* ====================================================================
+   GIT SUBTAB BUTTONS (Active background #1677ff, text white)
+   ==================================================================== */
+#gitSubTabBtn_branch.active-git-subtab,
+#gitSubTabBtn_cherry_pick.active-git-subtab,
+#gitSubTabBtn_pull_sync.active-git-subtab,
+#gitSubTabBtn_merge.active-git-subtab,
+body.light-mode #gitSubTabBtn_branch.active-git-subtab,
+body.light-mode #gitSubTabBtn_cherry_pick.active-git-subtab,
+body.light-mode #gitSubTabBtn_pull_sync.active-git-subtab,
+body.light-mode #gitSubTabBtn_merge.active-git-subtab,
+body.dark-mode #gitSubTabBtn_branch.active-git-subtab,
+body.dark-mode #gitSubTabBtn_cherry_pick.active-git-subtab,
+body.dark-mode #gitSubTabBtn_pull_sync.active-git-subtab,
+body.dark-mode #gitSubTabBtn_merge.active-git-subtab {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+#gitSubTabBtn_branch.active-git-subtab *,
+#gitSubTabBtn_cherry_pick.active-git-subtab *,
+#gitSubTabBtn_pull_sync.active-git-subtab *,
+#gitSubTabBtn_merge.active-git-subtab *,
+body.light-mode #gitSubTabBtn_branch.active-git-subtab *,
+body.light-mode #gitSubTabBtn_cherry_pick.active-git-subtab *,
+body.light-mode #gitSubTabBtn_pull_sync.active-git-subtab *,
+body.light-mode #gitSubTabBtn_merge.active-git-subtab *,
+body.dark-mode #gitSubTabBtn_branch.active-git-subtab *,
+body.dark-mode #gitSubTabBtn_cherry_pick.active-git-subtab *,
+body.dark-mode #gitSubTabBtn_pull_sync.active-git-subtab *,
+body.dark-mode #gitSubTabBtn_merge.active-git-subtab * {
+  color: #ffffff !important;
+}
+
+body.light-mode #gitSubTabBtn_branch,
+body.light-mode #gitSubTabBtn_cherry_pick,
+body.light-mode #gitSubTabBtn_pull_sync,
+body.light-mode #gitSubTabBtn_merge {
+  border: 1px solid #cbd5e1 !important;
+}
+
+/* Nút Làm mới: Không đổi màu khi hover */
+#btnRefreshGit {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+#btnRefreshGit:hover,
+#btnRefreshGit:focus,
+#btnRefreshGit:active {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Nút quay về nhánh trước đó */
+body.light-mode #btnPrevFe, 
+body.light-mode #btnPrevBe {
+  background-color: rgba(22, 119, 255, 0.08) !important;
+  border-color: rgba(22, 119, 255, 0.35) !important;
+  color: #1677ff !important;
+}
+body.light-mode #btnPrevFe:hover, 
+body.light-mode #btnPrevBe:hover {
+  background-color: rgba(22, 119, 255, 0.16) !important;
+  border-color: #1677ff !important;
+  color: #0958d9 !important;
+}
+body.light-mode #fePrevBranchLabel, 
+body.light-mode #bePrevBranchLabel {
+  color: #1677ff !important;
+}
+
+body.dark-mode #btnPrevFe, 
+body.dark-mode #btnPrevBe {
+  background-color: #182c4f !important;
+  border-color: #2e528f !important;
+  color: #38bdf8 !important;
+}
+body.dark-mode #btnPrevFe:hover, 
+body.dark-mode #btnPrevBe:hover {
+  background-color: #244170 !important;
+  color: #ffffff !important;
+}
+
+/* Hộp thông báo kết quả Git action */
+body.light-mode #gitActionAlert {
+  background-color: rgba(22, 119, 255, 0.08) !important;
+  border-color: #1677ff !important;
+  color: #0369a1 !important;
+}
+body.dark-mode #gitActionAlert {
+  background-color: rgba(36, 65, 112, 0.3) !important;
+  border-color: #244170 !important;
+  color: #38bdf8 !important;
+}
+
+/* Pull Staging / Master - nút không đổi màu khi hover */
+.btn-pull-no-hover {
+  transition: none !important;
+  cursor: pointer;
+  outline: none !important;
+}
+.btn-pull-no-hover:hover,
+.btn-pull-no-hover:active,
+.btn-pull-no-hover:focus {
+  filter: none !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+.btn-pull-staging-theme,
+.btn-pull-master-theme,
+.btn-pull-beta-theme,
+[id^="btnFePull"],
+[id^="btnBePull"] {
+  background-color: #1677ff !important;
+  border: 1px solid #1677ff !important;
+  color: #ffffff !important;
+  border-radius: 6px !important;
+}
+.btn-pull-staging-theme:hover,
+.btn-pull-staging-theme:active,
+.btn-pull-staging-theme:focus,
+.btn-pull-master-theme:hover,
+.btn-pull-master-theme:active,
+.btn-pull-master-theme:focus {
+  background-color: #1677ff !important;
+  border: 1px solid #1677ff !important;
+  color: #ffffff !important;
+}
+
+/* Badge Đồng bộ Git (Pull) */
+.badge-git-sync-pull,
+body.dark-mode .badge-git-sync-pull {
+  background-color: rgba(22, 119, 255, 0.18) !important;
+  border: 1px solid rgba(22, 119, 255, 0.45) !important;
+  color: #38bdf8 !important;
+}
+body.light-mode .badge-git-sync-pull {
+  background-color: #f0f9ff !important;
+  border: 1px solid #bae6fd !important;
+  color: #0284c7 !important;
+}
+
+/* Commits preview box trong Pull Staging / Master */
+.commit-item-card {
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+.commit-item-card:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+.commit-detail-box {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+.sync-file-item {
+  background-color: rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+.sync-file-path {
+  color: #38bdf8 !important;
+  transition: color 0.15s ease;
+}
+.sync-diff-wrapper {
+  background-color: #1e1e1e !important;
+  border: 1px solid #333333 !important;
+  border-radius: 6px !important;
+  max-height: 520px !important;
+  min-height: 140px;
+  overflow: auto !important;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Enforce dark simulated VS Code code editor theme even in Light Mode */
+body.light-mode .sync-diff-wrapper {
+  background-color: #1e1e1e !important;
+  border: 1px solid #333333 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+.sync-diff-wrapper .git-diff-container,
+.sync-diff-wrapper .vscode-diff-editor,
+body.light-mode .sync-diff-wrapper .git-diff-container,
+body.light-mode .sync-diff-wrapper .vscode-diff-editor {
+  background-color: #1e1e1e !important;
+  border: none !important;
+  border-radius: 0 !important;
+  color: #d4d4d4 !important;
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace !important;
+  font-size: 11.5px !important;
+  line-height: 1.6 !important;
+}
+
+.sync-diff-wrapper .git-diff-hunk,
+body.light-mode .sync-diff-wrapper .git-diff-hunk {
+  background-color: #252526 !important;
+  color: #569cd6 !important;
+  border-top: 1px solid #333333 !important;
+  border-bottom: 1px solid #333333 !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+.sync-diff-wrapper .git-diff-row,
+body.light-mode .sync-diff-wrapper .git-diff-row {
+  display: flex !important;
+  align-items: stretch !important;
+  min-width: 100% !important;
+  width: max-content !important;
+  font-family: 'JetBrains Mono', Consolas, monospace !important;
+}
+
+.sync-diff-wrapper .git-diff-row:hover,
+body.light-mode .sync-diff-wrapper .git-diff-row:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.sync-diff-wrapper .git-diff-ln,
+body.light-mode .sync-diff-wrapper .git-diff-ln {
+  width: 42px !important;
+  min-width: 42px !important;
+  padding: 0 8px !important;
+  text-align: right !important;
+  user-select: none !important;
+  font-size: 11px !important;
+  color: #858585 !important;
+  border-right: 1px solid #2d2d2d !important;
+  background-color: #1e1e1e !important;
+}
+
+.sync-diff-wrapper .git-diff-sign,
+body.light-mode .sync-diff-wrapper .git-diff-sign {
+  width: 22px !important;
+  min-width: 22px !important;
+  text-align: center !important;
+  user-select: none !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  color: #858585 !important;
+}
+
+.sync-diff-wrapper .git-diff-code,
+body.light-mode .sync-diff-wrapper .git-diff-code {
+  padding: 0 14px 0 6px !important;
+  white-space: pre !important;
+  flex: 1 !important;
+  font-family: 'JetBrains Mono', Consolas, monospace !important;
+  color: #d4d4d4 !important;
+}
+
+.sync-diff-wrapper .git-diff-ctx .git-diff-code,
+body.light-mode .sync-diff-wrapper .git-diff-ctx .git-diff-code {
+  color: #d4d4d4 !important;
+}
+
+.sync-diff-wrapper .git-diff-add,
+body.light-mode .sync-diff-wrapper .git-diff-add {
+  background-color: rgba(46, 160, 67, 0.18) !important;
+  border-left: 3px solid #2ea043 !important;
+}
+.sync-diff-wrapper .git-diff-add .git-diff-ln,
+body.light-mode .sync-diff-wrapper .git-diff-add .git-diff-ln {
+  background-color: rgba(46, 160, 67, 0.25) !important;
+  color: #73c991 !important;
+}
+.sync-diff-wrapper .git-diff-add .git-diff-sign,
+body.light-mode .sync-diff-wrapper .git-diff-add .git-diff-sign {
+  color: #73c991 !important;
+}
+.sync-diff-wrapper .git-diff-add .git-diff-code,
+body.light-mode .sync-diff-wrapper .git-diff-add .git-diff-code {
+  color: #e6edf3 !important;
+}
+
+.sync-diff-wrapper .git-diff-del,
+body.light-mode .sync-diff-wrapper .git-diff-del {
+  background-color: rgba(248, 81, 73, 0.18) !important;
+  border-left: 3px solid #f85149 !important;
+}
+.sync-diff-wrapper .git-diff-del .git-diff-ln,
+body.light-mode .sync-diff-wrapper .git-diff-del .git-diff-ln {
+  background-color: rgba(248, 81, 73, 0.25) !important;
+  color: #ffa198 !important;
+}
+.sync-diff-wrapper .git-diff-del .git-diff-sign,
+body.light-mode .sync-diff-wrapper .git-diff-del .git-diff-sign {
+  color: #ffa198 !important;
+}
+.sync-diff-wrapper .git-diff-del .git-diff-code,
+body.light-mode .sync-diff-wrapper .git-diff-del .git-diff-code {
+  color: #e6edf3 !important;
+}
+
+.sync-diff-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.sync-diff-wrapper::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+.sync-diff-wrapper::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 4px;
+}
+.sync-diff-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #555555;
+}
+
+.sync-file-view-btn {
+  color: #38bdf8 !important;
+}
+body.light-mode .sync-file-view-btn {
+  color: #0284c7 !important;
+}
+body.light-mode .sync-file-view-btn:hover {
+  background-color: #f0f9ff !important;
+  color: #0369a1 !important;
+}
+
+.sync-diff-view-full-btn {
+  color: #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.3) !important;
+}
+body.light-mode .sync-diff-view-full-btn {
+  color: #0284c7 !important;
+  border-color: #bae6fd !important;
+  background-color: #f0f9ff !important;
+}
+body.light-mode .sync-diff-view-full-btn:hover {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+}
+
+body.light-mode #gitSubView_pull_sync .sync-commits-box {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode .commit-item-card {
+  border: 1px solid #e2e8f0 !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02) !important;
+}
+body.light-mode .commit-item-card:hover {
+  background-color: #f1f5f9 !important;
+}
+body.light-mode .commit-detail-box {
+  background-color: #f8fafc !important;
+  border-top: 1px solid #e2e8f0 !important;
+}
+body.light-mode .sync-file-item {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+}
+body.light-mode .sync-file-path {
+  color: #0958d9 !important;
+  font-weight: 600 !important;
+}
+body.light-mode .sync-file-path:hover {
+  color: #1677ff !important;
+}
+body.light-mode #gitSubView_pull_sync .sync-commits-box .text-amber-300,
+body.light-mode #gitSubView_pull_sync .sync-commits-box .text-amber-200,
+body.light-mode #gitSubView_pull_sync .sync-commit-header {
+  color: #b45309 !important;
+  font-weight: 700 !important;
+}
+body.light-mode #gitSubView_pull_sync .sync-commits-box .text-amber-400 {
+  color: #d97706 !important;
+}
+body.light-mode #gitSubView_pull_sync .sync-commits-box .border-amber-500\/20,
+body.light-mode #gitSubView_pull_sync .sync-commits-box .border-amber-500\/30 {
+  border-color: #fde68a !important;
+}
+body.light-mode #gitSubView_pull_sync .sync-commits-box .bg-cyan-950\/80 {
+  background-color: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border: 1px solid #bfdbfe !important;
+}
+body.light-mode #gitSubView_pull_sync .sync-commits-box .text-cyan-400 {
+  color: #0284c7 !important;
+}
+body.light-mode #gitSubView_pull_sync .sync-commits-box .text-slate-200 { color: #0f172a !important; }
+body.light-mode #gitSubView_pull_sync .sync-commits-box .text-slate-300 { color: #334155 !important; }
+body.light-mode #gitSubView_pull_sync .sync-commits-box .text-slate-400 { color: #64748b !important; }
+body.light-mode #gitSubView_pull_sync .sync-commits-box .hover\:bg-white\/5:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+body.light-mode #syncCheckSummaryBadge {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+/* ====================================================================
+   PULL SYNC & MERGE LIGHT MODE CARDS
+   ==================================================================== */
+body.light-mode #gitSubView_pull_sync .bg-\[\#101e38\],
+body.light-mode #gitSubView_merge .bg-\[\#101e38\],
+body.light-mode #gitSubView_merge .merge-col-card,
+body.light-mode #gitSubView_merge .merge-info-card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+}
+body.light-mode #gitSubView_pull_sync .bg-\[\#0e192c\],
+body.light-mode #gitSubView_merge .bg-\[\#0e192c\],
+body.light-mode #gitSubView_merge .merge-branch-box {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+}
+body.light-mode #gitSubView_merge .border-amber-800\/60,
+body.light-mode #gitSubView_merge .border-cyan-800\/60,
+body.light-mode #gitSubView_merge .border-emerald-800\/60 {
+  border-color: #e2e8f0 !important;
+}
+body.light-mode #gitSubView_merge .bg-amber-950 {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+  border-color: #fde68a !important;
+}
+body.light-mode #gitSubView_merge .bg-cyan-950 {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  border-color: #bae6fd !important;
+}
+body.light-mode #gitSubView_merge .bg-emerald-950 {
+  background-color: #dcfce7 !important;
+  color: #15803d !important;
+  border-color: #bbf7d0 !important;
+}
+body.light-mode #gitSubView_pull_sync .text-slate-100,
+body.light-mode #gitSubView_pull_sync .text-slate-200,
+body.light-mode #gitSubView_merge .text-slate-100,
+body.light-mode #gitSubView_merge .text-slate-200 {
+  color: #0f172a !important;
+}
+body.light-mode #gitSubView_pull_sync .text-slate-300,
+body.light-mode #gitSubView_pull_sync .text-slate-400,
+body.light-mode #gitSubView_merge .text-slate-300,
+body.light-mode #gitSubView_merge .text-slate-400 {
+  color: #475569 !important;
+}
+body.light-mode #gitSubView_merge input[type="text"],
+body.light-mode #gitSubView_merge select {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode #gitSubView_merge .merge-trigger-btn,
+body.light-mode #feMergeSourceTrigger,
+body.light-mode #feMergeTargetTrigger,
+body.light-mode #beMergeSourceTrigger,
+body.light-mode #beMergeTargetTrigger {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode #gitSubView_merge .merge-trigger-btn:hover,
+body.light-mode #feMergeSourceTrigger:hover,
+body.light-mode #feMergeTargetTrigger:hover,
+body.light-mode #beMergeSourceTrigger:hover,
+body.light-mode #beMergeTargetTrigger:hover {
+  border-color: #1677ff !important;
+}
+
+/* Cherry-pick & Merge status boxes */
+body.light-mode #feCherrySuccessBox,
+body.light-mode #beCherrySuccessBox {
+  background-color: #f0fdf4 !important;
+  border-color: #86efac !important;
+  color: #166534 !important;
+}
+body.light-mode #feCherryErrorBox,
+body.light-mode #beCherryErrorBox {
+  background-color: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+  color: #991b1b !important;
+}
+body.light-mode #feCherryCommitMsgInput,
+body.light-mode #beCherryCommitMsgInput {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #feMergeSuccessBox,
+body.light-mode #beMergeSuccessBox {
+  background-color: #ffffff !important;
+  border: 1px solid #86efac !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08) !important;
+}
+body.light-mode #feMergeSuccessTitle,
+body.light-mode #beMergeSuccessTitle { color: #166534 !important; }
+body.light-mode #feMergeSuccessText,
+body.light-mode #beMergeSuccessText { color: #1e293b !important; }
+body.light-mode #feMergeReturnBranchWrap,
+body.light-mode #beMergeReturnBranchWrap,
+body.light-mode #feCherryReturnBranchWrap,
+body.light-mode #beCherryReturnBranchWrap {
+  border-top-color: #e2e8f0 !important;
+}
+body.light-mode #feMergeReturnBranchWrap span,
+body.light-mode #beMergeReturnBranchWrap span,
+body.light-mode #feCherryReturnBranchWrap span,
+body.light-mode #beCherryReturnBranchWrap span {
+  color: #166534 !important;
+}
+body.light-mode #feMergeConflictBox,
+body.light-mode #beMergeConflictBox {
+  background-color: #ffffff !important;
+  border: 1px solid #fcd34d !important;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.08) !important;
+}
+body.light-mode #feMergeErrorBox,
+body.light-mode #beMergeErrorBox {
+  background-color: #ffffff !important;
+  border: 1px solid #fecdd3 !important;
+  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.08) !important;
+}
+body.light-mode #feSyncResultBox,
+body.light-mode #beSyncResultBox {
+  background-color: #f0fdf4 !important;
+  border-color: #86efac !important;
+  color: #166534 !important;
+}
+body.light-mode #feSyncResultOutput,
+body.light-mode #beSyncResultOutput {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Branch dropdown menus */
+body.light-mode #feCherryBranchTrigger,
+body.light-mode #feCherrySourceBranchTrigger {
+  background-color: #ffffff !important;
+  border-color: rgba(22, 119, 255, 0.5) !important;
+  color: #0958d9 !important;
+}
+body.light-mode #beCherryBranchTrigger,
+body.light-mode #beCherrySourceBranchTrigger {
+  background-color: #ffffff !important;
+  border-color: rgba(16, 185, 129, 0.5) !important;
+  color: #059669 !important;
+}
+body.light-mode #feCherryBranchDropdownMenu,
+body.light-mode #beCherryBranchDropdownMenu,
+body.light-mode #feCherrySourceBranchDropdownMenu,
+body.light-mode #beCherrySourceBranchDropdownMenu,
+body.light-mode #feMergeTargetDropdownMenu,
+body.light-mode #beMergeTargetDropdownMenu,
+body.light-mode #feMergeSourceDropdownMenu,
+body.light-mode #beMergeSourceDropdownMenu {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+body.light-mode #feCherryBranchSearchInput,
+body.light-mode #beCherryBranchSearchInput,
+body.light-mode #feCherrySourceBranchSearchInput,
+body.light-mode #beCherrySourceBranchSearchInput,
+body.light-mode #feMergeTargetSearchInput,
+body.light-mode #beMergeTargetSearchInput,
+body.light-mode #feMergeSourceSearchInput,
+body.light-mode #beMergeSourceSearchInput {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+body.light-mode .cherry-branch-opt,
+body.light-mode .merge-branch-opt {
+  color: #334155 !important;
+}
+body.light-mode .cherry-branch-opt:hover,
+body.light-mode .merge-branch-opt:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+body.light-mode .cherry-branch-opt.active-branch,
+body.light-mode .merge-branch-opt.active-branch {
+  background-color: rgba(22, 119, 255, 0.12) !important;
+  color: #0958d9 !important;
+  font-weight: 700 !important;
+}
+
+body.dark-mode #feCherryBranchDropdownMenu,
+body.dark-mode #beCherryBranchDropdownMenu,
+body.dark-mode #feCherrySourceBranchDropdownMenu,
+body.dark-mode #beCherrySourceBranchDropdownMenu,
+body.dark-mode #feMergeTargetDropdownMenu,
+body.dark-mode #beMergeTargetDropdownMenu,
+body.dark-mode #feMergeSourceDropdownMenu,
+body.dark-mode #beMergeSourceDropdownMenu {
+  background-color: #101e38 !important;
+  border-color: #244170 !important;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5) !important;
+}
+body.dark-mode #feCherryBranchSearchInput,
+body.dark-mode #beCherryBranchSearchInput,
+body.dark-mode #feCherrySourceBranchSearchInput,
+body.dark-mode #beCherrySourceBranchSearchInput,
+body.dark-mode #feMergeTargetSearchInput,
+body.dark-mode #beMergeTargetSearchInput,
+body.dark-mode #feMergeSourceSearchInput,
+body.dark-mode #beMergeSourceSearchInput {
+  background-color: #0e192c !important;
+  border-color: #244170 !important;
+  color: #f1f5f9 !important;
+}
+body.dark-mode .cherry-branch-opt,
+body.dark-mode .merge-branch-opt {
+  color: #cbd5e1 !important;
+}
+body.dark-mode .cherry-branch-opt:hover,
+body.dark-mode .merge-branch-opt:hover {
+  background-color: #182c4f !important;
+  color: #ffffff !important;
+}
+body.dark-mode .cherry-branch-opt.active-branch,
+body.dark-mode .merge-branch-opt.active-branch {
+  background-color: rgba(6, 182, 212, 0.2) !important;
+  color: #38bdf8 !important;
+  font-weight: 700 !important;
+}
+
+body.light-mode #feCherryTopBranch {
+  background-color: rgba(22, 119, 255, 0.1) !important;
+  border-color: rgba(22, 119, 255, 0.35) !important;
+  color: #0958d9 !important;
+}
+body.light-mode #beCherryTopBranch {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  color: #059669 !important;
+}
+
+/* ====================================================================
+   VS CODE THEME FOR GIT DIFFSTAT / MERGE LOG OUTPUT
+   ==================================================================== */
+.vscode-git-output,
+#feMergeSuccessLogText,
+#beMergeSuccessLogText,
+#feMergeConflictLogText,
+#beMergeConflictLogText {
+  background-color: #1e1e1e !important;
+  border: 1px solid #333333 !important;
+  color: #d4d4d4 !important;
+  font-family: "JetBrains Mono", Consolas, "Courier New", monospace !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+  border-radius: 6px !important;
+  line-height: 1.6 !important;
+  padding: 10px 12px !important;
+}
+.vscode-git-file { color: #9cdcfe !important; }
+.vscode-git-pipe { color: #64748b !important; font-weight: bold; }
+.vscode-git-num { color: #dcdcaa !important; font-weight: 600; }
+.vscode-git-add { color: #4ec9b0 !important; }
+.vscode-git-del { color: #f14c4c !important; }
+.vscode-git-files { color: #d4d4d4 !important; }
+.vscode-git-strategy { color: #c586c0 !important; }
+.vscode-git-info { color: #858585 !important; }
+.vscode-git-keyword { color: #569cd6 !important; }
+.vscode-git-hash { color: #b5cea8 !important; }
+.vscode-git-conflict { color: #f14c4c !important; }
+.vscode-git-muted { color: #858585 !important; }
+
+body.light-mode .vscode-git-output,
+body.light-mode #feMergeSuccessLogText,
+body.light-mode #beMergeSuccessLogText,
+body.light-mode #feMergeConflictLogText,
+body.light-mode #beMergeConflictLogText {
+  background-color: #f6f8fa !important;
+  border: 1px solid #d0d7de !important;
+  color: #24292f !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode .vscode-git-file { color: #0969da !important; }
+body.light-mode .vscode-git-pipe { color: #8c959f !important; font-weight: bold; }
+body.light-mode .vscode-git-num { color: #953800 !important; font-weight: 600; }
+body.light-mode .vscode-git-add { color: #1a7f37 !important; }
+body.light-mode .vscode-git-del { color: #cf222e !important; }
+body.light-mode .vscode-git-files { color: #24292f !important; }
+body.light-mode .vscode-git-strategy { color: #8250df !important; }
+body.light-mode .vscode-git-info { color: #57606a !important; }
+body.light-mode .vscode-git-keyword { color: #0550ae !important; }
+body.light-mode .vscode-git-hash { color: #116329 !important; }
+body.light-mode .vscode-git-conflict { color: #cf222e !important; }
+body.light-mode .vscode-git-muted { color: #6e7781 !important; }

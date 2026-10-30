@@ -1,0 +1,191 @@
+/* ====================================================================
+   MODULE CSS: ARCHITECTURE LINKAGE DIAGRAM & TREE VIEW
+   Tệp styling chuyên biệt cho tab Sơ đồ liên kết (Mermaid) và Sơ đồ Tree
+   ==================================================================== */
+
+/* ====================================================================
+   MERMAID ARCHITECTURE DIAGRAM
+   ==================================================================== */
+#mermaidDiagram svg {
+  max-width: none !important;
+  overflow: visible !important;
+  font-family: 'Be Vietnam Pro', Inter, system-ui, -apple-system, sans-serif !important;
+}
+#mermaidDiagram svg text {
+  font-family: 'Be Vietnam Pro', Inter, system-ui, -apple-system, sans-serif !important;
+  letter-spacing: 0.01em !important;
+}
+
+#mermaidDiagram svg .cluster rect {
+  rx: 10px !important;
+  ry: 10px !important;
+  stroke-width: 1.5px !important;
+  transition: all 0.2s ease !important;
+}
+body.dark-mode #mermaidDiagram svg .cluster rect {
+  fill: #0c182d !important;
+  stroke: #244170 !important;
+}
+body.dark-mode #mermaidDiagram svg .cluster text {
+  fill: #f1f5f9 !important;
+  font-weight: 700 !important;
+  font-size: 13.5px !important;
+}
+
+body.light-mode #mermaidDiagram {
+  background-color: #ffffff !important;
+}
+body.light-mode .absolute.top-3.right-3 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+body.dark-mode #mermaidDiagram {
+  background-color: #0d1726 !important;
+}
+body.dark-mode .absolute.top-3.right-3 {
+  background-color: rgba(16, 30, 56, 0.95) !important;
+  border-color: #244170 !important;
+}
+
+/* Animations for Diagram Link Lines */
+@keyframes arrowStreamDash {
+  0% { stroke-dashoffset: 56; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes arrowTipGlowFeApi {
+  0%, 55%, 100% {
+    stroke: rgba(56, 189, 248, 0.45);
+    filter: none;
+  }
+  72%, 92% {
+    stroke: #a855f7;
+    filter: drop-shadow(0 0 4px rgba(168, 85, 247, 0.85));
+  }
+}
+@keyframes arrowTipGlowApiBe {
+  0%, 55%, 100% {
+    stroke: rgba(168, 85, 247, 0.45);
+    filter: none;
+  }
+  72%, 92% {
+    stroke: #10b981;
+    filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.85));
+  }
+}
+.arrow-stream-line {
+  stroke-dasharray: 28 28;
+  animation: arrowStreamDash 1.2s linear infinite;
+}
+.arrow-head-fe-api {
+  animation: arrowTipGlowFeApi 1.2s linear infinite;
+}
+.arrow-head-api-be {
+  animation: arrowTipGlowApiBe 1.2s linear infinite;
+}
+
+/* ====================================================================
+   DIAGRAM FLOW GRID (TRẢI RỘNG 3 CỘT: FRONTEND ↔ API ↔ BACKEND)
+   ==================================================================== */
+.diagram-flow-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1.4fr) 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+.diagram-flow-arrow {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 0.125rem !important;
+  user-select: none !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+.diagram-flow-spacer {
+  display: block !important;
+  width: 100% !important;
+}
+@media (max-width: 1023px) {
+  .diagram-flow-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0.5rem;
+  }
+  .diagram-flow-arrow,
+  .diagram-flow-spacer {
+    display: none !important;
+  }
+}
+@media (min-width: 1024px) {
+  .diagram-flow-header {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1.4fr) 52px minmax(0, 1fr);
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+  }
+}
+.diagram-flow-header {
+  display: none;
+}
+.diagram-col-box {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  gap: 0.625rem;
+}
+
+/* ====================================================================
+   SƠ ĐỒ CÂY 4 CẤP (TREE VIEW)
+   ==================================================================== */
+.tree-node {
+  transition: all 0.18s ease-in-out;
+}
+.tree-module {
+  background-color: #101e38;
+  border: 1px solid #244170;
+}
+body.light-mode #treeContent .tree-module {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode #treeContent .bg-\[\#0a1220\],
+body.light-mode #treeContent .bg-\[\#0d1726\] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+body.light-mode #treeContent .border-l-2 {
+  border-color: #e2e8f0 !important;
+}
+
+/* Module lookup detail list in light mode */
+body.light-mode #moduleLookupList .bg-\[\#0e192c\],
+body.light-mode #moduleLookupList .bg-\[\#101e38\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+body.light-mode #moduleLookupList .bg-\[\#0b1626\],
+body.light-mode #moduleLookupList .bg-\[\#0b1424\] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+body.light-mode #moduleLookupList .bg-\[\#121c33\] {
+  background-color: #f5f3ff !important;
+  border-color: #ddd6fe !important;
+}
+body.light-mode #moduleLookupList .text-cyan-300,
+body.light-mode #moduleLookupList .text-cyan-400 {
+  color: #0284c7 !important;
+}
+body.light-mode #moduleLookupList .text-emerald-300,
+body.light-mode #moduleLookupList .text-emerald-400 {
+  color: #059669 !important;
+}
+body.light-mode #moduleLookupList .text-purple-200,
+body.light-mode #moduleLookupList .text-purple-300 {
+  color: #6b21a8 !important;
+}

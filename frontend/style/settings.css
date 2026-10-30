@@ -1,0 +1,402 @@
+/* ====================================================================
+   MODULE CSS: SETTINGS & MODEL CONFIGURATION
+   Tệp styling chuyên biệt cho tab Cài đặt (Effort, Engine, Model, API, Env)
+   Quy tắc AGENTS.md: Background active LUÔN LÀ MÀU XANH DƯƠNG (#1677ff),
+   chữ trắng, font-sans đồng bộ, không dùng màu tối hay emoji rườm rà.
+   ==================================================================== */
+
+/* ============================================================
+   SETTINGS SIDEBAR NAVIGATION BUTTONS
+   ============================================================ */
+.settings-sidebar-btn {
+  transition: all 0.15s ease-in-out;
+  font-family: inherit;
+}
+.settings-sidebar-btn:not(.is-active) {
+  background-color: #0c1628 !important;
+  border: 1px solid rgba(36, 65, 112, 0.45) !important;
+  color: #94a3b8 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18) !important;
+}
+.settings-sidebar-btn:not(.is-active):hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+.settings-sidebar-btn:not(.is-active) .settings-nav-badge {
+  background-color: #182c4f !important;
+  color: #94a3b8 !important;
+}
+.settings-sidebar-btn:not(.is-active) .settings-nav-desc {
+  color: #64748b !important;
+}
+
+body.light-mode .settings-sidebar-btn:not(.is-active) {
+  background-color: #ffffff !important;
+  border: 1px solid #dbe2ea !important;
+  color: #475569 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+body.light-mode .settings-sidebar-btn:not(.is-active):hover {
+  background-color: #ffffff !important;
+  border-color: #1677ff !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08) !important;
+}
+body.light-mode .settings-sidebar-btn:not(.is-active) .settings-nav-desc {
+  color: #64748b !important;
+}
+
+/* Active Sidebar Tab: Nền LUÔN LUÔN là màu xanh (#1677ff) phẳng */
+.settings-sidebar-btn.is-active,
+body.light-mode .settings-sidebar-btn.is-active,
+body.dark-mode .settings-sidebar-btn.is-active {
+  background-color: #1677ff !important;
+  background-image: none !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.35) !important;
+}
+.settings-sidebar-btn.is-active *,
+body.light-mode .settings-sidebar-btn.is-active *,
+body.dark-mode .settings-sidebar-btn.is-active * {
+  color: #ffffff !important;
+}
+.settings-sidebar-btn.is-active .settings-nav-desc,
+body.light-mode .settings-sidebar-btn.is-active .settings-nav-desc {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+.settings-sidebar-btn.is-active .settings-nav-badge,
+body.light-mode .settings-sidebar-btn.is-active .settings-nav-badge {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  color: #ffffff !important;
+}
+
+/* ============================================================
+   AI EXECUTION ENGINE CARDS (Gemini CLI / OpenCode)
+   ============================================================ */
+.engine-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-width: 1.5px;
+}
+.engine-card:not(.is-active) {
+  background-color: #0c1628;
+  border-color: #244170;
+  color: #94a3b8;
+}
+.engine-card:not(.is-active) .engine-card-title { color: #ffffff; }
+.engine-card:not(.is-active) .engine-card-sub { color: #64748b; }
+.engine-card:not(.is-active) .engine-card-desc { color: #94a3b8; }
+.engine-card:not(.is-active) .engine-card-footer {
+  border-top-color: rgba(36, 65, 112, 0.5);
+  color: #64748b;
+}
+.engine-card:not(.is-active) .engine-card-status { color: #10b981; }
+.engine-card:not(.is-active) .engine-card-badge {
+  background-color: #082f49;
+  border: 1px solid #0369a1;
+  color: #38bdf8;
+}
+.engine-card:not(.is-active) .engine-code {
+  background-color: #081222;
+  color: #38bdf8;
+}
+
+body.light-mode .engine-card:not(.is-active) {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+body.light-mode .engine-card:not(.is-active):hover {
+  border-color: #1677ff !important;
+  background-color: #f8fafc !important;
+  box-shadow: 0 4px 12px 0 rgba(22, 119, 255, 0.1);
+}
+body.light-mode .engine-card:not(.is-active) .engine-card-title { color: #0f172a !important; }
+body.light-mode .engine-card:not(.is-active) .engine-card-sub { color: #64748b !important; }
+body.light-mode .engine-card:not(.is-active) .engine-card-desc { color: #475569 !important; }
+body.light-mode .engine-card:not(.is-active) .engine-card-footer {
+  border-top-color: #e2e8f0 !important;
+  color: #64748b !important;
+}
+body.light-mode .engine-card:not(.is-active) .engine-card-status { color: #059669 !important; }
+body.light-mode .engine-card:not(.is-active) .engine-card-badge {
+  background-color: #f0fdf4 !important;
+  border: 1px solid #bbf7d0 !important;
+  color: #15803d !important;
+}
+body.light-mode .engine-card:not(.is-active) .engine-code {
+  background-color: #f1f5f9 !important;
+  color: #0284c7 !important;
+}
+
+/* ACTIVE Engine Card - Nền xanh Ant Design (#1677ff), Chữ màu trắng */
+.engine-card.is-active,
+body.light-mode .engine-card.is-active,
+body.dark-mode .engine-card.is-active {
+  background-color: #1677ff !important;
+  background-image: none !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.3) !important;
+}
+.engine-card.is-active *,
+body.light-mode .engine-card.is-active *,
+body.dark-mode .engine-card.is-active * {
+  color: #ffffff !important;
+}
+.engine-card.is-active .engine-card-sub,
+body.light-mode .engine-card.is-active .engine-card-sub {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+.engine-card.is-active .engine-card-desc,
+body.light-mode .engine-card.is-active .engine-card-desc {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+.engine-card.is-active .engine-card-footer,
+body.light-mode .engine-card.is-active .engine-card-footer {
+  border-top-color: rgba(255, 255, 255, 0.3) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+.engine-card.is-active .engine-card-badge,
+body.light-mode .engine-card.is-active .engine-card-badge {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  color: #0958d9 !important;
+  font-weight: 700 !important;
+}
+.engine-card.is-active .engine-card-badge *,
+body.light-mode .engine-card.is-active .engine-card-badge * {
+  color: #0958d9 !important;
+}
+.engine-card.is-active .engine-card-status,
+body.light-mode .engine-card.is-active .engine-card-status {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+.engine-card.is-active .engine-code,
+body.light-mode .engine-card.is-active .engine-code {
+  background-color: rgba(0, 0, 0, 0.25) !important;
+  color: #ffffff !important;
+}
+.engine-card.is-active input[type="radio"],
+body.light-mode .engine-card.is-active input[type="radio"] {
+  accent-color: #ffffff !important;
+  outline: 2px solid #ffffff !important;
+  outline-offset: 1px !important;
+}
+
+/* ============================================================
+   REASONING EFFORT CARDS (MỨC ĐỘ SUY LUẬN)
+   ============================================================ */
+.effort-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-width: 1.5px;
+}
+.effort-card:not(.is-active) {
+  background-color: #0c1628;
+  border-color: #244170;
+  color: #94a3b8;
+}
+.effort-card:not(.is-active) .effort-card-title { color: #e2e8f0; }
+.effort-card:not(.is-active) .effort-card-desc { color: #94a3b8; }
+.effort-card:not(.is-active) .effort-card-badge {
+  background-color: #082f49;
+  border: 1px solid #0369a1;
+  color: #38bdf8;
+}
+
+body.light-mode .effort-card:not(.is-active) {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+body.light-mode .effort-card:not(.is-active):hover {
+  border-color: #1677ff !important;
+  background-color: #f8fafc !important;
+  box-shadow: 0 4px 12px 0 rgba(22, 119, 255, 0.1);
+}
+body.light-mode .effort-card:not(.is-active) .effort-card-title { color: #0f172a !important; }
+body.light-mode .effort-card:not(.is-active) .effort-card-desc { color: #475569 !important; }
+body.light-mode .effort-card:not(.is-active) .effort-card-badge {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+/* ACTIVE Effort Card - Nền xanh (#1677ff), Chữ màu trắng */
+.effort-card.is-active,
+body.light-mode .effort-card.is-active,
+body.dark-mode .effort-card.is-active {
+  background-color: #1677ff !important;
+  background-image: none !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.3) !important;
+}
+.effort-card.is-active *,
+body.light-mode .effort-card.is-active *,
+body.dark-mode .effort-card.is-active * {
+  color: #ffffff !important;
+}
+.effort-card.is-active .effort-card-desc,
+body.light-mode .effort-card.is-active .effort-card-desc {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+.effort-card.is-active .effort-card-badge,
+body.light-mode .effort-card.is-active .effort-card-badge {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  color: #ffffff !important;
+}
+.effort-card.is-active input[type="radio"],
+body.light-mode .effort-card.is-active input[type="radio"] {
+  accent-color: #ffffff !important;
+}
+
+/* ============================================================
+   MODEL FAMILY TABS (GEMINI / CLAUDE / OPENAI)
+   ============================================================ */
+.model-family-tab {
+  transition: all 0.15s ease-in-out;
+  font-family: inherit;
+}
+.model-family-tab:not(.is-active) {
+  background-color: #0c1628;
+  border: 1px solid #244170;
+  color: #94a3b8;
+}
+.model-family-tab:not(.is-active):hover {
+  border-color: #1677ff;
+  color: #ffffff;
+}
+.model-family-tab:not(.is-active) .tab-pill {
+  background-color: rgba(36, 65, 112, 0.5);
+  color: #94a3b8;
+}
+
+body.light-mode .model-family-tab:not(.is-active) {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+body.light-mode .model-family-tab:not(.is-active):hover {
+  border-color: #1677ff !important;
+  color: #0f172a !important;
+  background-color: #e2e8f0 !important;
+}
+body.light-mode .model-family-tab:not(.is-active) .tab-pill {
+  background-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+.model-family-tab.is-active,
+body.light-mode .model-family-tab.is-active {
+  background-color: #1677ff !important;
+  background-image: none !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.35) !important;
+}
+.model-family-tab.is-active *,
+body.light-mode .model-family-tab.is-active * {
+  color: #ffffff !important;
+}
+.model-family-tab.is-active .tab-pill,
+body.light-mode .model-family-tab.is-active .tab-pill {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
+}
+
+/* ============================================================
+   API PROVIDER SELECTION BUTTONS
+   ============================================================ */
+.api-provider-btn {
+  transition: all 0.15s ease-in-out;
+  font-family: inherit;
+}
+.api-provider-btn:not(.is-active) {
+  background-color: #0c1628;
+  border: 1px solid #244170;
+  color: #94a3b8;
+}
+.api-provider-btn:not(.is-active):hover {
+  border-color: #1677ff;
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.04);
+}
+body.light-mode .api-provider-btn:not(.is-active) {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+body.light-mode .api-provider-btn:not(.is-active):hover {
+  border-color: #1677ff !important;
+  color: #0f172a !important;
+  background-color: #e2e8f0 !important;
+}
+.api-provider-btn.is-active,
+body.light-mode .api-provider-btn.is-active {
+  background-color: #1677ff !important;
+  background-image: none !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.35) !important;
+}
+.api-provider-btn.is-active *,
+body.light-mode .api-provider-btn.is-active * {
+  color: #ffffff !important;
+}
+
+/* ============================================================
+   NÚT LƯU CÀI ĐẶT: SÁNG MÀU XANH (#1677ff) KHI DIRTY
+   ============================================================ */
+#btnSaveSettingsPage.is-dirty,
+body.light-mode #btnSaveSettingsPage.is-dirty,
+body.dark-mode #btnSaveSettingsPage.is-dirty {
+  background-color: #1677ff !important;
+  background-image: none !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.35) !important;
+  cursor: pointer !important;
+  opacity: 1 !important;
+}
+#btnSaveSettingsPage.is-dirty:hover,
+body.light-mode #btnSaveSettingsPage.is-dirty:hover,
+body.dark-mode #btnSaveSettingsPage.is-dirty:hover {
+  background-color: #4096ff !important;
+  border-color: #4096ff !important;
+  color: #ffffff !important;
+}
+#btnSaveSettingsPage.is-dirty *,
+body.light-mode #btnSaveSettingsPage.is-dirty *,
+body.dark-mode #btnSaveSettingsPage.is-dirty * {
+  color: #ffffff !important;
+}
+body.light-mode #btnSaveSettingsPage:not(.is-dirty) {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+body.light-mode #btnSaveSettingsPage:not(.is-dirty) * {
+  color: #94a3b8 !important;
+}
+body.dark-mode #btnSaveSettingsPage:not(.is-dirty),
+#btnSaveSettingsPage:not(.is-dirty) {
+  background-color: rgba(51, 65, 85, 0.6) !important;
+  border-color: rgba(71, 85, 105, 0.5) !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+body.dark-mode #btnSaveSettingsPage:not(.is-dirty) *,
+#btnSaveSettingsPage:not(.is-dirty) * {
+  color: #94a3b8 !important;
+}

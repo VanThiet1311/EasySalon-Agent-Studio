@@ -1,0 +1,486 @@
+/* ====================================================================
+   EASYSALON STUDIO - GLOBAL SYSTEM STYLES & COLOR VARIABLES
+   Tệp chính chứa biến màu hệ thống (Light/Dark mode) và System Customs
+   ==================================================================== */
+
+:root {
+  --primary-color: #1677ff;
+  --primary-hover: #4096ff;
+  --primary-active: #0958d9;
+  --header-bg: #182c4f;
+  --header-border: #244170;
+
+  /* Dark mode default tokens */
+  --bg-main: #0a1220;
+  --card-bg: #101e38;
+  --card-border: #244170;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --font-sans: 'Be Vietnam Pro', Inter, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, monospace;
+}
+
+body.light-mode {
+  --bg-main: #f8fafc;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+body.dark-mode {
+  --bg-main: #0a1220;
+  --card-bg: #101e38;
+  --card-border: #244170;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  background-color: #0a1220 !important;
+  color: #f1f5f9 !important;
+}
+
+/* ====================================================================
+   BASE TYPOGRAPHY & RESETS
+   ==================================================================== */
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+  line-height: 1.6;
+}
+
+pre, code, kbd, samp {
+  font-family: var(--font-mono) !important;
+}
+
+/* Ensure hidden class always has highest priority */
+.hidden,
+[hidden],
+#btnStartTask.hidden,
+#btnStopTask.hidden,
+#btnStopAllParallel.hidden {
+  display: none !important;
+}
+
+/* ====================================================================
+   SCROLLBARS THEO THEME
+   ==================================================================== */
+body.light-mode ::-webkit-scrollbar-track { background: #f1f5f9 !important; }
+body.light-mode ::-webkit-scrollbar-thumb { background: #cbd5e1 !important; border-radius: 3px; }
+body.light-mode ::-webkit-scrollbar-thumb:hover { background: #94a3b8 !important; }
+
+body.dark-mode ::-webkit-scrollbar-track { background: #0a1220 !important; }
+body.dark-mode ::-webkit-scrollbar-thumb { background: #1e3a66 !important; border-radius: 3px; }
+body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #2d5699 !important; }
+
+/* ====================================================================
+   BUTTONS (ANT DESIGN STYLE UTILITIES)
+   ==================================================================== */
+.ant-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  line-height: 1.5715;
+  position: relative;
+  font-weight: 500;
+  white-space: nowrap;
+  text-align: center;
+  background-image: none;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  user-select: none;
+  height: 34px;
+  padding: 4px 14px;
+  font-size: 13px;
+  border-radius: 6px !important;
+  outline: none;
+  background-color: #ffffff;
+  color: #334155;
+  font-family: inherit;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.ant-btn:hover,
+.ant-btn:focus,
+.ant-btn:active {
+  filter: none !important;
+  transform: none !important;
+}
+
+.ant-btn-primary {
+  color: #ffffff !important;
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 4px rgba(22, 119, 255, 0.25) !important;
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus,
+.ant-btn-primary:active {
+  background-color: #4096ff !important;
+  border-color: #4096ff !important;
+  color: #ffffff !important;
+  transform: none !important;
+}
+
+.ant-btn-danger {
+  color: #ffffff !important;
+  background-color: #ff4d4f !important;
+  border-color: #ff4d4f !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 4px rgba(255, 77, 79, 0.2) !important;
+}
+
+.ant-btn-danger:hover,
+.ant-btn-danger:focus,
+.ant-btn-danger:active {
+  background-color: #ff7875 !important;
+  border-color: #ff7875 !important;
+  color: #ffffff !important;
+}
+
+body.light-mode .ant-btn {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+  border-radius: 6px !important;
+}
+body.light-mode .ant-btn:hover,
+body.light-mode .ant-btn:focus {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+body.light-mode .ant-btn-primary {
+  color: #ffffff !important;
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  border-radius: 6px !important;
+}
+body.light-mode .ant-btn-primary:hover,
+body.light-mode .ant-btn-primary:focus {
+  background-color: #4096ff !important;
+  border-color: #4096ff !important;
+}
+
+body.dark-mode .ant-btn {
+  background-color: #101e38 !important;
+  border-color: #244170 !important;
+  color: #e2e8f0 !important;
+  border-radius: 6px !important;
+}
+body.dark-mode .ant-btn:hover,
+body.dark-mode .ant-btn:focus {
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+}
+body.dark-mode .ant-btn-primary {
+  color: #ffffff !important;
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  border-radius: 6px !important;
+}
+
+/* Light mode text general overrides */
+body.light-mode main .text-white,
+body.light-mode main .text-slate-100,
+body.light-mode main .text-slate-200 {
+  color: #0f172a !important;
+}
+body.light-mode main .text-slate-300,
+body.light-mode main .text-slate-400 {
+  color: #475569 !important;
+}
+body.light-mode main .text-slate-500 {
+  color: #64748b !important;
+}
+body.light-mode main .text-cyan-400,
+body.light-mode main .text-cyan-300,
+body.light-mode main .text-\[\#38bdf8\] {
+  color: #0958d9 !important;
+}
+
+/* Border overrides in light mode */
+body.light-mode main .border-\[\#244170\],
+body.light-mode main .border-\[\#2e528f\],
+body.light-mode main .border-\[\#182c4f\] {
+  border-color: #e2e8f0 !important;
+}
+body.light-mode main .bg-\[\#182c4f\] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Card backgrounds in light mode */
+body.light-mode main .bg-\[\#101e38\],
+body.light-mode main .bg-\[\#13223f\],
+body.light-mode #antdModalCard {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Semi-transparent overlays in light mode */
+body.light-mode main .bg-\[\#101e38\]\/90,
+body.light-mode main .bg-\[\#0e192c\]\/90 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Form inputs & controls in light mode */
+body.light-mode main .bg-\[\#0e192c\],
+body.light-mode main .bg-\[\#0a1222\],
+body.light-mode main input[type="text"],
+body.light-mode main input[type="number"],
+body.light-mode main textarea,
+body.light-mode main select {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode main select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+body.light-mode main input::placeholder,
+body.light-mode main textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+body.light-mode main input:focus,
+body.light-mode main textarea:focus,
+body.light-mode main select:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15) !important;
+  outline: none !important;
+}
+
+/* Generic badges in light mode */
+body.light-mode main .bg-cyan-950,
+body.light-mode main .bg-cyan-950\/80,
+body.light-mode main .bg-cyan-950\/70 {
+  background-color: rgba(22, 119, 255, 0.08) !important;
+  border-color: rgba(22, 119, 255, 0.3) !important;
+  color: #1677ff !important;
+}
+body.light-mode main .bg-emerald-950,
+body.light-mode main .bg-emerald-950\/80,
+body.light-mode main .bg-emerald-950\/70 {
+  background-color: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+  color: #059669 !important;
+}
+body.light-mode main .bg-amber-950,
+body.light-mode main .bg-amber-950\/70 {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+  color: #b45309 !important;
+}
+body.light-mode main .bg-purple-950,
+body.light-mode main .bg-purple-950\/80 {
+  background-color: #faf5ff !important;
+  border-color: #e9d5ff !important;
+  color: #7e22ce !important;
+}
+body.light-mode main .bg-indigo-950,
+body.light-mode main .bg-indigo-950\/70,
+body.light-mode main .bg-indigo-950\/80 {
+  background-color: #eef2ff !important;
+  border-color: #c7d2fe !important;
+  color: #4338ca !important;
+}
+body.light-mode main .bg-blue-950,
+body.light-mode main .bg-blue-950\/70,
+body.light-mode main .bg-blue-950\/80 {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #1d4ed8 !important;
+}
+
+/* ====================================================================
+   HEADER & NAVBAR (BẢO TOÀN TÔNG MÀU #182c4f VÀ #ffffff)
+   ==================================================================== */
+header {
+  background-color: #182c4f !important;
+  border-bottom: 1px solid #244170 !important;
+  color: #ffffff !important;
+}
+header .bg-\[\#101e38\] {
+  background-color: #101e38 !important;
+  border-color: #244170 !important;
+  color: #cbd5e1 !important;
+}
+header .bg-\[\#0d1c33\] {
+  background-color: #0d1c33 !important;
+  border-color: #244170 !important;
+}
+header .text-slate-300 { color: #cbd5e1 !important; }
+header .text-slate-200 { color: #e2e8f0 !important; }
+header .text-white { color: #ffffff !important; }
+header .border-\[\#244170\] { border-color: #244170 !important; }
+
+/* Notification Bell & Dropdown */
+#notifBellBtn,
+body.light-mode #notifBellBtn {
+  background-color: transparent !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+#notifBellBtn:hover,
+body.light-mode #notifBellBtn:hover {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+#notifBadge,
+body.light-mode #notifBadge {
+  border-color: #182c4f !important;
+}
+#notifDropdownMenu,
+body.light-mode #notifDropdownMenu {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+}
+#notifDropdownMenu > div:first-child {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+#notifDropdownMenu > div:first-child span.text-black {
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+#notifFilterTabs {
+  background-color: #ffffff !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+#notifItemsList {
+  background-color: #ffffff !important;
+}
+#notifItemsList .notif-item {
+  transition: background-color 0.15s ease;
+}
+#notifItemsList .notif-item:hover {
+  background-color: #eef7ff !important;
+}
+#notifItemsList .notif-item.is-unread:hover {
+  background-color: #e0f0ff !important;
+}
+#notifItemsList .text-black {
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+.notif-tag-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+.notif-tag-done {
+  background-color: #f6ffed !important;
+  border: 1px solid #b7eb8f !important;
+  color: #389e0d !important;
+}
+.notif-tag-done:hover { background-color: #d9f7be !important; }
+.notif-tag-running {
+  background-color: #fffbe6 !important;
+  border: 1px solid #ffe58f !important;
+  color: #d48806 !important;
+}
+.notif-tag-running:hover { background-color: #fff1b8 !important; }
+.notif-tag-stopped {
+  background-color: #e6f4ff !important;
+  border: 1px solid #91caff !important;
+  color: #1677ff !important;
+}
+.notif-tag-stopped:hover { background-color: #bae0ff !important; }
+.notif-tag-default {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+.notif-tag-git-pull {
+  background-color: #fffbe6 !important;
+  border: 1px solid #ffe58f !important;
+  color: #d48806 !important;
+}
+.notif-tag-git-pull:hover { background-color: #fff1b8 !important; }
+.notif-tag-git-done {
+  background-color: #f6ffed !important;
+  border: 1px solid #b7eb8f !important;
+  color: #389e0d !important;
+}
+.notif-title-done { color: #389e0d !important; }
+.notif-title-running { color: #d48806 !important; }
+.notif-title-stopped { color: #1677ff !important; }
+.notif-title-default { color: #0f172a !important; }
+
+/* ====================================================================
+   ANT DESIGN MODAL (CONFIRM / ALERT DIALOG)
+   ==================================================================== */
+body.light-mode #antdModalCard {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+body.light-mode #antdModalTitle { color: #0f172a !important; }
+body.light-mode #antdModalContent { color: #475569 !important; }
+body.light-mode #antdModalRoot { background-color: rgba(15, 23, 42, 0.45) !important; }
+
+body.dark-mode #antdModalCard {
+  background-color: #101e38 !important;
+  border-color: #244170 !important;
+  color: #f1f5f9 !important;
+}
+body.dark-mode #antdModalTitle { color: #ffffff !important; }
+body.dark-mode #antdModalContent { color: #94a3b8 !important; }
+
+#antdModalOkBtn,
+#antdModalOkBtn:hover,
+#antdModalOkBtn:focus,
+#antdModalOkBtn:active {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  outline: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* ====================================================================
+   TOAST NOTIFICATION (Nền trắng, chữ đen sắc nét)
+   ==================================================================== */
+#studioToast,
+body.dark-mode #studioToast,
+body.light-mode #studioToast {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+#studioToast span,
+body.dark-mode #studioToast span,
+body.light-mode #studioToast span {
+  color: #0f172a !important;
+}
+
+/* ====================================================================
+   MODULE STYLESHEET IMPORTS
+   ==================================================================== */
+@import "./task.css";
+@import "./git.css";
+@import "./diagram.css";
+@import "./settings.css";
+@import "./logs.css";

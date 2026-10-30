@@ -1,0 +1,28 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Local environment configuration
+.env
+.env.*
+!.env.example
+
+# Runtime & State data (Chứa lịch sử công việc, nhật ký chat, hàng đợi và API keys cá nhân)
+.daemon.pid
+active_dialogue.json
+messages.json
+queue_state.json
+settings.json
+*.tmp
+*.log
+
+# AI agent coordination artifacts
+.agents/teamwork/
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
