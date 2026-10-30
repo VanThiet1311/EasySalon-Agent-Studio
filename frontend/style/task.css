@@ -304,18 +304,24 @@ body.light-mode #fileEditorTextarea::selection {
   left: 0;
   right: 0;
   pointer-events: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.16) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18) !important;
   background-color: rgba(255, 255, 255, 0.035) !important;
   z-index: 5;
   box-sizing: border-box;
+}
+
+body.light-mode .file-editor-active-line {
+  border-top: 1px solid rgba(0, 0, 0, 0.15) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15) !important;
+  background-color: rgba(0, 0, 0, 0.03) !important;
 }
 
 #fileEditorLineNumbers .line-num {
   display: block !important;
   height: 20px !important;
   line-height: 20px !important;
-  padding-right: 6px !important;
+  padding-right: 8px !important;
   color: #858585 !important;
   font-family: 'JetBrains Mono', Consolas, monospace !important;
 }
@@ -323,20 +329,33 @@ body.light-mode #fileEditorTextarea::selection {
 #fileEditorLineNumbers .line-num.active-line-num {
   color: #ffffff !important;
   font-weight: 700 !important;
-  background-color: rgba(255, 255, 255, 0.06) !important;
-  border-left: 2px solid #38bdf8 !important;
+  background-color: transparent !important;
+  border-left: none !important;
 }
 
-.vscode-indent-guides {
-  background-image: repeating-linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0.08) 0px,
-    rgba(255, 255, 255, 0.08) 1px,
-    transparent 1px,
-    transparent calc(var(--char-w, 7.22px) * 2)
-  ) !important;
-  background-position: 14px 0 !important;
-  background-repeat: repeat-y !important;
+body.light-mode #fileEditorLineNumbers .line-num.active-line-num {
+  color: #1e293b !important;
+  font-weight: 700 !important;
+}
+
+.file-editor-indent-layer {
+  font-family: 'JetBrains Mono', Consolas, 'Fira Code', 'Courier New', monospace !important;
+  pointer-events: none;
+}
+
+.file-editor-indent-layer .indent-row {
+  height: 20px;
+  line-height: 20px;
+  white-space: pre;
+}
+
+.file-editor-indent-layer .indent-guide {
+  color: rgba(255, 255, 255, 0.14) !important;
+  font-weight: 300 !important;
+}
+
+body.light-mode .file-editor-indent-layer .indent-guide {
+  color: rgba(0, 0, 0, 0.14) !important;
 }
 
 body.light-mode #fileEditorModalCard {

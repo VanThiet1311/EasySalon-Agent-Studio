@@ -5044,6 +5044,10 @@ let _isEditorDirty = false;
 let _fileEditorListenersSetup = false;
 let _currentEditorFile = null;
 let _currentEditorRepo = 'fe';
+let _currentEditorMtime = 0;
+let _currentEditorContent = '';
+let _fileEditorSyncTimer = null;
+let _isCheckingFileStat = false;
 let _editorCharWidth = 7.22;
 
 function normalizeRepoRole(r) {
@@ -5101,6 +5105,62 @@ function updateActiveLineHighlight() {
   }
 }
 
+function updateIndentGuides() {
+  const textarea = document.getElementById('fileEditorTextarea');
+  const indentLayer = document.getElementById('fileEditorIndentGuides');
+  if (!textarea || !indentLayer) return;
+
+  const text = textarea.value;
+  const lines = text.split('\n');
+
+  // Detect indent unit (2 or 4 spaces)
+  let indentUnit = 2;
+  for (let i = 0; i < Math.min(lines.length, 100); i++) {
+    const m = lines[i].match(/^([ ]+)[^ ]/);
+    if (m) {
+      const len = m[1].length;
+      if (len === 4 || len === 8) {
+        indentUnit = 4;
+        break;
+      }
+    }
+  }
+
+  const guideUnit = indentUnit === 4 ? '│   ' : '│ ';
+  let html = '';
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const match = line.match(/^([ \t]*)/);
+    const leading = match ? match[1] : '';
+    if (!leading) {
+      html += '<div class="indent-row"></div>';
+      continue;
+    }
+
+    let spaceCount = 0;
+    for (let c of leading) {
+      if (c === '\t') spaceCount += indentUnit;
+      else spaceCount += 1;
+    }
+
+    const depth = Math.floor(spaceCount / indentUnit);
+    if (depth <= 0) {
+      html += '<div class="indent-row"></div>';
+    } else {
+      let rowGuides = '';
+      for (let d = 0; d < depth; d++) {
+        rowGuides += `<span class="indent-guide">${guideUnit}</span>`;
+      }
+      html += `<div class="indent-row">${rowGuides}</div>`;
+    }
+  }
+
+  indentLayer.innerHTML = html;
+  indentLayer.scrollTop = textarea.scrollTop;
+  indentLayer.scrollLeft = textarea.scrollLeft;
+}
+
 function updateEditorLineNumbers() {
   const textarea = document.getElementById('fileEditorTextarea');
   const lineNumbers = document.getElementById('fileEditorLineNumbers');
@@ -5117,8 +5177,115 @@ function updateEditorLineNumbers() {
   }
   lineNumbers.innerHTML = html;
   lineNumbers.scrollTop = textarea.scrollTop;
+  updateIndentGuides();
   updateActiveLineHighlight();
 }
+
+function startFileEditorWatch() {
+  stopFileEditorWatch();
+  _fileEditorSyncTimer = setInterval(() => {
+    checkFileExternalChanges();
+  }, 1200);
+}
+
+function stopFileEditorWatch() {
+  if (_fileEditorSyncTimer) {
+    clearInterval(_fileEditorSyncTimer);
+    _fileEditorSyncTimer = null;
+  }
+}
+
+async function checkFileExternalChanges() {
+  if (!_currentEditorFile || _isCheckingFileStat) return;
+  const modal = document.getElementById('fileEditorModalRoot');
+  if (!modal || modal.classList.contains('hidden')) return;
+
+  _isCheckingFileStat = true;
+  try {
+    const res = await fetch(`/api/file/stat?path=${encodeURIComponent(_currentEditorFile)}&target=${encodeURIComponent(_currentEditorRepo)}`);
+    const data = await res.json();
+    if (!data || !data.success) return;
+
+    if (_currentEditorMtime && data.mtime && Math.abs(data.mtime - _currentEditorMtime) > 0.05) {
+      if (!_isEditorDirty) {
+        const contentRes = await fetch(`/api/file/content?path=${encodeURIComponent(_currentEditorFile)}&target=${encodeURIComponent(_currentEditorRepo)}`);
+        const contentData = await contentRes.json();
+        if (contentData && contentData.success) {
+          const textarea = document.getElementById('fileEditorTextarea');
+          const statusEl = document.getElementById('fileEditorStatus');
+          if (textarea) {
+            const curSelStart = textarea.selectionStart;
+            const curSelEnd = textarea.selectionEnd;
+            const curScrollTop = textarea.scrollTop;
+
+            _currentEditorMtime = contentData.mtime || data.mtime;
+            _currentEditorContent = contentData.content != null ? contentData.content : '';
+            textarea.value = _currentEditorContent;
+            _isEditorDirty = false;
+
+            updateEditorLineNumbers();
+
+            textarea.scrollTop = curScrollTop;
+            textarea.selectionStart = Math.min(curSelStart, textarea.value.length);
+            textarea.selectionEnd = Math.min(curSelEnd, textarea.value.length);
+
+            const nowTime = new Date().toLocaleTimeString('vi-VN');
+            if (statusEl) {
+              statusEl.innerHTML = `<span class="text-emerald-400 font-semibold font-sans">⚡ Đã tự động cập nhật từ VS Code (${nowTime})</span>`;
+              setTimeout(() => {
+                if (!_isEditorDirty && statusEl) {
+                  statusEl.innerHTML = '<span class="text-slate-300 font-sans">Sẵn sàng sửa code (Ctrl+S để lưu)</span>';
+                }
+              }, 3000);
+            }
+          }
+        }
+      } else {
+        const statusEl = document.getElementById('fileEditorStatus');
+        if (statusEl) {
+          statusEl.innerHTML = `
+            <span class="text-amber-400 font-semibold font-sans">⚠️ File trên đĩa đã đổi ngoài VS Code!</span>
+            <button type="button" onclick="reloadFileFromDisk()" class="ml-1 underline text-sky-400 hover:text-sky-300 font-sans text-[11px] cursor-pointer">Tải lại từ đĩa</button>
+          `;
+        }
+      }
+    }
+  } catch (e) {
+    // ignore
+  } finally {
+    _isCheckingFileStat = false;
+  }
+}
+
+async function reloadFileFromDisk() {
+  if (!_currentEditorFile) return;
+  try {
+    const res = await fetch(`/api/file/content?path=${encodeURIComponent(_currentEditorFile)}&target=${encodeURIComponent(_currentEditorRepo)}`);
+    const data = await res.json();
+    if (data && data.success) {
+      const textarea = document.getElementById('fileEditorTextarea');
+      const statusEl = document.getElementById('fileEditorStatus');
+      if (textarea) {
+        _currentEditorMtime = data.mtime || Date.now();
+        _currentEditorContent = data.content != null ? data.content : '';
+        textarea.value = _currentEditorContent;
+        _isEditorDirty = false;
+        updateEditorLineNumbers();
+        if (statusEl) {
+          statusEl.innerHTML = '<span class="text-emerald-400 font-semibold font-sans">✓ Đã tải lại nội dung mới nhất từ đĩa</span>';
+          setTimeout(() => {
+            if (!_isEditorDirty && statusEl) {
+              statusEl.innerHTML = '<span class="text-slate-300 font-sans">Sẵn sàng sửa code (Ctrl+S để lưu)</span>';
+            }
+          }, 2500);
+        }
+      }
+    }
+  } catch (err) {
+    showToast(`Không thể tải lại: ${err.message}`, 'error');
+  }
+}
+window.reloadFileFromDisk = reloadFileFromDisk;
 
 function setupFileEditorListeners() {
   if (_fileEditorListenersSetup) return;
@@ -5135,6 +5302,11 @@ function setupFileEditorListeners() {
     textarea.addEventListener('scroll', () => {
       if (lineNumbers) {
         lineNumbers.scrollTop = textarea.scrollTop;
+      }
+      const indentLayer = document.getElementById('fileEditorIndentGuides');
+      if (indentLayer) {
+        indentLayer.scrollTop = textarea.scrollTop;
+        indentLayer.scrollLeft = textarea.scrollLeft;
       }
       updateActiveLineHighlight();
     });
@@ -5207,6 +5379,18 @@ function setupFileEditorListeners() {
 
 function setupAutoSaveAndKeybindings() {
   setupFileEditorListeners();
+
+  window.addEventListener('focus', () => {
+    const fileModal = document.getElementById('fileEditorModalRoot');
+    if (fileModal && !fileModal.classList.contains('hidden')) {
+      checkFileExternalChanges();
+    }
+    if (typeof activeTab !== 'undefined' && activeTab === 'branch') {
+      if (typeof checkSyncPullUpdates === 'function') {
+        checkSyncPullUpdates(false);
+      }
+    }
+  });
 
   window.addEventListener('keydown', (e) => {
     const fileModal = document.getElementById('fileEditorModalRoot');
@@ -5285,6 +5469,8 @@ async function openFileEditor(filePath, repo = 'fe') {
     textarea.value = content;
     textarea.disabled = false;
     _isEditorDirty = false;
+    _currentEditorContent = content;
+    _currentEditorMtime = data.mtime || 0;
 
     if (data.target) {
       _currentEditorRepo = normalizeRepoRole(data.target);
@@ -5292,6 +5478,8 @@ async function openFileEditor(filePath, repo = 'fe') {
     }
     updateEditorLineNumbers();
     if (statusEl) statusEl.innerHTML = '<span class="text-slate-300 font-sans">Sẵn sàng sửa code (Ctrl+S để lưu)</span>';
+
+    startFileEditorWatch();
 
     setTimeout(() => {
       textarea.focus();
@@ -5335,6 +5523,10 @@ async function saveActiveFileEditor() {
 
     if (data.success) {
       _isEditorDirty = false;
+      _currentEditorContent = content;
+      if (data.mtime) {
+        _currentEditorMtime = data.mtime;
+      }
       if (statusEl) statusEl.innerHTML = '<span class="text-emerald-400 font-semibold font-sans">✓ Đã lưu thành công</span>';
       showToast(`Đã lưu file ${_currentEditorFile}`, 'success');
       setTimeout(() => {
@@ -5368,9 +5560,12 @@ async function closeFileEditor() {
     });
     if (!conf) return;
   }
+  stopFileEditorWatch();
   const modal = document.getElementById('fileEditorModalRoot');
   if (modal) modal.classList.add('hidden');
   _currentEditorFile = null;
+  _currentEditorContent = '';
+  _currentEditorMtime = 0;
   _isEditorDirty = false;
 }
 

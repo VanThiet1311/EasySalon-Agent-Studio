@@ -2825,14 +2825,17 @@
           </button>
         </div>
       </div>
-      <!-- Editor Code Textarea with Line Numbers -->
+      <!-- Editor Code Container: Gutter + Code Editor Area -->
       <div class="flex-1 min-h-0 relative flex flex-row bg-[#1e1e1e] overflow-hidden">
-        <div id="fileEditorActiveLineHighlight" class="file-editor-active-line"></div>
-        <div id="fileEditorLineNumbers" class="py-3 px-2 select-none text-right font-mono text-[12px] leading-[20px] text-[#858585] bg-[#1e1e1e] border-r border-[#333333] overflow-hidden whitespace-pre shrink-0 min-w-[52px]">1</div>
-        <textarea id="fileEditorTextarea"
-          class="flex-1 h-full py-3 px-3.5 bg-[#1e1e1e] text-[#d4d4d4] font-mono text-[12px] leading-[20px] resize-none focus:outline-none border-0 overflow-auto select-text whitespace-pre vscode-indent-guides relative z-10"
-          spellcheck="false"
-          placeholder="Nội dung mã nguồn..."></textarea>
+        <div id="fileEditorLineNumbers" class="py-3 px-2 select-none text-right font-mono text-[12px] leading-[20px] text-[#858585] bg-[#1e1e1e] border-r border-[#333333] overflow-hidden whitespace-pre shrink-0 min-w-[52px] z-20">1</div>
+        <div class="flex-1 h-full relative overflow-hidden bg-[#1e1e1e]">
+          <div id="fileEditorActiveLineHighlight" class="file-editor-active-line"></div>
+          <div id="fileEditorIndentGuides" class="file-editor-indent-layer pointer-events-none absolute inset-0 overflow-hidden font-mono text-[12px] leading-[20px] py-3 px-3.5 select-none whitespace-pre z-[6]"></div>
+          <textarea id="fileEditorTextarea"
+            class="w-full h-full py-3 px-3.5 bg-transparent text-[#d4d4d4] font-mono text-[12px] leading-[20px] resize-none focus:outline-none border-0 overflow-auto select-text whitespace-pre relative z-10"
+            spellcheck="false"
+            placeholder="Nội dung mã nguồn..."></textarea>
+        </div>
       </div>
       <!-- Editor Footer Shortcut Hint -->
       <div class="px-4 py-1.5 bg-[#0e192c] border-t border-[#1e3458] flex items-center justify-between text-[11px] text-slate-400 shrink-0 select-none">

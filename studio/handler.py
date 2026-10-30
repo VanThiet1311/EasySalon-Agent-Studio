@@ -346,7 +346,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             ws = FE_WORKSPACE if target == 'fe' else BE_WORKSPACE
             data = get_git_conflict_file_info(ws, file_path)
             self.send_json(data)
-        elif path == '/api/file/content':
+        elif path in ('/api/file/content', '/api/file/stat'):
             qs = urllib.parse.parse_qs(parsed.query)
             target = qs.get('target', ['fe'])[0]
             file_path = qs.get('path', [''])[0].strip()
@@ -378,14 +378,18 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                     self.send_json({'success': False, 'message': f'Không tìm thấy file: {file_path}'}, 404)
                     return
             try:
-                with open(abs_file, 'r', encoding='utf-8', errors='replace') as fp:
-                    content = fp.read()
-                self.send_json({
+                st = os.stat(abs_file)
+                resp = {
                     'success': True,
                     'path': clean_path,
                     'target': target,
-                    'content': content
-                })
+                    'mtime': st.st_mtime,
+                    'size': st.st_size
+                }
+                if path == '/api/file/content':
+                    with open(abs_file, 'r', encoding='utf-8', errors='replace') as fp:
+                        resp['content'] = fp.read()
+                self.send_json(resp)
             except Exception as e:
                 self.send_json({'success': False, 'message': f'Lỗi khi đọc file: {str(e)}'}, 500)
         elif path in ('/api/git/sync-check', '/api/git/sync-pull/check'):
@@ -1208,11 +1212,14 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 os.makedirs(os.path.dirname(abs_file), exist_ok=True)
                 with open(abs_file, 'w', encoding='utf-8') as fp:
                     fp.write(content)
+                st = os.stat(abs_file)
                 self.send_json({
                     'success': True,
                     'message': f'Đã lưu file {clean_path} thành công.',
                     'path': clean_path,
-                    'target': target
+                    'target': target,
+                    'mtime': st.st_mtime,
+                    'size': st.st_size
                 })
             except Exception as e:
                 self.send_json({'success': False, 'message': f'Lỗi khi ghi file: {str(e)}'}, 500)
