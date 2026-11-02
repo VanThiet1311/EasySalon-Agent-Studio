@@ -20,6 +20,60 @@ from studio.dev_watch import get_dev_watch_state, get_watched_python_files
 from studio.handler import AgentStudioHandler
 
 
+def print_startup_banner(host: str, port: int):
+    import shutil
+
+    BLUE = "\033[38;2;22;119;255m"      # #1677ff
+    CYAN = "\033[38;2;56;189;248m"      # #38bdf8
+    RESET = "\033[0m"
+    GREEN = "\033[38;2;82;196;26m"      # #52c41a
+    DIM = "\033[2m"
+
+    E = ["███████╗", "██╔════╝", "█████╗  ", "██╔══╝  ", "███████╗", "╚══════╝"]
+    A = ["█████╗ ", "██╔══██╗", "███████║", "██╔══██║", "██║  ██║", "╚═╝  ╚═╝"]
+    S = ["███████╗", "██╔════╝", "███████╗", "╚════██║", "███████║", "╚══════╝"]
+    Y = ["██╗   ██╗", "╚██╗ ██╔╝", " ╚████╔╝ ", "  ╚██╔╝  ", "   ██║   ", "   ╚═╝   "]
+    L = ["██╗     ", "██║     ", "██║     ", "██║     ", "███████╗", "╚══════╝"]
+    O = ["██████╗ ", "██╔═══██╗", "██║   ██║", "██║   ██║", "╚██████╔╝", " ╚═════╝ "]
+    N = ["███╗   ██╗", "████╗  ██║", "██╔██╗ ██║", "██║╚██╗██║", "██║ ╚████║", "╚═╝  ╚═══╝"]
+    G = ["██████╗ ", "██╔════╝", "██║  ███╗", "██║   ██║", "╚██████╔╝", " ╚═════╝ "]
+    T = ["████████╗", "╚══██╔══╝", "   ██║   ", "   ██║   ", "   ██║   ", "   ╚═╝   "]
+
+    easy_chars = [E, A, S, Y, S, A, L, O, N]
+    agent_chars = [A, G, E, N, T]
+
+    easy = ["", "", "", "", "", ""]
+    for c in easy_chars:
+        for i in range(6):
+            easy[i] += c[i]
+
+    agent = ["", "", "", "", "", ""]
+    for c in agent_chars:
+        for i in range(6):
+            agent[i] += c[i]
+
+    url_host = "localhost" if host in ("127.0.0.1", "0.0.0.0", "localhost") else host
+    url = f"http://{url_host}:{port}"
+
+    cols = shutil.get_terminal_size((120, 24)).columns
+    lines = [""]
+    if cols >= 122:
+        for i in range(6):
+            lines.append(f"  {BLUE}{easy[i]}   {CYAN}{agent[i]}{RESET}")
+    else:
+        for i in range(6):
+            lines.append(f"  {BLUE}{easy[i]}{RESET}")
+        lines.append("")
+        indent = " " * 16
+        for i in range(6):
+            lines.append(f"  {indent}{CYAN}{agent[i]}{RESET}")
+
+    lines.append("")
+    lines.append(f"  {GREEN}➜{RESET}  {DIM}Local:{RESET} {CYAN}{url}{RESET}")
+    lines.append("")
+    print("\n".join(lines))
+
+
 def main():
     parser = argparse.ArgumentParser(description="EasySalon Multi-Agent Studio Server")
     parser.add_argument("--port", type=int, default=WEB_PORT, help=f"Port to listen on (default {WEB_PORT})")
@@ -35,13 +89,10 @@ def main():
     initial_watch = get_dev_watch_state()
     initial_py_hash = initial_watch["py_hash"]
 
-    print("\n" + "=" * 70)
-    print(">> Kiểm tra và tự động kích hoạt 2 Terminal ngầm (FE & BE)...")
-    ensure_background_terminals()
+    ensure_background_terminals(verbose=False)
     load_queue_state()
     start_queue_worker()
-    start_telegram_service()
-    print("=" * 70)
+    start_telegram_service(verbose=False)
 
     class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         daemon_threads = True
@@ -49,11 +100,7 @@ def main():
 
     try:
         server = ThreadedHTTPServer((host, port), AgentStudioHandler)
-        print("\n[EasySalon Studio] Server is live.")
-        print(f"Local URL: http://localhost:{port}")
-        if watch_mode:
-            print("🔥 Auto-Watch / Hot Reload: BẬT (Tự động lưu nháp & cập nhật web khi có code mới)")
-        print("=" * 70 + "\n")
+        print_startup_banner(host, port)
 
         if watch_mode:
             def _backend_file_watcher():

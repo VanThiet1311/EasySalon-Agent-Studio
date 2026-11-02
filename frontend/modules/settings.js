@@ -40,6 +40,19 @@ function updateGeminiCliUI(status) {
     }
   }
 
+  const btnGemini = document.getElementById('btnPageStartGeminiCli');
+  if (btnGemini) {
+    if (geminiCliStatus && (geminiCliStatus.ready || geminiCliStatus.daemon_active)) {
+      btnGemini.innerHTML = '<span>● Đang chạy</span>';
+      btnGemini.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-700/80 text-white shadow-sm transition flex items-center gap-1 cursor-pointer';
+      btnGemini.title = 'Antigravity CLI native daemon đang chạy ngầm';
+    } else {
+      btnGemini.innerHTML = '<span>▶ Chạy ngầm</span>';
+      btnGemini.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center gap-1 cursor-pointer';
+      btnGemini.title = 'Antigravity CLI native daemon chạy ngầm (agy remote-control start)';
+    }
+  }
+
   const accTag = document.getElementById('pageAccountStatusTag');
   if (accTag) {
     if (geminiCliStatus.ready) {
@@ -221,6 +234,7 @@ function updateEngineUI(engine, isOnline) {
     nineRouterOnline = isOnline;
   }
 
+  // 1. Tag in Panel 2 (AI Execution Engine tab)
   const tag = document.getElementById('pageCurrentEngineTag');
   if (tag) {
     if (eng === 'opencode') {
@@ -232,15 +246,28 @@ function updateEngineUI(engine, isOnline) {
     }
   }
 
+  // 2. Tag in Panel 1 (Effort tab)
+  const quickTag = document.getElementById('quickEngineTag');
+  if (quickTag) {
+    if (eng === 'opencode') {
+      quickTag.textContent = 'OPENCODE (9ROUTER)';
+      quickTag.className = 'text-[10px] font-sans px-2.5 py-1 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 uppercase font-semibold tracking-wider';
+    } else {
+      quickTag.textContent = 'GEMINI CLI';
+      quickTag.className = 'text-[10px] font-sans px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 uppercase font-semibold tracking-wider';
+    }
+  }
+
+  // 3. Status pills and texts for 9router
   const pill = document.getElementById('pageNineRouterStatusPill');
   const statusTxt = document.getElementById('pageNineRouterStatusText');
   if (pill) {
     if (nineRouterOnline) {
       pill.textContent = '9router: Online';
-      pill.className = 'text-[10px] text-emerald-400 font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 uppercase';
+      pill.className = 'engine-card-badge text-[10px] text-emerald-400 font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 uppercase';
     } else {
       pill.textContent = '9router: Offline';
-      pill.className = 'text-[10px] text-rose-400 font-sans font-medium px-2 py-0.5 rounded bg-rose-950 border border-rose-800 uppercase';
+      pill.className = 'engine-card-badge text-[10px] text-rose-400 font-sans font-medium px-2 py-0.5 rounded bg-rose-950 border border-rose-800 uppercase';
     }
   }
   if (statusTxt) {
@@ -253,20 +280,47 @@ function updateEngineUI(engine, isOnline) {
     }
   }
 
+  const quickPill = document.getElementById('quickNineRouterPill');
+  if (quickPill) {
+    if (nineRouterOnline) {
+      quickPill.textContent = '9router: Online';
+      quickPill.className = 'engine-card-badge text-[10px] font-sans font-medium px-2 py-0.5 rounded text-emerald-300';
+    } else {
+      quickPill.textContent = '9router: Offline';
+      quickPill.className = 'engine-card-badge text-[10px] font-sans font-medium px-2 py-0.5 rounded text-rose-300';
+    }
+  }
+
+  // 4. Synchronize BOTH Panel 2 Engine Cards AND Panel 1 (Effort) Quick Engine Cards
   ['gemini_cli', 'opencode'].forEach(eid => {
-    const card = document.getElementById('page_card_engine_' + eid);
-    const radio = document.querySelector(`input[name="page_engine"][value="${eid}"]`);
-    if (card && radio) {
+    // Panel 2 Engine Cards
+    const pageCard = document.getElementById('page_card_engine_' + eid);
+    const pageRadio = document.querySelector(`input[name="page_engine"][value="${eid}"]`);
+    if (pageCard) {
       if (eid === eng) {
-        radio.checked = true;
-        card.classList.add('is-active');
+        if (pageRadio) pageRadio.checked = true;
+        pageCard.classList.add('is-active');
       } else {
-        radio.checked = false;
-        card.classList.remove('is-active');
+        if (pageRadio) pageRadio.checked = false;
+        pageCard.classList.remove('is-active');
+      }
+    }
+
+    // Panel 1 Quick Engine Cards (Effort tab)
+    const quickCard = document.getElementById('quick_card_engine_' + eid);
+    const quickRadio = document.querySelector(`input[name="quick_engine"][value="${eid}"]`);
+    if (quickCard) {
+      if (eid === eng) {
+        if (quickRadio) quickRadio.checked = true;
+        quickCard.classList.add('is-active');
+      } else {
+        if (quickRadio) quickRadio.checked = false;
+        quickCard.classList.remove('is-active');
       }
     }
   });
 
+  // 5. Sections visibility
   const geminiSection = document.getElementById('page_section_gemini_cli');
   const opencodeSection = document.getElementById('page_section_opencode');
   if (geminiSection && opencodeSection) {
@@ -278,6 +332,46 @@ function updateEngineUI(engine, isOnline) {
       opencodeSection.classList.add('hidden');
     }
   }
+
+  const quickOpencodeSec = document.getElementById('quickOpencodeSection');
+  if (quickOpencodeSec) {
+    if (eng === 'opencode') {
+      quickOpencodeSec.classList.remove('hidden');
+    } else {
+      quickOpencodeSec.classList.add('hidden');
+    }
+  }
+
+  // 6. Dynamic background run buttons in Panel 2
+  const btnGemini = document.getElementById('btnPageStartGeminiCli');
+  if (btnGemini) {
+    if (geminiCliStatus && (geminiCliStatus.ready || geminiCliStatus.daemon_active)) {
+      btnGemini.innerHTML = '<span>● Đang chạy</span>';
+      btnGemini.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-700/80 text-white shadow-sm transition flex items-center gap-1 cursor-pointer';
+      btnGemini.title = 'Antigravity CLI native daemon đang chạy ngầm';
+    } else {
+      btnGemini.innerHTML = '<span>▶ Chạy ngầm</span>';
+      btnGemini.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center gap-1 cursor-pointer';
+      btnGemini.title = 'Antigravity CLI native daemon chạy ngầm (agy remote-control start)';
+    }
+  }
+
+  const btnNineRouter = document.getElementById('btnPageStartNineRouter');
+  if (btnNineRouter) {
+    if (nineRouterOnline) {
+      btnNineRouter.innerHTML = '<span>● Đang chạy</span>';
+      btnNineRouter.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-700/80 text-white shadow-sm transition flex items-center gap-1 cursor-pointer';
+      btnNineRouter.title = '9router proxy đang chạy ngầm trên cổng 20128';
+    } else {
+      btnNineRouter.innerHTML = '<span>▶ Chạy ngầm</span>';
+      btnNineRouter.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center gap-1 cursor-pointer';
+      btnNineRouter.title = 'Khởi động 9router proxy chạy ngầm trên cổng 20128';
+    }
+  }
+
+  if (eng === 'opencode') {
+    fetchOpenCodeModels(false);
+  }
 }
 
 function onPageEngineChange(newEngine) {
@@ -285,6 +379,151 @@ function onPageEngineChange(newEngine) {
   updateEngineUI(newEngine, nineRouterOnline);
   markSettingsDirty(true);
 }
+
+let _loadedOpenCodeModels = false;
+async function fetchOpenCodeModels(forceRefresh = false) {
+  if (_loadedOpenCodeModels && !forceRefresh) return;
+  const quickSelect = document.getElementById('quickOpencodeModelSelect');
+  const pageSelect = document.getElementById('pageSettingsOpencodeModelSelect');
+
+  if (quickSelect && (!quickSelect.options.length || quickSelect.options[0].value === '')) {
+    quickSelect.innerHTML = '<option value="">Đang tải danh sách mô hình từ 9router...</option>';
+  }
+  if (pageSelect && (!pageSelect.options.length || pageSelect.options[0].value === '')) {
+    pageSelect.innerHTML = '<option value="">Đang tải danh sách mô hình từ 9router...</option>';
+  }
+
+  try {
+    const res = await fetch('/api/opencode/models');
+    const data = await res.json();
+    if (data && Array.isArray(data.models)) {
+      _loadedOpenCodeModels = true;
+      if (data.nine_router_online !== undefined) {
+        nineRouterOnline = !!data.nine_router_online;
+        updateEngineUI(currentStudioSettings.engine, nineRouterOnline);
+      }
+      populateOpenCodeModelSelects(data.models);
+    }
+  } catch (err) {
+    console.error('Lỗi khi tải danh sách mô hình OpenCode:', err);
+  }
+}
+
+function populateOpenCodeModelSelects(models) {
+  const quickSelect = document.getElementById('quickOpencodeModelSelect');
+  const pageSelect = document.getElementById('pageSettingsOpencodeModelSelect');
+  if (!quickSelect && !pageSelect) return;
+
+  const currentVal = currentStudioSettings.opencode_model || '9router/ag/gemini-3.8-flash-high';
+
+  const geminiModels = [];
+  const otherModels = [];
+
+  (models || []).forEach(m => {
+    if (m.is_gemini || (m.id && m.id.toLowerCase().includes('gemini'))) {
+      geminiModels.push(m);
+    } else {
+      otherModels.push(m);
+    }
+  });
+
+  let html = '';
+  if (geminiModels.length > 0) {
+    html += '<optgroup label="Mô hình Google Gemini (Khuyên dùng)">';
+    geminiModels.forEach(m => {
+      const isSel = (m.id === currentVal) ? 'selected' : '';
+      html += `<option value="${escapeHtml(m.id)}" ${isSel}>${escapeHtml(m.id)} (${escapeHtml(m.name || m.id)})</option>`;
+    });
+    html += '</optgroup>';
+  }
+  if (otherModels.length > 0) {
+    html += '<optgroup label="Các mô hình khác qua 9router">';
+    otherModels.forEach(m => {
+      const isSel = (m.id === currentVal) ? 'selected' : '';
+      html += `<option value="${escapeHtml(m.id)}" ${isSel}>${escapeHtml(m.id)} (${escapeHtml(m.name || m.id)})</option>`;
+    });
+    html += '</optgroup>';
+  }
+
+  if (quickSelect) {
+    quickSelect.innerHTML = html;
+    quickSelect.value = currentVal;
+  }
+  if (pageSelect) {
+    pageSelect.innerHTML = html;
+    pageSelect.value = currentVal;
+  }
+}
+
+function onOpenCodeModelChange(newModel) {
+  if (!newModel) return;
+  currentStudioSettings.opencode_model = newModel;
+  const quickSelect = document.getElementById('quickOpencodeModelSelect');
+  const pageSelect = document.getElementById('pageSettingsOpencodeModelSelect');
+  if (quickSelect && quickSelect.value !== newModel) quickSelect.value = newModel;
+  if (pageSelect && pageSelect.value !== newModel) pageSelect.value = newModel;
+  markSettingsDirty(true);
+}
+
+async function startGeminiCliBackground(btn) {
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> <span>Đang khởi động...</span>';
+  }
+  try {
+    const res = await fetch('/api/gemini/start', { method: 'POST' });
+    const data = await res.json();
+    if (data && data.success) {
+      showToast(data.message || 'Gemini CLI đã được kích hoạt chạy ngầm thành công!');
+      if (geminiCliStatus) {
+        geminiCliStatus.daemon_active = true;
+        geminiCliStatus.ready = true;
+      }
+    } else {
+      showToast((data && data.message) || 'Không thể khởi chạy Gemini CLI ngầm', 'error');
+    }
+    if (typeof checkGeminiCliAuthStatus === 'function') {
+      await checkGeminiCliAuthStatus(false);
+    } else {
+      updateEngineUI(currentStudioSettings.engine, nineRouterOnline);
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối khi khởi động Gemini CLI ngầm: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function startNineRouterBackground(btn) {
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> <span>Đang khởi động...</span>';
+  }
+  try {
+    const res = await fetch('/api/9router/start', { method: 'POST' });
+    const data = await res.json();
+    if (data && data.success) {
+      nineRouterOnline = true;
+      showToast(data.message || '9router proxy đã khởi động ngầm thành công trên cổng 20128!');
+      updateEngineUI(currentStudioSettings.engine, true);
+      fetchOpenCodeModels(true);
+    } else {
+      showToast((data && data.message) || 'Không thể khởi động 9router proxy ngầm', 'error');
+      updateEngineUI(currentStudioSettings.engine, false);
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối khi khởi động 9router ngầm: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+window.updateEngineUI = updateEngineUI;
+window.onPageEngineChange = onPageEngineChange;
+window.fetchOpenCodeModels = fetchOpenCodeModels;
+window.onOpenCodeModelChange = onOpenCodeModelChange;
+window.startGeminiCliBackground = startGeminiCliBackground;
+window.startNineRouterBackground = startNineRouterBackground;
 
 let currentModelFamily = 'gemini';
 
@@ -502,7 +741,7 @@ window.onSettingsOptionChanged = onSettingsOptionChanged;
 let activeSettingsSubTab = 'effort';
 
 function switchSettingsSidebarTab(tab, updateHistory = true) {
-  if (!['effort', 'engine', 'account', 'api', 'env'].includes(tab)) tab = 'effort';
+  if (!['effort', 'engine', 'mcp', 'api', 'env'].includes(tab)) tab = 'effort';
   activeSettingsSubTab = tab;
   window.initSettingsSubTab = tab;
   try {
@@ -515,7 +754,7 @@ function switchSettingsSidebarTab(tab, updateHistory = true) {
   const subRoutes = window.SETTINGS_SUBTAB_ROUTES || {
     'effort': '/settings/effort',
     'engine': '/settings/engine',
-    'account': '/settings/account',
+    'mcp': '/settings/mcp',
     'api': '/settings/api',
     'env': '/settings/env'
   };
@@ -526,7 +765,7 @@ function switchSettingsSidebarTab(tab, updateHistory = true) {
     } catch (e) { }
   }
 
-  const tabs = ['effort', 'engine', 'account', 'api', 'env'];
+  const tabs = ['effort', 'engine', 'mcp', 'api', 'env'];
   tabs.forEach(t => {
     const navBtn = document.getElementById('settingsNav_' + t);
     const panel = document.getElementById('settingsPanel_' + t);
@@ -547,8 +786,987 @@ function switchSettingsSidebarTab(tab, updateHistory = true) {
       }
     }
   });
+
+  if (tab === 'mcp') {
+    fetchMcpServers(false);
+  }
 }
 window.switchSettingsSidebarTab = switchSettingsSidebarTab;
+
+/* ============================================================
+   MCP (MODEL CONTEXT PROTOCOL) MANAGEMENT
+   ============================================================ */
+let _cachedMcpServers = [];
+let _isFetchingMcpServers = false;
+
+async function fetchMcpServers(forceRefresh = false) {
+  if (_isFetchingMcpServers) return;
+  _isFetchingMcpServers = true;
+  try {
+    const res = await fetch('/api/mcp/list');
+    const data = await res.json();
+    if (data && Array.isArray(data.servers)) {
+      _cachedMcpServers = data.servers;
+      renderMcpServers(data.servers);
+    }
+  } catch (err) {
+    console.error('Lỗi khi tải danh sách MCP servers:', err);
+    const container = document.getElementById('mcpServersContainer');
+    if (container) {
+      container.innerHTML = `<div class="p-4 text-center text-xs text-rose-400 font-sans">Lỗi tải MCP servers: ${escapeHtml(err.message)}</div>`;
+    }
+  } finally {
+    _isFetchingMcpServers = false;
+  }
+}
+
+function renderMcpServers(servers) {
+  const container = document.getElementById('mcpServersContainer');
+  const countBadge = document.getElementById('mcpServerCountBadge');
+  const activeCountTag = document.getElementById('mcpServerActiveCountTag');
+  const jiraBadge = document.getElementById('jiraSyncStatusBadge');
+
+  const count = servers ? servers.length : 0;
+  const activeCount = servers ? servers.filter(s => !s.disabled).length : 0;
+
+  if (countBadge) countBadge.textContent = String(count);
+  if (activeCountTag) activeCountTag.textContent = `${activeCount} đang hoạt động`;
+
+  // 1. Jira
+  const jiraServer = (servers || []).find(s => s.name === 'jira' || s.preset === 'jira');
+  const badgePresetJira = document.getElementById('badgePreset_jira');
+  const btnToggle = document.getElementById('btnToggleJira');
+  const btnRemove = document.getElementById('btnRemoveJira');
+  const btnToggleFooter = document.getElementById('btnToggleJiraFooter');
+  const btnRemoveFooter = document.getElementById('btnRemoveJiraFooter');
+
+  if (jiraServer) {
+    const isStopped = !!jiraServer.disabled;
+    const toggleLabel = isStopped ? 'Bật' : 'Tắt';
+    const toggleFooterLabel = isStopped ? 'Bật Jira MCP' : 'Tắt MCP';
+
+    if (btnToggle) {
+      btnToggle.textContent = toggleLabel;
+      btnToggle.classList.remove('hidden');
+    }
+    if (btnRemove) {
+      btnRemove.classList.remove('hidden');
+    }
+    if (btnToggleFooter) {
+      btnToggleFooter.textContent = toggleFooterLabel;
+      btnToggleFooter.classList.remove('hidden');
+    }
+    if (btnRemoveFooter) {
+      btnRemoveFooter.classList.remove('hidden');
+    }
+
+    if (jiraBadge) {
+      if (isStopped) {
+        jiraBadge.textContent = 'Đã dừng';
+        jiraBadge.title = '';
+        jiraBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped';
+      } else if (jiraServer.live_status === 'failed') {
+        jiraBadge.textContent = 'Lỗi kết nối';
+        jiraBadge.title = jiraServer.live_detail || 'MCP kết nối thất bại';
+        jiraBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped';
+      } else {
+        jiraBadge.textContent = 'Đã kết nối';
+        jiraBadge.title = '';
+        jiraBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800';
+      }
+    }
+    if (badgePresetJira) {
+      if (isStopped) {
+        badgePresetJira.textContent = 'Đã dừng';
+        badgePresetJira.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped';
+      } else {
+        badgePresetJira.textContent = 'Đã kết nối';
+        badgePresetJira.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+      }
+    }
+    const hostInput = document.getElementById('input_jira_host');
+    const emailInput = document.getElementById('input_jira_email');
+    const tokenInput = document.getElementById('input_jira_token');
+    if (hostInput && !hostInput.value && jiraServer.env && (jiraServer.env.JIRA_HOST || jiraServer.env.JIRA_BASE_URL)) {
+      hostInput.value = jiraServer.env.JIRA_HOST || jiraServer.env.JIRA_BASE_URL;
+    }
+    if (emailInput && !emailInput.value && jiraServer.env && (jiraServer.env.JIRA_EMAIL || jiraServer.env.JIRA_USER_EMAIL)) {
+      emailInput.value = jiraServer.env.JIRA_EMAIL || jiraServer.env.JIRA_USER_EMAIL;
+    }
+    if (tokenInput && !tokenInput.value && jiraServer.env && jiraServer.env.JIRA_API_TOKEN) {
+      tokenInput.value = jiraServer.env.JIRA_API_TOKEN;
+    }
+  } else {
+    if (btnToggle) btnToggle.classList.add('hidden');
+    if (btnRemove) btnRemove.classList.add('hidden');
+    if (btnToggleFooter) btnToggleFooter.classList.add('hidden');
+    if (btnRemoveFooter) btnRemoveFooter.classList.add('hidden');
+
+    if (jiraBadge) {
+      jiraBadge.textContent = 'Chưa kết nối';
+      jiraBadge.title = '';
+      jiraBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700';
+    }
+    if (badgePresetJira) {
+      badgePresetJira.textContent = 'Chưa kết nối';
+      badgePresetJira.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+    }
+  }
+
+  // 2. GitHub
+  const githubServer = (servers || []).find(s => s.name === 'github' || s.preset === 'github');
+  const githubBadge = document.getElementById('githubSyncStatusBadge');
+  const badgePresetGithub = document.getElementById('badgePreset_github');
+  if (githubServer) {
+    const isStopped = !!githubServer.disabled;
+    if (githubBadge) {
+      githubBadge.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      githubBadge.className = isStopped
+        ? 'text-[10px] font-sans font-medium px-2.5 py-1 rounded mcp-status-stopped'
+        : 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800';
+    }
+    if (badgePresetGithub) {
+      badgePresetGithub.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      badgePresetGithub.className = isStopped
+        ? 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped'
+        : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+    }
+    const tokenInput = document.getElementById('input_github_token');
+    if (tokenInput && !tokenInput.value && githubServer.env && githubServer.env.GITHUB_PERSONAL_ACCESS_TOKEN) {
+      tokenInput.value = githubServer.env.GITHUB_PERSONAL_ACCESS_TOKEN;
+    }
+  } else {
+    if (githubBadge) {
+      githubBadge.textContent = 'Chưa cấu hình';
+      githubBadge.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400';
+    }
+    if (badgePresetGithub) {
+      badgePresetGithub.textContent = 'Chưa cấu hình';
+      badgePresetGithub.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+    }
+  }
+
+  // 3. PostgreSQL
+  const postgresServer = (servers || []).find(s => s.name === 'postgres' || s.preset === 'postgres');
+  const postgresBadge = document.getElementById('postgresSyncStatusBadge');
+  const badgePresetPostgres = document.getElementById('badgePreset_postgres');
+  if (postgresServer) {
+    const isStopped = !!postgresServer.disabled;
+    if (postgresBadge) {
+      postgresBadge.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      postgresBadge.className = isStopped
+        ? 'text-[10px] font-sans font-medium px-2.5 py-1 rounded mcp-status-stopped'
+        : 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800';
+    }
+    if (badgePresetPostgres) {
+      badgePresetPostgres.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      badgePresetPostgres.className = isStopped
+        ? 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped'
+        : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+    }
+    const urlInput = document.getElementById('input_postgres_url');
+    if (urlInput && !urlInput.value && Array.isArray(postgresServer.args) && postgresServer.args.length > 0) {
+      const connStr = postgresServer.args.find(a => typeof a === 'string' && a.startsWith('postgres'));
+      if (connStr) urlInput.value = connStr;
+    }
+  } else {
+    if (postgresBadge) {
+      postgresBadge.textContent = 'Chưa cấu hình';
+      postgresBadge.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400';
+    }
+    if (badgePresetPostgres) {
+      badgePresetPostgres.textContent = 'Chưa cấu hình';
+      badgePresetPostgres.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+    }
+  }
+
+  // 4. GitLab
+  const gitlabServer = (servers || []).find(s => s.name === 'gitlab' || s.preset === 'gitlab');
+  const gitlabBadge = document.getElementById('gitlabSyncStatusBadge');
+  const badgePresetGitlab = document.getElementById('badgePreset_gitlab');
+  if (gitlabServer) {
+    const isStopped = !!gitlabServer.disabled;
+    if (gitlabBadge) {
+      gitlabBadge.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      gitlabBadge.className = isStopped
+        ? 'text-[10px] font-sans font-medium px-2.5 py-1 rounded mcp-status-stopped'
+        : 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800';
+    }
+    if (badgePresetGitlab) {
+      badgePresetGitlab.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      badgePresetGitlab.className = isStopped
+        ? 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped'
+        : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+    }
+    const hostInput = document.getElementById('input_gitlab_host');
+    const tokenInput = document.getElementById('input_gitlab_token');
+    if (hostInput && !hostInput.value && gitlabServer.env && gitlabServer.env.GITLAB_API_URL) {
+      hostInput.value = gitlabServer.env.GITLAB_API_URL.replace(/\/api\/v4\/?$/, '');
+    }
+    if (tokenInput && !tokenInput.value && gitlabServer.env && gitlabServer.env.GITLAB_PERSONAL_ACCESS_TOKEN) {
+      tokenInput.value = gitlabServer.env.GITLAB_PERSONAL_ACCESS_TOKEN;
+    }
+  } else {
+    if (gitlabBadge) {
+      gitlabBadge.textContent = 'Chưa cấu hình';
+      gitlabBadge.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400';
+    }
+    if (badgePresetGitlab) {
+      badgePresetGitlab.textContent = 'Chưa cấu hình';
+      badgePresetGitlab.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+    }
+  }
+
+  // 5. Custom
+  const customBadge = document.getElementById('badgePreset_custom');
+  if (customBadge) {
+    const customServers = (servers || []).filter(s => !['jira', 'github', 'postgres', 'gitlab'].includes(s.name) && s.preset !== 'jira');
+    if (customServers.length > 0) {
+      customBadge.textContent = `${customServers.length} server`;
+      customBadge.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+    } else {
+      customBadge.textContent = 'Tùy biến';
+      customBadge.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+    }
+  }
+
+  if (!container) return;
+
+  if (!servers || servers.length === 0) {
+    container.innerHTML = `
+      <div class="p-6 text-center rounded-lg border border-dashed border-[#244170]/80 bg-[#0c1628]/40 space-y-2">
+        <p class="text-xs text-slate-300 font-sans font-medium">Chưa có MCP server nào được đăng ký</p>
+        <p class="text-[11px] text-slate-400 font-sans max-w-md mx-auto">
+          Điền thông tin Jira ở form trên và bấm <strong>"Lưu &amp; Kích hoạt Jira MCP"</strong> hoặc bấm <strong>"+ Thêm MCP tùy chỉnh"</strong> để kết nối thêm các công cụ bên ngoài.
+        </p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = servers.map(s => {
+    const isJira = s.preset === 'jira' || s.name === 'jira';
+    const isHttp = s.type === 'http';
+    const isEnabled = !s.disabled;
+
+    let statusLabel = isEnabled ? 'Hoạt động' : 'Đã dừng';
+    let statusClass = isEnabled ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'mcp-status-stopped';
+    let statusTitle = '';
+    if (s.disabled) {
+      statusLabel = 'Đã dừng';
+      statusClass = 'mcp-status-stopped';
+    } else if (s.live_status === 'failed') {
+      statusLabel = 'Lỗi kết nối';
+      statusClass = 'mcp-status-stopped';
+      statusTitle = s.live_detail || 'MCP kết nối thất bại';
+    } else if (s.live_status === 'connected') {
+      statusLabel = 'Đã kết nối';
+      statusClass = 'bg-emerald-950 text-emerald-400 border border-emerald-800';
+    }
+
+    const envKeys = s.env ? Object.keys(s.env) : [];
+    const envPreview = envKeys.length > 0
+      ? `<div class="flex flex-wrap items-center gap-1.5 mt-2">
+           <span class="text-[10px] text-slate-400">Biến môi trường:</span>
+           ${envKeys.map(k => `<span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#081222] border border-[#244170]/70 text-slate-300">${escapeHtml(k)}</span>`).join('')}
+         </div>`
+      : '';
+
+    return `
+      <div class="mcp-server-card p-3.5 rounded-lg border border-[#244170] bg-[#0c1628] hover:border-slate-500 transition space-y-2.5">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-xs font-bold text-white">${escapeHtml(s.name)}</span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded uppercase font-semibold ${isHttp ? 'bg-purple-950 text-purple-300 border border-purple-800' : 'bg-cyan-950 text-cyan-300 border border-cyan-800'}">
+              ${escapeHtml(s.type)}
+            </span>
+            ${isJira ? '<span class="text-[10px] font-sans px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 font-medium">Jira Cloud</span>' : ''}
+            <span class="text-[10px] font-sans px-2 py-0.5 rounded font-medium ${statusClass}" title="${escapeHtml(statusTitle)}">
+              ${statusLabel}
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-slate-400 font-sans hidden sm:inline">Đồng bộ:</span>
+            <span class="text-[10px] font-sans px-1.5 py-0.5 rounded bg-emerald-950/70 text-emerald-400 border border-emerald-800/80">Gemini CLI</span>
+            <span class="text-[10px] font-sans px-1.5 py-0.5 rounded bg-cyan-950/70 text-cyan-400 border border-cyan-800/80">OpenCode</span>
+            <button type="button" onclick="toggleMcpServer('${escapeHtml(s.name)}', ${!isEnabled})"
+              class="text-xs px-2.5 py-1 rounded border border-[#244170] text-slate-300 hover:text-white hover:bg-white/5 transition cursor-pointer">
+              ${isEnabled ? 'Tắt' : 'Bật'}
+            </button>
+            <button type="button" onclick="removeMcpServer('${escapeHtml(s.name)}')"
+              class="text-xs px-2.5 py-1 rounded border border-rose-900/60 text-rose-400 hover:bg-rose-950/50 transition cursor-pointer">
+              Xóa
+            </button>
+          </div>
+        </div>
+
+        <div class="mcp-code-preview p-2 rounded bg-[#081222] border border-[#244170]/50 text-xs font-mono text-slate-300 break-all select-all">
+          ${escapeHtml(s.command_str || s.url || '(không có lệnh)')}
+        </div>
+
+        ${envPreview}
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleJiraTokenMask() {
+  const tokenInput = document.getElementById('input_jira_token');
+  const btn = document.getElementById('btnToggleJiraTokenMask');
+  if (!tokenInput || !btn) return;
+  if (tokenInput.type === 'password') {
+    tokenInput.type = 'text';
+    btn.textContent = 'Ẩn';
+  } else {
+    tokenInput.type = 'password';
+    btn.textContent = 'Hiện';
+  }
+}
+
+async function testJiraConnection(btn) {
+  const host = document.getElementById('input_jira_host')?.value?.trim() || '';
+  const email = document.getElementById('input_jira_email')?.value?.trim() || '';
+  const api_token = document.getElementById('input_jira_token')?.value?.trim() || '';
+  const resultBox = document.getElementById('jiraTestStatusResult');
+
+  if (!host) {
+    showToast('Vui lòng nhập Jira Host / URL.', 'warning');
+    return;
+  }
+  if (!email) {
+    showToast('Vui lòng nhập Email tài khoản Jira.', 'warning');
+    return;
+  }
+  if (!api_token) {
+    showToast('Vui lòng nhập Jira API Token.', 'warning');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang kết nối...';
+  }
+  if (resultBox) {
+    resultBox.classList.remove('hidden');
+    resultBox.className = 'jira-alert-box is-loading';
+    resultBox.innerHTML = `
+      <div class="jira-alert-icon">↻</div>
+      <div class="jira-alert-content">
+        <div class="jira-alert-title">Đang kiểm tra kết nối Jira...</div>
+        <div class="jira-alert-desc">Đang gửi yêu cầu xác thực tới Jira Cloud API tại ${escapeHtml(host)}...</div>
+      </div>
+    `;
+  }
+
+  try {
+    const res = await fetch('/api/mcp/test-jira', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host, email, api_token })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-success';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">✓</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Kết nối Jira thành công</div>
+            <div class="jira-alert-desc">${escapeHtml(d.message)}<br><span class="opacity-80 text-[11px]">Xác thực tài khoản thành công với Jira Cloud REST API.</span></div>
+          </div>
+        `;
+      }
+      showToast('Kết nối Jira thành công!');
+    } else {
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-error';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">!</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Lỗi kết nối Jira</div>
+            <div class="jira-alert-desc">${escapeHtml((d && d.message) || 'Không thể xác thực với Jira Host.')}</div>
+          </div>
+        `;
+      }
+      showToast((d && d.message) || 'Kiểm tra Jira thất bại', 'error');
+    }
+  } catch (err) {
+    if (resultBox) {
+      resultBox.className = 'jira-alert-box is-error';
+      resultBox.innerHTML = `
+        <div class="jira-alert-icon">!</div>
+        <div class="jira-alert-content">
+          <div class="jira-alert-title">Lỗi kết nối mạng</div>
+          <div class="jira-alert-desc">${escapeHtml(err.message)}</div>
+        </div>
+      `;
+    }
+    showToast('Lỗi kết nối: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Kiểm tra kết nối Jira';
+    }
+  }
+}
+
+async function saveJiraMcp(btn) {
+  const host = document.getElementById('input_jira_host')?.value?.trim() || '';
+  const email = document.getElementById('input_jira_email')?.value?.trim() || '';
+  const api_token = document.getElementById('input_jira_token')?.value?.trim() || '';
+
+  if (!host) {
+    showToast('Vui lòng nhập Jira Host / Domain URL.', 'warning');
+    return;
+  }
+  if (!email) {
+    showToast('Vui lòng nhập Email tài khoản Jira.', 'warning');
+    return;
+  }
+  if (!api_token) {
+    showToast('Vui lòng nhập Jira API Token.', 'warning');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang lưu...';
+  }
+
+  try {
+    const res = await fetch('/api/mcp/add-jira', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host, email, api_token, name: 'jira' })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast('Đã lưu & kích hoạt Atlassian Jira MCP thành công!');
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Không thể lưu Jira MCP', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi khi lưu Jira MCP: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Lưu & Kích hoạt Jira MCP';
+    }
+  }
+}
+
+function toggleCustomMcpSection(open) {
+  const sec = document.getElementById('customMcpSection');
+  if (!sec) return;
+  if (typeof open === 'boolean') {
+    if (open) sec.classList.remove('hidden');
+    else sec.classList.add('hidden');
+  } else {
+    sec.classList.toggle('hidden');
+  }
+  if (!sec.classList.contains('hidden')) {
+    const nameInput = document.getElementById('input_custom_mcp_name');
+    if (nameInput) nameInput.focus();
+  }
+}
+
+function onCustomMcpTypeChange(val) {
+  const boxCmd = document.getElementById('boxCustomMcpCommand');
+  const boxArgs = document.getElementById('boxCustomMcpArgs');
+  const boxUrl = document.getElementById('boxCustomMcpUrl');
+  if (val === 'http') {
+    if (boxCmd) boxCmd.classList.add('hidden');
+    if (boxArgs) boxArgs.classList.add('hidden');
+    if (boxUrl) boxUrl.classList.remove('hidden');
+  } else {
+    if (boxCmd) boxCmd.classList.remove('hidden');
+    if (boxArgs) boxArgs.classList.remove('hidden');
+    if (boxUrl) boxUrl.classList.add('hidden');
+  }
+}
+
+async function saveCustomMcp(btn) {
+  const name = document.getElementById('input_custom_mcp_name')?.value?.trim() || '';
+  const type = document.getElementById('select_custom_mcp_type')?.value || 'stdio';
+  const command = document.getElementById('input_custom_mcp_command')?.value?.trim() || '';
+  const argsStr = document.getElementById('input_custom_mcp_args')?.value?.trim() || '';
+  const url = document.getElementById('input_custom_mcp_url')?.value?.trim() || '';
+  const envRaw = document.getElementById('textarea_custom_mcp_env')?.value?.trim() || '';
+
+  if (!name) {
+    showToast('Vui lòng nhập tên Server.', 'warning');
+    return;
+  }
+  if (type === 'stdio' && !command) {
+    showToast('Vui lòng nhập lệnh thực thi (Command).', 'warning');
+    return;
+  }
+  if (type === 'http' && !url) {
+    showToast('Vui lòng nhập Remote URL.', 'warning');
+    return;
+  }
+
+  const env = {};
+  if (envRaw) {
+    if (envRaw.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(envRaw);
+        if (typeof parsed === 'object') Object.assign(env, parsed);
+      } catch (e) { }
+    }
+    if (Object.keys(env).length === 0) {
+      envRaw.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+          const idx = trimmed.indexOf('=');
+          const k = trimmed.substring(0, idx).trim();
+          const v = trimmed.substring(idx + 1).trim();
+          if (k) env[k] = v;
+        }
+      });
+    }
+  }
+
+  const args = argsStr ? argsStr.split(/\s+/).filter(Boolean) : [];
+
+  const payload = {
+    name,
+    type,
+    command,
+    args,
+    url,
+    env,
+    disabled: false
+  };
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Đang lưu...';
+  }
+
+  try {
+    const res = await fetch('/api/mcp/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || `Đã thêm MCP server '${name}' thành công!`);
+      toggleCustomMcpSection(false);
+      const nameInput = document.getElementById('input_custom_mcp_name');
+      if (nameInput) nameInput.value = '';
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Lỗi khi lưu MCP server', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi khi lưu MCP server: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Lưu MCP Server';
+    }
+  }
+}
+
+async function removeMcpServer(name) {
+  if (!name) return;
+  if (!confirm(`Bạn có chắc chắn muốn xóa MCP server '${name}' khỏi hệ thống?`)) return;
+
+  try {
+    const res = await fetch('/api/mcp/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || `Đã xóa MCP server '${name}'.`);
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Lỗi khi xóa MCP server', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối khi xóa: ' + err.message, 'error');
+  }
+}
+
+async function toggleMcpServer(name, enabled) {
+  if (!name) return;
+  try {
+    const res = await fetch('/api/mcp/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, enabled })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || `Đã cập nhật trạng thái MCP server '${name}'.`);
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Lỗi cập nhật', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối: ' + err.message, 'error');
+  }
+}
+
+async function toggleJiraServer() {
+  const jira = (_cachedMcpServers || []).find(s => s.name === 'jira' || s.preset === 'jira');
+  const name = jira ? jira.name : 'jira';
+  const newEnabled = jira ? !!jira.disabled : false;
+  await toggleMcpServer(name, newEnabled);
+}
+
+async function removeJiraServer() {
+  const jira = (_cachedMcpServers || []).find(s => s.name === 'jira' || s.preset === 'jira');
+  const name = jira ? jira.name : 'jira';
+  if (!confirm(`Bạn có chắc chắn muốn xóa cấu hình Atlassian Jira MCP?`)) return;
+
+  try {
+    const res = await fetch('/api/mcp/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || `Đã xóa cấu hình Jira MCP.`);
+      const hostInput = document.getElementById('input_jira_host');
+      const emailInput = document.getElementById('input_jira_email');
+      const tokenInput = document.getElementById('input_jira_token');
+      if (hostInput) hostInput.value = '';
+      if (emailInput) emailInput.value = '';
+      if (tokenInput) tokenInput.value = '';
+      const resultBox = document.getElementById('jiraTestStatusResult');
+      if (resultBox) resultBox.classList.add('hidden');
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Lỗi khi xóa Jira MCP', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối khi xóa: ' + err.message, 'error');
+  }
+}
+
+function selectMcpPreset(preset) {
+  const presets = ['jira', 'github', 'postgres', 'gitlab', 'custom'];
+  const target = presets.includes(preset) ? preset : 'jira';
+
+  presets.forEach(p => {
+    const card = document.getElementById(`cardPreset_${p}`);
+    if (card) {
+      if (p === target) {
+        card.classList.add('is-selected');
+        card.classList.remove('is-unconfigured');
+      } else {
+        card.classList.remove('is-selected');
+      }
+    }
+
+    const frameId = p === 'custom' ? 'customMcpSection' : `mcpConfigFrame_${p}`;
+    const frame = document.getElementById(frameId);
+    if (frame) {
+      if (p === target) {
+        frame.classList.remove('hidden');
+      } else {
+        frame.classList.add('hidden');
+      }
+    }
+  });
+
+  if (target === 'custom') {
+    const nameInput = document.getElementById('input_custom_mcp_name');
+    if (nameInput) setTimeout(() => nameInput.focus(), 50);
+  } else if (target === 'github') {
+    const tokenInput = document.getElementById('input_github_token');
+    if (tokenInput && !tokenInput.value) setTimeout(() => tokenInput.focus(), 50);
+  } else if (target === 'postgres') {
+    const urlInput = document.getElementById('input_postgres_url');
+    if (urlInput && !urlInput.value) setTimeout(() => urlInput.focus(), 50);
+  } else if (target === 'gitlab') {
+    const hostInput = document.getElementById('input_gitlab_host');
+    if (hostInput && !hostInput.value) setTimeout(() => hostInput.focus(), 50);
+  }
+}
+
+async function testGithubConnection(btn) {
+  const token = document.getElementById('input_github_token')?.value?.trim() || '';
+  const resultBox = document.getElementById('githubTestStatusResult');
+
+  if (!token) {
+    showToast('Vui lòng nhập GitHub Personal Access Token.', 'warning');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang kết nối...';
+  }
+  if (resultBox) {
+    resultBox.classList.remove('hidden');
+    resultBox.className = 'jira-alert-box is-loading';
+    resultBox.innerHTML = `
+      <div class="jira-alert-icon">↻</div>
+      <div class="jira-alert-content">
+        <div class="jira-alert-title">Đang xác thực với GitHub API...</div>
+        <div class="jira-alert-desc">Hệ thống đang kiểm tra token và quyền hạn với https://api.github.com/user</div>
+      </div>
+    `;
+  }
+
+  try {
+    const res = await fetch('/api/mcp/test-github', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-success';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">✓</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Kết nối GitHub thành công!</div>
+            <div class="jira-alert-desc">${escapeHtml(d.message || '')}</div>
+          </div>
+        `;
+      }
+      showToast(d.message || 'Kết nối GitHub thành công!', 'success');
+    } else {
+      const errMsg = (d && d.message) || 'Kiểm tra kết nối thất bại.';
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-error';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">!</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Lỗi kết nối GitHub</div>
+            <div class="jira-alert-desc">${escapeHtml(errMsg)}</div>
+          </div>
+        `;
+      }
+      showToast(errMsg, 'error');
+    }
+  } catch (err) {
+    if (resultBox) {
+      resultBox.className = 'jira-alert-box is-error';
+      resultBox.innerHTML = `
+        <div class="jira-alert-icon">!</div>
+        <div class="jira-alert-content">
+          <div class="jira-alert-title">Lỗi kết nối mạng</div>
+          <div class="jira-alert-desc">${escapeHtml(err.message)}</div>
+        </div>
+      `;
+    }
+    showToast('Lỗi kết nối: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Kiểm tra kết nối GitHub';
+    }
+  }
+}
+
+async function saveGithubMcp(btn) {
+  const token = document.getElementById('input_github_token')?.value?.trim() || '';
+  if (!token) {
+    showToast('Vui lòng nhập GitHub Personal Access Token.', 'warning');
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang lưu...';
+  }
+  try {
+    const res = await fetch('/api/mcp/add-github', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, name: 'github' })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || 'Đã lưu & kích hoạt GitHub MCP thành công!', 'success');
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Không thể lưu GitHub MCP', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi khi lưu GitHub MCP: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Lưu & Kích hoạt GitHub MCP';
+    }
+  }
+}
+
+async function savePostgresMcp(btn) {
+  const url = document.getElementById('input_postgres_url')?.value?.trim() || '';
+  if (!url) {
+    showToast('Vui lòng nhập PostgreSQL Connection String URL.', 'warning');
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang lưu...';
+  }
+  try {
+    const res = await fetch('/api/mcp/add-postgres', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, name: 'postgres' })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || 'Đã lưu & kích hoạt PostgreSQL MCP thành công!', 'success');
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Không thể lưu PostgreSQL MCP', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi khi lưu PostgreSQL MCP: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Lưu & Kích hoạt PostgreSQL MCP';
+    }
+  }
+}
+
+async function testGitlabConnection(btn) {
+  const host = document.getElementById('input_gitlab_host')?.value?.trim() || 'https://gitlab.com';
+  const token = document.getElementById('input_gitlab_token')?.value?.trim() || '';
+  const resultBox = document.getElementById('gitlabTestStatusResult');
+
+  if (!token) {
+    showToast('Vui lòng nhập GitLab Personal Access Token.', 'warning');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang kết nối...';
+  }
+  if (resultBox) {
+    resultBox.classList.remove('hidden');
+    resultBox.className = 'jira-alert-box is-loading';
+    resultBox.innerHTML = `
+      <div class="jira-alert-icon">↻</div>
+      <div class="jira-alert-content">
+        <div class="jira-alert-title">Đang xác thực với GitLab API...</div>
+        <div class="jira-alert-desc">Hệ thống đang kiểm tra token với ${escapeHtml(host)}/api/v4/user</div>
+      </div>
+    `;
+  }
+
+  try {
+    const res = await fetch('/api/mcp/test-gitlab', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host, token })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-success';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">✓</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Kết nối GitLab thành công!</div>
+            <div class="jira-alert-desc">${escapeHtml(d.message || '')}</div>
+          </div>
+        `;
+      }
+      showToast(d.message || 'Kết nối GitLab thành công!', 'success');
+    } else {
+      const errMsg = (d && d.message) || 'Kiểm tra kết nối thất bại.';
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-error';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">!</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Lỗi kết nối GitLab</div>
+            <div class="jira-alert-desc">${escapeHtml(errMsg)}</div>
+          </div>
+        `;
+      }
+      showToast(errMsg, 'error');
+    }
+  } catch (err) {
+    if (resultBox) {
+      resultBox.className = 'jira-alert-box is-error';
+      resultBox.innerHTML = `
+        <div class="jira-alert-icon">!</div>
+        <div class="jira-alert-content">
+          <div class="jira-alert-title">Lỗi kết nối mạng</div>
+          <div class="jira-alert-desc">${escapeHtml(err.message)}</div>
+        </div>
+      `;
+    }
+    showToast('Lỗi kết nối: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Kiểm tra kết nối GitLab';
+    }
+  }
+}
+
+async function saveGitlabMcp(btn) {
+  const host = document.getElementById('input_gitlab_host')?.value?.trim() || 'https://gitlab.com';
+  const token = document.getElementById('input_gitlab_token')?.value?.trim() || '';
+  if (!token) {
+    showToast('Vui lòng nhập GitLab Personal Access Token.', 'warning');
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang lưu...';
+  }
+  try {
+    const res = await fetch('/api/mcp/add-gitlab', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host, token, name: 'gitlab' })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || 'Đã lưu & kích hoạt GitLab MCP thành công!', 'success');
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Không thể lưu GitLab MCP', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi khi lưu GitLab MCP: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Lưu & Kích hoạt GitLab MCP';
+    }
+  }
+}
+
+window.fetchMcpServers = fetchMcpServers;
+window.renderMcpServers = renderMcpServers;
+window.selectMcpPreset = selectMcpPreset;
+window.testGithubConnection = testGithubConnection;
+window.saveGithubMcp = saveGithubMcp;
+window.savePostgresMcp = savePostgresMcp;
+window.testGitlabConnection = testGitlabConnection;
+window.saveGitlabMcp = saveGitlabMcp;
+window.toggleJiraTokenMask = toggleJiraTokenMask;
+window.testJiraConnection = testJiraConnection;
+window.saveJiraMcp = saveJiraMcp;
+window.toggleJiraServer = toggleJiraServer;
+window.removeJiraServer = removeJiraServer;
+window.toggleCustomMcpSection = toggleCustomMcpSection;
+window.onCustomMcpTypeChange = onCustomMcpTypeChange;
+window.saveCustomMcp = saveCustomMcp;
+window.removeMcpServer = removeMcpServer;
+window.toggleMcpServer = toggleMcpServer;
 
 function selectActiveApiProvider(provider) {
   if (!['gemini', 'claude', 'openai', 'custom'].includes(provider)) provider = 'gemini';
@@ -724,6 +1942,10 @@ async function saveSettingsFromPage() {
   const agy_bin = document.getElementById('input_agy_bin')?.value?.trim() ?? (currentStudioSettings.agy_bin || '');
   const opencode_bin = document.getElementById('input_opencode_bin')?.value?.trim() ?? (currentStudioSettings.opencode_bin || '');
 
+  const jira_host = document.getElementById('input_jira_host')?.value?.trim() ?? (currentStudioSettings.jira_host || '');
+  const jira_email = document.getElementById('input_jira_email')?.value?.trim() ?? (currentStudioSettings.jira_email || '');
+  const jira_api_token = document.getElementById('input_jira_token')?.value?.trim() ?? (currentStudioSettings.jira_api_token || '');
+
   currentStudioSettings = Object.assign({}, currentStudioSettings, {
     engine,
     effort,
@@ -738,7 +1960,10 @@ async function saveSettingsFromPage() {
     fe_workspace,
     be_workspace,
     agy_bin,
-    opencode_bin
+    opencode_bin,
+    jira_host,
+    jira_email,
+    jira_api_token
   });
 
   updateEngineUI(engine, nineRouterOnline);
@@ -769,7 +1994,10 @@ async function saveSettingsFromPage() {
           fe_workspace,
           be_workspace,
           agy_bin,
-          opencode_bin
+          opencode_bin,
+          jira_host,
+          jira_email,
+          jira_api_token
         }
       })
     });
@@ -965,6 +2193,19 @@ function switchTab(tab, updateHistory = true) {
           updateEffortUI(currentStudioSettings.effort);
           updateApiUI(currentStudioSettings);
           updateEnvUI(currentStudioSettings, d.env_info);
+          if (currentStudioSettings.jira_host) {
+            const jiHost = document.getElementById('input_jira_host');
+            if (jiHost && !jiHost.value) jiHost.value = currentStudioSettings.jira_host;
+          }
+          if (currentStudioSettings.jira_email) {
+            const jiEmail = document.getElementById('input_jira_email');
+            if (jiEmail && !jiEmail.value) jiEmail.value = currentStudioSettings.jira_email;
+          }
+          if (currentStudioSettings.jira_api_token) {
+            const jiToken = document.getElementById('input_jira_token');
+            if (jiToken && !jiToken.value) jiToken.value = currentStudioSettings.jira_api_token;
+          }
+          fetchMcpServers(false);
           markSettingsDirty(false);
         })
         .catch(() => {});

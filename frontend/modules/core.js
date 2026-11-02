@@ -260,8 +260,51 @@ function formatCommitAuthor(author, isMe) {
 }
 window.formatCommitAuthor = formatCommitAuthor;
 
-function formatRelativeDate(raw) {
-  if (!raw) return '';
+function formatRelativeDate(raw, timestamp) {
+  if (!raw && !timestamp) return '';
+  let ts = Number(timestamp);
+  if (!ts && raw) {
+    if (typeof raw === 'number') {
+      ts = raw;
+    } else if (typeof raw === 'string') {
+      const sTrim = raw.trim();
+      if (/^\d{10,13}$/.test(sTrim)) {
+        ts = parseInt(sTrim, 10);
+        if (ts < 1e11) ts *= 1000;
+      } else if (sTrim.includes('T') && (sTrim.includes('+') || sTrim.includes('Z') || sTrim.includes('-'))) {
+        const parsed = Date.parse(sTrim);
+        if (!isNaN(parsed)) ts = parsed;
+      }
+    }
+  }
+
+  if (ts && !isNaN(ts) && ts > 0) {
+    const diffSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+    if (diffSec < 45) return 'vừa xong';
+    if (diffSec < 3600) {
+      const m = Math.floor(diffSec / 60);
+      return `${m}p trước`;
+    }
+    if (diffSec < 86400) {
+      const h = Math.floor(diffSec / 3600);
+      const m = Math.floor((diffSec % 3600) / 60);
+      return m > 0 ? `${h}h${m < 10 ? '0' + m : m} trước` : `${h}h trước`;
+    }
+    const days = Math.floor(diffSec / 86400);
+    if (days === 1) return 'hôm qua';
+    if (days < 7) return `${days} ngày trước`;
+    if (days < 30) {
+      const weeks = Math.floor(days / 7);
+      return `${weeks} tuần trước`;
+    }
+    if (days < 365) {
+      const months = Math.floor(days / 30);
+      return `${months} tháng trước`;
+    }
+    const years = Math.floor(days / 365);
+    return `${years} năm trước`;
+  }
+
   const s = String(raw).trim();
   if (!s) return '';
 

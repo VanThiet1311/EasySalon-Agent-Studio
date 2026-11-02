@@ -1386,18 +1386,6 @@ function renderFeedFilterTabs() {
   const container = document.getElementById('feedTaskFilterTabs');
   if (!container) return;
 
-  const btnClear = document.getElementById('btnClearCompletedFeed');
-  const hasFinished = parallelTasks.some(t => t.status === 'completed' || t.status === 'done' || t.status === 'stopped');
-  if (btnClear) {
-    if (hasFinished) {
-      btnClear.classList.remove('hidden');
-      btnClear.classList.add('flex');
-    } else {
-      btnClear.classList.add('hidden');
-      btnClear.classList.remove('flex');
-    }
-  }
-
   const tabs = [
     { id: 'all', label: `Tất cả (${parallelTasks.length})` },
     ...parallelTasks.map((t, idx) => ({ id: t.id, name: t.name, status: t.status, type: t.type, idx: idx + 1 }))
@@ -1667,19 +1655,48 @@ function renderFeedView(data) {
       runningCard.remove();
     }
 
-    const isSessRunning = Boolean(sess._isRunning) && sess.status !== 'COMPLETED' && sess.status !== 'STOPPED';
+    const isSessRunning = isRunning || Boolean(sess._isRunning) || sess.status === 'RUNNING' || sess.status === 'STARTING' || sess.status === 'IN_PROGRESS';
     turns.forEach((t, i) => {
       const cardId = 'turnCard_' + (sess._taskId || sess.id) + '_' + i;
       let card = document.getElementById(cardId);
       const isFe = t.speaker === 'fe';
       const isLatestTurn = (i === turns.length - 1);
-      const isStreaming = Boolean(t.is_streaming) && isSessRunning && isLatestTurn;
+      const isStreaming = Boolean(t.is_streaming) || (isSessRunning && isLatestTurn);
       const streamingIndicator = isStreaming ? '<span class="inline-flex items-center gap-1.5 text-[11px] text-cyan-400 font-mono"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>Đang xử lý trên AI Terminal...</span>' : '';
       const turnFiles = (t.changed_files && t.changed_files.length > 0) ? t.changed_files : (sess.changed_files || []);
       const bodyContent = t.content ? safeMarkdown(t.content, turnFiles) : '';
       const streamingPreviewText = t.content ? (t.content.slice(-70).trim().replace(/\n+/g, ' ')) : (sess._statusText || t.status_text || 'Đang thực thi lệnh trên AI Terminal...');
       const stepLogsHtml = renderStepLogsHtml(t.step_logs, sess._taskId || sess.id, i, isStreaming, streamingPreviewText);
       const changedFilesHtml = renderChangedFilesHtml(t.changed_files, sess._taskId || sess.id, i);
+
+      const hasStepLogs = Boolean(t.step_logs && t.step_logs.length > 0);
+      const hasContent = Boolean(t.content && t.content.trim().length > 0);
+      let loadingPlaceholderHtml = '';
+      if (isSessRunning && isLatestTurn && !hasContent && !hasStepLogs) {
+        loadingPlaceholderHtml = `
+          <div class="tool-step-box my-2.5 rounded-lg border border-[#244170] bg-[#070d18] overflow-hidden shadow-inner p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="wave-dots">
+                  <span class="wave-dot"></span>
+                  <span class="wave-dot"></span>
+                  <span class="wave-dot"></span>
+                </div>
+                <span class="text-xs font-semibold text-cyan-300 font-sans">AI Agent đang suy nghĩ &amp; chuẩn bị tiến trình ngầm...</span>
+              </div>
+              <span class="text-[10.5px] font-mono text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800 animate-pulse">Đang xử lý</span>
+            </div>
+            <div class="p-2.5 rounded bg-[#040810] border border-[#1e3458] text-[11px] font-mono text-slate-300 flex items-center gap-2">
+              <span class="text-cyan-400 select-none font-bold">$</span>
+              <span class="truncate text-slate-200">${escapeHtml(sess._statusText || t.status_text || 'Đang chuẩn bị workspace và chạy lệnh trên AI Terminal...')}</span>
+            </div>
+            <div class="space-y-1.5 pt-1">
+              <div class="h-1.5 bg-gradient-to-r from-cyan-500/30 via-cyan-400/10 to-transparent rounded animate-pulse w-4/5"></div>
+              <div class="h-1.5 bg-gradient-to-r from-cyan-500/20 via-cyan-400/5 to-transparent rounded animate-pulse w-1/2"></div>
+            </div>
+          </div>
+        `;
+      }
 
       if (!card) {
         card = document.createElement('div');
@@ -1707,7 +1724,7 @@ function renderFeedView(data) {
       const isDiffCollapsed = _collapsedDiffBoxes.has(diffBoxId);
 
       const changesSig = (t.changed_files || []).map(cf => `${cf.path}:${cf.status}:${cf.additions}:${cf.deletions}`).join('|');
-      const currentSig = `${(t.content || '').length}_${(t.step_logs || []).length}_${t.elapsed_sec}_${isStreaming}_${(t.step_logs || []).map(s => s.state + (s.output ? s.output.length : 0)).join(',')}_${changesSig}_${isCollapsed}_${isStepCollapsed}_${isDiffCollapsed}`;
+      const currentSig = `${(t.content || '').length}_${(t.step_logs || []).length}_${t.elapsed_sec}_${isStreaming}_${Boolean(loadingPlaceholderHtml)}_${(t.step_logs || []).map(s => s.state + (s.output ? s.output.length : 0)).join(',')}_${changesSig}_${isCollapsed}_${isStepCollapsed}_${isDiffCollapsed}`;
       if (card.dataset.sig !== currentSig) {
         card.dataset.sig = currentSig;
         card.innerHTML = `
@@ -1729,7 +1746,8 @@ function renderFeedView(data) {
               <div id="turnBody_${cardId}" class="turn-body-content mt-2.5 ${isCollapsed ? 'hidden' : ''}">
                 ${stepLogsHtml}
                 ${changedFilesHtml}
-                <div class="markdown-body text-[13px] text-slate-200 leading-[1.82] tracking-wide overflow-x-auto">${bodyContent}</div>
+                ${loadingPlaceholderHtml}
+                ${bodyContent ? `<div class="markdown-body text-[13px] text-slate-200 leading-[1.82] tracking-wide overflow-x-auto">${bodyContent}</div>` : ''}
               </div>
             `;
       }
@@ -2006,9 +2024,265 @@ let _currentEditorFile = null;
 let _currentEditorRepo = 'fe';
 let _currentEditorMtime = 0;
 let _currentEditorContent = '';
+let _currentEditorBlame = null;
+let _gitLensHideTimer = null;
+let _currentActiveLineNumber = 1;
 let _fileEditorSyncTimer = null;
 let _isCheckingFileStat = false;
 let _editorCharWidth = 7.22;
+let _currentEditorAbsPath = '';
+let _minimapClickListenerSetup = false;
+
+function formatGitLensRelativeTime(timestamp) {
+  if (!timestamp) return '';
+  const now = Math.floor(Date.now() / 1000);
+  const diff = Math.max(0, now - timestamp);
+  if (diff < 60) return 'vừa xong';
+  const mins = Math.floor(diff / 60);
+  if (mins < 60) return `${mins} phút trước`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} ngày trước`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} tháng trước`;
+  const years = Math.floor(months / 12);
+  return `${years} năm trước`;
+}
+
+function formatGitLensFullDate(timestamp) {
+  if (!timestamp) return '';
+  const d = new Date(timestamp * 1000);
+  const pad = (n) => String(n).padStart(2, '0');
+  const day = pad(d.getDate());
+  const month = pad(d.getMonth() + 1);
+  const year = d.getFullYear();
+  const hours = pad(d.getHours());
+  const mins = pad(d.getMinutes());
+  const secs = pad(d.getSeconds());
+  return `${day}/${month}/${year}, ${hours}:${mins}:${secs}`;
+}
+
+async function loadFileBlameData(filePath, repo) {
+  _currentEditorBlame = null;
+  const authorInfoEl = document.getElementById('fileEditorAuthorInfo');
+  const inlineBlameEl = document.getElementById('fileEditorInlineBlame');
+  if (authorInfoEl) authorInfoEl.innerHTML = '<span class="text-slate-400 font-sans">Đang đọc tác giả...</span>';
+  if (inlineBlameEl) inlineBlameEl.textContent = '';
+
+  try {
+    const res = await fetch(`/api/file/blame?path=${encodeURIComponent(filePath)}&target=${encodeURIComponent(repo)}`);
+    const data = await res.json();
+    if (data && data.success) {
+      _currentEditorBlame = data;
+      renderEditorAuthorInfo();
+      updateActiveLineBlame(_currentActiveLineNumber);
+    } else {
+      if (authorInfoEl) authorInfoEl.innerHTML = '';
+    }
+  } catch (e) {
+    if (authorInfoEl) authorInfoEl.innerHTML = '';
+  }
+}
+
+function renderEditorAuthorInfo() {
+  const authorInfoEl = document.getElementById('fileEditorAuthorInfo');
+  if (!authorInfoEl) return;
+  if (!_currentEditorBlame) {
+    authorInfoEl.innerHTML = '';
+    return;
+  }
+
+  const { creator, last_modifier } = _currentEditorBlame;
+  if (!creator && !last_modifier) {
+    authorInfoEl.innerHTML = '<span class="text-slate-400 font-sans">Chưa có lịch sử Git</span>';
+    return;
+  }
+
+  let html = '';
+  if (creator) {
+    const cTime = formatGitLensRelativeTime(creator.time);
+    const cAuthor = escapeHtml(creator.author || 'Tác giả');
+    html += `
+      <span class="inline-flex items-center gap-1 cursor-pointer hover:text-sky-300 transition" onclick="showGitLensCommitCard('creator', event)" title="Nhấn xem commit tạo file">
+        <svg class="w-3.5 h-3.5 text-sky-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+        </svg>
+        <span>Tạo bởi: <strong class="text-white font-medium">${cAuthor}</strong> <span class="text-slate-400 font-sans">(${cTime})</span></span>
+      </span>
+    `;
+  }
+
+  if (last_modifier) {
+    if (creator) {
+      html += '<span class="text-slate-500 font-sans">•</span>';
+    }
+    const mTime = formatGitLensRelativeTime(last_modifier.time);
+    const mAuthor = escapeHtml(last_modifier.author || 'Người sửa');
+    html += `
+      <span class="inline-flex items-center gap-1 cursor-pointer hover:text-sky-300 transition" onclick="showGitLensCommitCard('last_mod', event)" title="Nhấn xem commit sửa gần nhất">
+        <span class="text-slate-400 font-sans">Sửa gần nhất:</span>
+        <strong class="text-emerald-400 font-medium">${mAuthor}</strong> <span class="text-slate-400 font-sans">(${mTime})</span>
+      </span>
+    `;
+  }
+
+  authorInfoEl.innerHTML = html;
+}
+
+function updateActiveLineBlame(lineIndex) {
+  const inlineBlameEl = document.getElementById('fileEditorInlineBlame');
+  if (!inlineBlameEl) return;
+
+  _currentActiveLineNumber = lineIndex;
+
+  if (!_currentEditorBlame || !_currentEditorBlame.lines || !_currentEditorBlame.lines[lineIndex]) {
+    inlineBlameEl.textContent = '';
+    return;
+  }
+
+  const blame = _currentEditorBlame.lines[lineIndex];
+  const author = blame.author || 'You';
+  const relTime = formatGitLensRelativeTime(blame.time);
+  const summary = blame.summary || 'Uncommitted changes';
+
+  const timePart = relTime ? `, ${relTime}` : '';
+  inlineBlameEl.innerHTML = `
+    <svg class="w-3 h-3 text-sky-400 shrink-0 inline mr-0.5 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+    <span>${escapeHtml(author)}${escapeHtml(timePart)} • ${escapeHtml(summary)}</span>
+  `;
+}
+
+function showGitLensCommitCard(commitKey, event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  cancelHideGitLensCard();
+
+  if (!_currentEditorBlame) return;
+
+  let commit = null;
+  if (commitKey === 'creator') {
+    commit = _currentEditorBlame.creator;
+  } else if (commitKey === 'last_mod') {
+    commit = _currentEditorBlame.last_modifier;
+  } else if (_currentEditorBlame.commits && _currentEditorBlame.commits[commitKey]) {
+    commit = _currentEditorBlame.commits[commitKey];
+  } else if (_currentEditorBlame.lines && _currentEditorBlame.lines[commitKey]) {
+    const lineObj = _currentEditorBlame.lines[commitKey];
+    if (lineObj && lineObj.hash && _currentEditorBlame.commits && _currentEditorBlame.commits[lineObj.hash]) {
+      commit = _currentEditorBlame.commits[lineObj.hash];
+    } else {
+      commit = lineObj;
+    }
+  }
+
+  if (!commit) return;
+
+  const card = document.getElementById('fileEditorGitLensCard');
+  const authorEl = document.getElementById('gitLensCardAuthor');
+  const timeEl = document.getElementById('gitLensCardTime');
+  const dateEl = document.getElementById('gitLensCardDate');
+  const hashEl = document.getElementById('gitLensCardHash');
+  const titleEl = document.getElementById('gitLensCardTitle');
+  const bodyEl = document.getElementById('gitLensCardBody');
+  const emailEl = document.getElementById('gitLensCardEmail');
+
+  if (!card) return;
+
+  const authorName = commit.author || commit.raw_author || 'You';
+  const relTime = formatGitLensRelativeTime(commit.time);
+  const fullDate = formatGitLensFullDate(commit.time);
+  const shortHash = (commit.hash || '').substring(0, 8);
+
+  if (authorEl) authorEl.textContent = authorName;
+  if (timeEl) timeEl.textContent = relTime ? `, ${relTime}` : '';
+  if (dateEl) dateEl.textContent = fullDate ? ` (${fullDate})` : '';
+  if (hashEl) hashEl.textContent = shortHash;
+  if (titleEl) titleEl.textContent = commit.summary || commit.title || 'No commit title';
+  if (emailEl) emailEl.textContent = commit.email ? `Tác giả: ${commit.email}` : '';
+
+  if (bodyEl) {
+    const bodyText = (commit.body || '').trim();
+    if (!bodyText) {
+      bodyEl.innerHTML = '';
+      bodyEl.classList.add('hidden');
+    } else {
+      bodyEl.classList.remove('hidden');
+      const lines = bodyText.split('\n');
+      let bodyHtml = '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('• ')) {
+          const content = trimmed.replace(/^[-*•]\s*/, '');
+          bodyHtml += `<div class="gitlens-bullet-item leading-snug">${escapeHtml(content)}</div>`;
+        } else {
+          bodyHtml += `<div class="leading-snug">${escapeHtml(trimmed)}</div>`;
+        }
+      }
+      bodyEl.innerHTML = bodyHtml;
+    }
+  }
+
+  const modalCard = document.getElementById('fileEditorModalCard');
+  if (modalCard) {
+    const modalRect = modalCard.getBoundingClientRect();
+    let left = 20;
+    let top = 60;
+
+    if (event && event.currentTarget) {
+      const targetRect = event.currentTarget.getBoundingClientRect();
+      left = Math.max(10, Math.min(targetRect.left - modalRect.left - 20, modalRect.width - 540));
+      top = targetRect.bottom - modalRect.top + 8;
+      if (top + 250 > modalRect.height) {
+        top = Math.max(10, targetRect.top - modalRect.top - 240);
+      }
+    } else {
+      const activeLine = document.getElementById('fileEditorActiveLineHighlight');
+      if (activeLine) {
+        const lineRect = activeLine.getBoundingClientRect();
+        left = Math.max(10, Math.min(lineRect.right - modalRect.left - 530, modalRect.width - 540));
+        top = lineRect.bottom - modalRect.top + 6;
+        if (top + 250 > modalRect.height) {
+          top = Math.max(10, lineRect.top - modalRect.top - 240);
+        }
+      }
+    }
+
+    card.style.left = `${left}px`;
+    card.style.top = `${top}px`;
+  }
+
+  card.classList.remove('hidden');
+}
+
+function showGitLensForActiveLine(event) {
+  showGitLensCommitCard(_currentActiveLineNumber, event);
+}
+
+function hideGitLensCard() {
+  const card = document.getElementById('fileEditorGitLensCard');
+  if (card) card.classList.add('hidden');
+}
+
+function scheduleHideGitLensCard() {
+  clearTimeout(_gitLensHideTimer);
+  _gitLensHideTimer = setTimeout(() => {
+    hideGitLensCard();
+  }, 300);
+}
+
+function cancelHideGitLensCard() {
+  clearTimeout(_gitLensHideTimer);
+}
+
+window.showGitLensCommitCard = showGitLensCommitCard;
+window.showGitLensForActiveLine = showGitLensForActiveLine;
+window.hideGitLensCard = hideGitLensCard;
 
 function normalizeRepoRole(r) {
   if (!r) return 'fe';
@@ -2063,6 +2337,8 @@ function updateActiveLineHighlight() {
     const curLineEl = lineNumbers.children[lineIndex];
     if (curLineEl) curLineEl.classList.add('active-line-num');
   }
+
+  updateActiveLineBlame(lineIndex + 1);
 }
 
 function updateIndentGuides() {
@@ -2121,6 +2397,281 @@ function updateIndentGuides() {
   indentLayer.scrollLeft = textarea.scrollLeft;
 }
 
+function detectFileLanguage(filePath) {
+  if (!filePath) return 'text';
+  const ext = (filePath.split('.').pop() || '').toLowerCase();
+  if (['json', 'jsonc'].includes(ext)) return 'json';
+  if (['ts', 'tsx'].includes(ext)) return 'typescript';
+  if (['js', 'jsx', 'mjs', 'cjs'].includes(ext)) return 'javascript';
+  if (['py'].includes(ext)) return 'python';
+  if (['css', 'scss', 'less'].includes(ext)) return 'css';
+  if (['html', 'htm', 'vue', 'xml', 'svg'].includes(ext)) return 'html';
+  if (['md', 'markdown'].includes(ext)) return 'markdown';
+  if (['sh', 'bash', 'env'].includes(ext)) return 'shell';
+  if (['sql'].includes(ext)) return 'sql';
+  return 'text';
+}
+
+function getLanguageDisplayName(filePath) {
+  const lang = detectFileLanguage(filePath);
+  const map = {
+    json: '{ } JSON',
+    typescript: 'TypeScript',
+    javascript: 'JavaScript',
+    python: 'Python',
+    css: 'CSS',
+    html: 'HTML',
+    markdown: 'Markdown',
+    shell: 'Shell Script',
+    sql: 'SQL',
+    text: 'Plain Text'
+  };
+  return map[lang] || 'Plain Text';
+}
+
+function getFileTabIconHtml(filePath) {
+  const lang = detectFileLanguage(filePath);
+  if (lang === 'json') return '<span class="text-[#e5a00d] font-bold text-xs">{ }</span>';
+  if (lang === 'typescript') return '<span class="text-[#3178c6] font-bold text-[11px]">TS</span>';
+  if (lang === 'javascript') return '<span class="text-[#f7df1e] font-bold text-[11px]">JS</span>';
+  if (lang === 'python') return '<span class="text-[#3572A5] font-bold text-[11px]">Py</span>';
+  if (lang === 'css') return '<span class="text-[#38bdf8] font-bold text-xs">#</span>';
+  if (lang === 'html') return '<span class="text-[#e34c26] font-bold text-xs">&lt;&gt;</span>';
+  if (lang === 'markdown') return '<span class="text-[#38bdf8] font-bold text-xs">M↓</span>';
+  return '<span class="text-slate-400 font-bold text-xs">📄</span>';
+}
+
+function highlightCode(code, lang) {
+  if (!code) return '';
+  const lines = code.split('\n');
+  return lines.map(line => highlightLine(line, lang)).join('\n');
+}
+
+function highlightLine(line, lang) {
+  if (!line) return '';
+  if (lang === 'json') {
+    const regex = /(\/\/[^\n]*)|("(?:\\.|[^"\\])*"(?=\s*:))|("(?:\\.|[^"\\])*")|(\b(?:true|false|null)\b)|(-?\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|([{}[\],:])|([^"/\b{}\[\],:\s]+)/g;
+    return line.replace(regex, (m, comment, key, str, bool, num, punc) => {
+      if (comment) return `<span class="token-comment">${escapeHtml(comment)}</span>`;
+      if (key) return `<span class="token-key">${escapeHtml(key)}</span>`;
+      if (str) return `<span class="token-string">${escapeHtml(str)}</span>`;
+      if (bool) return `<span class="token-boolean">${escapeHtml(bool)}</span>`;
+      if (num) return `<span class="token-number">${escapeHtml(num)}</span>`;
+      if (punc) {
+        if (punc === '{' || punc === '}') return `<span class="token-bracket-gold">${escapeHtml(punc)}</span>`;
+        if (punc === '[' || punc === ']') return `<span class="token-bracket-purple">${escapeHtml(punc)}</span>`;
+        return `<span class="token-punc">${escapeHtml(punc)}</span>`;
+      }
+      return escapeHtml(m);
+    });
+  }
+
+  if (lang === 'typescript' || lang === 'javascript') {
+    const regex = /(\/\/[^\n]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|(\b(?:import|export|from|as|default|const|let|var|function|return|if|else|switch|case|default|break|continue|for|while|do|try|catch|finally|throw|class|extends|implements|interface|type|enum|new|typeof|instanceof|void|async|await|yield|this|super|public|private|protected|readonly|static)\b)|(\b(?:string|number|boolean|any|unknown|never|symbol|bigint|object|Array|Record|Promise|Map|Set|HTMLElement)\b)|(\b(?:true|false|null|undefined|NaN)\b)|(-?\b\d+(?:\.\d+)?\b)|(\b[a-zA-Z_$][a-zA-Z0-9_$]*(?=\s*\())|([{}()[\]])|([.,;:])|([^"'`/\b{}()[\].,;:\s]+)/g;
+    return line.replace(regex, (m, comment, str, kw, type, bool, num, fn, bracket, punc) => {
+      if (comment) return `<span class="token-comment">${escapeHtml(comment)}</span>`;
+      if (str) return `<span class="token-string">${escapeHtml(str)}</span>`;
+      if (kw) return `<span class="token-keyword">${escapeHtml(kw)}</span>`;
+      if (type) return `<span class="token-type">${escapeHtml(type)}</span>`;
+      if (bool) return `<span class="token-boolean">${escapeHtml(bool)}</span>`;
+      if (num) return `<span class="token-number">${escapeHtml(num)}</span>`;
+      if (fn) return `<span class="token-function">${escapeHtml(fn)}</span>`;
+      if (bracket) {
+        if (bracket === '{' || bracket === '}') return `<span class="token-bracket-gold">${escapeHtml(bracket)}</span>`;
+        if (bracket === '[' || bracket === ']') return `<span class="token-bracket-purple">${escapeHtml(bracket)}</span>`;
+        if (bracket === '(' || bracket === ')') return `<span class="token-bracket-cyan">${escapeHtml(bracket)}</span>`;
+      }
+      if (punc) return `<span class="token-punc">${escapeHtml(punc)}</span>`;
+      return escapeHtml(m);
+    });
+  }
+
+  if (lang === 'python') {
+    const regex = /(#[^\n]*)|("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(\b(?:def|class|return|if|elif|else|while|for|in|is|not|and|or|import|from|as|try|except|finally|raise|with|lambda|pass|yield|global|nonlocal|assert|async|await)\b)|(\b(?:True|False|None|self|cls)\b)|(@[a-zA-Z0-9_.]+)|(-?\b\d+(?:\.\d+)?\b)|(\b[a-zA-Z_][a-zA-Z0-9_]*(?=\s*\())|([{}()[\]])|([.,;:])|([^"'#\b{}()[\].,;:\s]+)/g;
+    return line.replace(regex, (m, comment, str, kw, bool, deco, num, fn, bracket, punc) => {
+      if (comment) return `<span class="token-comment">${escapeHtml(comment)}</span>`;
+      if (str) return `<span class="token-string">${escapeHtml(str)}</span>`;
+      if (kw) return `<span class="token-keyword">${escapeHtml(kw)}</span>`;
+      if (bool) return `<span class="token-boolean">${escapeHtml(bool)}</span>`;
+      if (deco) return `<span class="token-function">${escapeHtml(deco)}</span>`;
+      if (num) return `<span class="token-number">${escapeHtml(num)}</span>`;
+      if (fn) return `<span class="token-function">${escapeHtml(fn)}</span>`;
+      if (bracket) {
+        if (bracket === '{' || bracket === '}') return `<span class="token-bracket-gold">${escapeHtml(bracket)}</span>`;
+        if (bracket === '[' || bracket === ']') return `<span class="token-bracket-purple">${escapeHtml(bracket)}</span>`;
+        if (bracket === '(' || bracket === ')') return `<span class="token-bracket-cyan">${escapeHtml(bracket)}</span>`;
+      }
+      if (punc) return `<span class="token-punc">${escapeHtml(punc)}</span>`;
+      return escapeHtml(m);
+    });
+  }
+
+  if (lang === 'css') {
+    const regex = /(\/\*[\s\S]*?\*\/)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(!important|\binherit\b|\binitial\b|\bnone\b|\bblock\b|\bflex\b|\bgrid\b)|(-?\b\d+(?:\.\d+)?(?:px|em|rem|%|vh|vw|ms|s|fr|deg)?\b)|([.#]?[a-zA-Z0-9_-]+(?=\s*[{,]))|([a-zA-Z0-9_-]+(?=\s*:))|([{}()[\];,:])/g;
+    return line.replace(regex, (m, comment, str, kw, num, sel, prop, punc) => {
+      if (comment) return `<span class="token-comment">${escapeHtml(comment)}</span>`;
+      if (str) return `<span class="token-string">${escapeHtml(str)}</span>`;
+      if (kw) return `<span class="token-keyword">${escapeHtml(kw)}</span>`;
+      if (num) return `<span class="token-number">${escapeHtml(num)}</span>`;
+      if (sel) return `<span class="token-function">${escapeHtml(sel)}</span>`;
+      if (prop) return `<span class="token-key">${escapeHtml(prop)}</span>`;
+      if (punc) return `<span class="token-punc">${escapeHtml(punc)}</span>`;
+      return escapeHtml(m);
+    });
+  }
+
+  if (lang === 'html') {
+    const regex = /(<!--[\s\S]*?-->)|(<\/?[a-zA-Z0-9_-]+)|(\s+[a-zA-Z0-9_-]+(?=\s*=))|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|([<>/=])/g;
+    return line.replace(regex, (m, comment, tag, attr, str, punc) => {
+      if (comment) return `<span class="token-comment">${escapeHtml(comment)}</span>`;
+      if (tag) return `<span class="token-keyword">${escapeHtml(tag)}</span>`;
+      if (attr) return `<span class="token-key">${escapeHtml(attr)}</span>`;
+      if (str) return `<span class="token-string">${escapeHtml(str)}</span>`;
+      if (punc) return `<span class="token-punc">${escapeHtml(punc)}</span>`;
+      return escapeHtml(m);
+    });
+  }
+
+  const genericRegex = /(\/\/[^\n]*|#[^\n]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(\b(?:true|false|null)\b)|(-?\b\d+(?:\.\d+)?\b)|([{}()[\].,;:])|([^"'#\b{}()[\].,;:\s]+)/g;
+  return line.replace(genericRegex, (m, comment, str, bool, num, punc) => {
+    if (comment) return `<span class="token-comment">${escapeHtml(comment)}</span>`;
+    if (str) return `<span class="token-string">${escapeHtml(str)}</span>`;
+    if (bool) return `<span class="token-boolean">${escapeHtml(bool)}</span>`;
+    if (num) return `<span class="token-number">${escapeHtml(num)}</span>`;
+    if (punc) return `<span class="token-punc">${escapeHtml(punc)}</span>`;
+    return escapeHtml(m);
+  });
+}
+
+function renderSyntaxHighlighting() {
+  const textarea = document.getElementById('fileEditorTextarea');
+  const codeEl = document.getElementById('fileEditorSyntaxCode');
+  const preEl = document.getElementById('fileEditorSyntaxPre');
+  if (!textarea || !codeEl) return;
+
+  const code = textarea.value;
+  const lang = detectFileLanguage(_currentEditorFile || '');
+  codeEl.innerHTML = highlightCode(code, lang) + '\n';
+  if (preEl) {
+    preEl.scrollTop = textarea.scrollTop;
+    preEl.scrollLeft = textarea.scrollLeft;
+  }
+}
+
+function renderMinimap() {
+  const minimapCanvas = document.getElementById('fileEditorMinimapCanvas');
+  const textarea = document.getElementById('fileEditorTextarea');
+  if (!minimapCanvas || !textarea) return;
+
+  const lines = textarea.value.split('\n');
+  const total = Math.min(lines.length, 600);
+  let html = '';
+  for (let i = 0; i < total; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed) {
+      html += '<div class="minimap-line h-[3px]"></div>';
+      continue;
+    }
+    const indent = line.length - line.trimStart().length;
+    const width = Math.min(Math.max(trimmed.length * 1.6, 6), 72);
+    let barColor = '#64748b';
+    if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('/*')) {
+      barColor = '#6a9955';
+    } else if (trimmed.includes(':') && trimmed.startsWith('"')) {
+      barColor = '#9cdcfe';
+    } else if (trimmed.includes('import') || trimmed.includes('export') || trimmed.includes('function') || trimmed.includes('def ')) {
+      barColor = '#c586c0';
+    } else if (trimmed.includes('"') || trimmed.includes("'")) {
+      barColor = '#ce9178';
+    }
+    html += `<div class="minimap-line h-[3px] flex items-center" style="padding-left: ${Math.min(indent * 1.2, 26)}px;">
+      <div style="width: ${width}px; background-color: ${barColor};" class="h-[2px] rounded-xs opacity-75"></div>
+    </div>`;
+  }
+  minimapCanvas.innerHTML = html;
+  updateMinimapSlider();
+}
+
+function updateMinimapSlider() {
+  const textarea = document.getElementById('fileEditorTextarea');
+  const slider = document.getElementById('fileEditorMinimapSlider');
+  const minimap = document.getElementById('fileEditorMinimap');
+  if (!textarea || !slider || !minimap) return;
+
+  const scrollHeight = textarea.scrollHeight;
+  const clientHeight = textarea.clientHeight;
+  if (scrollHeight <= clientHeight) {
+    slider.style.display = 'none';
+    return;
+  }
+  slider.style.display = 'block';
+  const minimapHeight = minimap.clientHeight;
+  const sliderHeight = Math.max((clientHeight / scrollHeight) * minimapHeight, 18);
+  const sliderTop = (textarea.scrollTop / (scrollHeight - clientHeight)) * (minimapHeight - sliderHeight);
+  slider.style.height = `${sliderHeight}px`;
+  slider.style.top = `${sliderTop}px`;
+}
+
+function updateCursorPosition() {
+  const textarea = document.getElementById('fileEditorTextarea');
+  const posEl = document.getElementById('fileEditorCursorPos');
+  if (!textarea || !posEl) return;
+
+  const selStart = textarea.selectionStart || 0;
+  const textBefore = textarea.value.substring(0, selStart);
+  const lines = textBefore.split('\n');
+  const lineNum = lines.length;
+  const colNum = lines[lines.length - 1].length + 1;
+  posEl.textContent = `Ln ${lineNum}, Col ${colNum}`;
+}
+
+function setEditorDirty(dirty) {
+  _isEditorDirty = Boolean(dirty);
+  const statusEl = document.getElementById('fileEditorStatus');
+  const statusDirtyEl = document.getElementById('fileEditorDirtyStatus');
+  const tabDot = document.getElementById('fileEditorTabDirtyDot');
+  const saveBtn = document.getElementById('fileEditorSaveBtn');
+
+  if (dirty) {
+    if (statusEl) {
+      statusEl.innerHTML = '<span class="text-amber-400 font-semibold font-sans flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>Có thay đổi chưa lưu</span>';
+    }
+    if (statusDirtyEl) statusDirtyEl.classList.remove('hidden');
+    if (tabDot) tabDot.classList.remove('hidden');
+    if (saveBtn) {
+      saveBtn.classList.remove('bg-[#0e639c]', 'hover:bg-[#1177bb]');
+      saveBtn.classList.add('bg-[#1677ff]', 'hover:bg-[#4096ff]', 'ring-2', 'ring-sky-400/50');
+    }
+  } else {
+    if (statusEl) {
+      statusEl.innerHTML = '';
+    }
+    if (statusDirtyEl) statusDirtyEl.classList.add('hidden');
+    if (tabDot) tabDot.classList.add('hidden');
+    if (saveBtn) {
+      saveBtn.classList.add('bg-[#0e639c]', 'hover:bg-[#1177bb]');
+      saveBtn.classList.remove('bg-[#1677ff]', 'hover:bg-[#4096ff]', 'ring-2', 'ring-sky-400/50');
+    }
+  }
+}
+
+function checkEditorDirtyState() {
+  const textarea = document.getElementById('fileEditorTextarea');
+  if (!textarea) return;
+  const isChanged = textarea.value !== _currentEditorContent;
+  setEditorDirty(isChanged);
+}
+
+function openInNativeVSCode() {
+  if (_currentEditorAbsPath) {
+    window.location.href = `vscode://file/${encodeURI(_currentEditorAbsPath)}`;
+  } else if (_currentEditorFile) {
+    showToast(`Đường dẫn file: ${_currentEditorFile}`);
+  }
+}
+window.openInNativeVSCode = openInNativeVSCode;
+
 function updateEditorLineNumbers() {
   const textarea = document.getElementById('fileEditorTextarea');
   const lineNumbers = document.getElementById('fileEditorLineNumbers');
@@ -2139,6 +2690,8 @@ function updateEditorLineNumbers() {
   lineNumbers.scrollTop = textarea.scrollTop;
   updateIndentGuides();
   updateActiveLineHighlight();
+  renderSyntaxHighlighting();
+  renderMinimap();
 }
 
 function startFileEditorWatch() {
@@ -2184,6 +2737,7 @@ async function checkFileExternalChanges() {
             _isEditorDirty = false;
 
             updateEditorLineNumbers();
+            loadFileBlameData(_currentEditorFile, _currentEditorRepo);
 
             textarea.scrollTop = curScrollTop;
             textarea.selectionStart = Math.min(curSelStart, textarea.value.length);
@@ -2231,6 +2785,7 @@ async function reloadFileFromDisk() {
         textarea.value = _currentEditorContent;
         _isEditorDirty = false;
         updateEditorLineNumbers();
+        loadFileBlameData(_currentEditorFile, _currentEditorRepo);
         if (statusEl) {
           statusEl.innerHTML = '<span class="text-emerald-400 font-semibold font-sans">✓ Đã tải lại nội dung mới nhất từ đĩa</span>';
           setTimeout(() => {
@@ -2268,27 +2823,36 @@ function setupFileEditorListeners() {
         indentLayer.scrollTop = textarea.scrollTop;
         indentLayer.scrollLeft = textarea.scrollLeft;
       }
+      const syntaxPre = document.getElementById('fileEditorSyntaxPre');
+      if (syntaxPre) {
+        syntaxPre.scrollTop = textarea.scrollTop;
+        syntaxPre.scrollLeft = textarea.scrollLeft;
+      }
+      hideGitLensCard();
       updateActiveLineHighlight();
+      updateMinimapSlider();
     });
 
     textarea.addEventListener('click', () => {
+      hideGitLensCard();
       updateActiveLineHighlight();
+      updateCursorPosition();
     });
 
     textarea.addEventListener('keyup', (e) => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) {
         updateActiveLineHighlight();
       }
+      updateCursorPosition();
     });
 
     textarea.addEventListener('input', () => {
       updateEditorLineNumbers();
-      _isEditorDirty = true;
-      const statusEl = document.getElementById('fileEditorStatus');
-      if (statusEl) {
-        statusEl.innerHTML = '<span class="text-amber-400 font-semibold font-sans">● Có thay đổi chưa lưu</span>';
-      }
+      checkEditorDirtyState();
+      renderSyntaxHighlighting();
+      renderMinimap();
       updateActiveLineHighlight();
+      updateCursorPosition();
     });
 
     textarea.addEventListener('keydown', (e) => {
@@ -2319,13 +2883,47 @@ function setupFileEditorListeners() {
           }
         }
         updateEditorLineNumbers();
-        _isEditorDirty = true;
-        const statusEl = document.getElementById('fileEditorStatus');
-        if (statusEl) {
-          statusEl.innerHTML = '<span class="text-amber-400 font-semibold font-sans">● Có thay đổi chưa lưu</span>';
-        }
+        checkEditorDirtyState();
+        renderSyntaxHighlighting();
+        renderMinimap();
+        updateActiveLineHighlight();
+        updateCursorPosition();
       }
     });
+
+    const minimap = document.getElementById('fileEditorMinimap');
+    if (minimap && !_minimapClickListenerSetup) {
+      _minimapClickListenerSetup = true;
+      minimap.addEventListener('click', (e) => {
+        const rect = minimap.getBoundingClientRect();
+        const clickY = e.clientY - rect.top;
+        const ratio = Math.max(0, Math.min(1, clickY / rect.height));
+        textarea.scrollTop = ratio * (textarea.scrollHeight - textarea.clientHeight);
+      });
+    }
+
+    const inlineBlameEl = document.getElementById('fileEditorInlineBlame');
+    if (inlineBlameEl) {
+      inlineBlameEl.addEventListener('mouseenter', (e) => {
+        showGitLensForActiveLine(e);
+      });
+      inlineBlameEl.addEventListener('mouseleave', () => {
+        scheduleHideGitLensCard();
+      });
+      inlineBlameEl.addEventListener('click', (e) => {
+        showGitLensForActiveLine(e);
+      });
+    }
+
+    const gitLensCard = document.getElementById('fileEditorGitLensCard');
+    if (gitLensCard) {
+      gitLensCard.addEventListener('mouseenter', () => {
+        cancelHideGitLensCard();
+      });
+      gitLensCard.addEventListener('mouseleave', () => {
+        scheduleHideGitLensCard();
+      });
+    }
   }
 
   if (modalRoot) {
@@ -2390,6 +2988,7 @@ async function openFileEditor(filePath, repo = 'fe') {
   _currentEditorFile = filePath;
   _currentEditorRepo = normalizeRepoRole(repo);
   _isEditorDirty = false;
+  _currentEditorAbsPath = '';
 
   const modal = document.getElementById('fileEditorModalRoot');
   const pathEl = document.getElementById('fileEditorFilePath');
@@ -2397,8 +2996,45 @@ async function openFileEditor(filePath, repo = 'fe') {
   const lineCountEl = document.getElementById('fileEditorLineCount');
   const statusEl = document.getElementById('fileEditorStatus');
   const textarea = document.getElementById('fileEditorTextarea');
+  const windowTitleEl = document.getElementById('fileEditorWindowTitle');
+  const tabIconEl = document.getElementById('fileEditorTabIcon');
+  const tabFileNameEl = document.getElementById('fileEditorTabFileName');
+  const breadcrumbEl = document.getElementById('fileEditorBreadcrumbPath');
+  const statusRepoEl = document.getElementById('fileEditorStatusRepo');
+  const statusBranchEl = document.getElementById('fileEditorStatusBranch');
+  const langBadgeEl = document.getElementById('fileEditorLangBadge');
 
   if (!modal || !textarea) return;
+
+  const fileName = filePath.split('/').pop() || filePath;
+  if (windowTitleEl) {
+    windowTitleEl.textContent = `${fileName} - ${getRepoDisplayName(_currentEditorRepo)} - EasySalon Studio`;
+  }
+  if (tabIconEl) {
+    tabIconEl.innerHTML = getFileTabIconHtml(filePath);
+  }
+  if (tabFileNameEl) {
+    tabFileNameEl.textContent = fileName;
+  }
+  if (breadcrumbEl) {
+    const parts = filePath.split('/');
+    breadcrumbEl.innerHTML = parts.map((p, idx) => {
+      const isLast = idx === parts.length - 1;
+      return `<span class="${isLast ? 'text-slate-100 font-medium' : 'text-slate-400'}">${escapeHtml(p)}</span>`;
+    }).join(' <span class="text-[#555555] mx-0.5">›</span> ');
+  }
+  if (statusRepoEl) {
+    statusRepoEl.textContent = getRepoDisplayName(_currentEditorRepo);
+  }
+  if (statusBranchEl) {
+    const branch = (_currentEditorRepo === 'fe' ? (window.gitFeStatus?.branch || 'HEAD') : (window.gitBeStatus?.branch || 'HEAD'));
+    statusBranchEl.textContent = branch;
+  }
+  if (langBadgeEl) {
+    langBadgeEl.textContent = getLanguageDisplayName(filePath);
+  }
+
+  setEditorDirty(false);
 
   measureEditorCharWidth();
   textarea.style.setProperty('--char-w', `${_editorCharWidth}px`);
@@ -2425,7 +3061,8 @@ async function openFileEditor(filePath, repo = 'fe') {
       return;
     }
 
-    const content = data.content != null ? data.content : '';
+    const content = (data.content != null ? data.content : '').replace(/\r\n/g, '\n');
+    _currentEditorAbsPath = data.abs_path || '';
     textarea.value = content;
     textarea.disabled = false;
     _isEditorDirty = false;
@@ -2435,10 +3072,14 @@ async function openFileEditor(filePath, repo = 'fe') {
     if (data.target) {
       _currentEditorRepo = normalizeRepoRole(data.target);
       if (badgeEl) badgeEl.textContent = getRepoDisplayName(_currentEditorRepo);
+      if (statusRepoEl) statusRepoEl.textContent = getRepoDisplayName(_currentEditorRepo);
     }
+    setEditorDirty(false);
     updateEditorLineNumbers();
-    if (statusEl) statusEl.innerHTML = '<span class="text-slate-300 font-sans">Sẵn sàng sửa code (Ctrl+S để lưu)</span>';
+    updateCursorPosition();
+    if (statusEl) statusEl.innerHTML = '';
 
+    loadFileBlameData(filePath, _currentEditorRepo);
     startFileEditorWatch();
 
     setTimeout(() => {
@@ -2487,11 +3128,13 @@ async function saveActiveFileEditor() {
       if (data.mtime) {
         _currentEditorMtime = data.mtime;
       }
+      setEditorDirty(false);
+      loadFileBlameData(_currentEditorFile, _currentEditorRepo);
       if (statusEl) statusEl.innerHTML = '<span class="text-emerald-400 font-semibold font-sans">✓ Đã lưu thành công</span>';
       showToast(`Đã lưu file ${_currentEditorFile}`, 'success');
       setTimeout(() => {
         if (!_isEditorDirty && statusEl) {
-          statusEl.innerHTML = '<span class="text-slate-300 font-sans">Sẵn sàng (Ctrl+S để lưu)</span>';
+          statusEl.innerHTML = '';
         }
       }, 2500);
     } else {
@@ -2520,13 +3163,16 @@ async function closeFileEditor() {
     });
     if (!conf) return;
   }
+  hideGitLensCard();
   stopFileEditorWatch();
   const modal = document.getElementById('fileEditorModalRoot');
   if (modal) modal.classList.add('hidden');
   _currentEditorFile = null;
   _currentEditorContent = '';
   _currentEditorMtime = 0;
-  _isEditorDirty = false;
+  _currentEditorBlame = null;
+  _currentEditorAbsPath = '';
+  setEditorDirty(false);
 }
 
 window.openFileEditor = openFileEditor;

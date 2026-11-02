@@ -42,14 +42,18 @@ function populateBaseBranchSelect(feBranches = [], beBranches = []) {
     sel.value = currentVal;
   } else if (orderedList.includes('staging')) {
     sel.value = 'staging';
+  } else if (orderedList.includes('beta')) {
+    sel.value = 'beta';
   }
 }
 
 async function doCreateNewBranchBoth() {
   const branchInp = document.getElementById('bothBranchInput');
   const baseSel = document.getElementById('bothBaseBranchSelect');
+  const targetSel = document.getElementById('bothTargetWorkspaceSelect');
   const newBranch = (branchInp?.value || '').trim();
   const baseBranch = (baseSel?.value || 'staging').trim();
+  const targetWorkspace = (targetSel?.value || 'both').trim();
 
   if (!newBranch) {
     await antdAlert({
@@ -60,9 +64,13 @@ async function doCreateNewBranchBoth() {
     return;
   }
 
+  const targetLabel = targetWorkspace === 'fe'
+    ? 'Frontend (easysalon-webapp)'
+    : (targetWorkspace === 'be' ? 'Backend (easysalon-api)' : 'cả Frontend & Backend');
+
   const confirmed = await antdConfirm({
     title: 'Xác nhận tạo nhánh',
-    content: `Bạn có chắc muốn tạo nhánh mới ${newBranch} từ nhánh ${baseBranch}`
+    content: `Bạn có chắc muốn tạo nhánh mới ${newBranch} từ nhánh ${baseBranch} cho ${targetLabel}?`
   });
   if (!confirmed) return;
 
@@ -84,7 +92,7 @@ async function doCreateNewBranchBoth() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        target: 'both',
+        target: targetWorkspace,
         branch: newBranch,
         create_new: true,
         base_branch: baseBranch
@@ -155,25 +163,30 @@ function renderGitBranchCard(role, info) {
     }
   }
 
+  const needsPull = Boolean(info.needs_pull || (info.behind_count && info.behind_count > 0));
   if (syncBadge) {
-    if (info.needs_pull || (info.behind_count && info.behind_count > 0)) {
+    if (needsPull) {
       syncBadge.innerHTML = `<span class="text-amber-400 font-semibold bg-amber-950/70 px-2 py-0.5 rounded border border-amber-800">Chậm hơn remote ${info.behind_count} commit (Cần Pull)</span>`;
-      if (btnPull) {
-        btnPull.classList.remove('hidden');
-        btnPull.className = 'ant-btn text-xs h-[28px] px-3 flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold border-amber-500 shadow-sm';
-      }
+    } else if (info.ahead_count && info.ahead_count > 0) {
+      syncBadge.innerHTML = `<span class="text-cyan-400 font-mono bg-cyan-950/70 px-2 py-0.5 rounded border border-cyan-800">Nhanh hơn remote ${info.ahead_count} commit</span>`;
+    } else if (info.upstream) {
+      syncBadge.innerHTML = `<span class="text-emerald-400 font-mono bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-800">Đã đồng bộ mới nhất</span>`;
+    } else {
+      syncBadge.innerHTML = `<span class="text-slate-400 font-mono text-[11px]">Chưa gắn remote upstream</span>`;
+    }
+  }
+
+  if (btnPull) {
+    if (needsPull) {
+      btnPull.classList.remove('hidden');
+      btnPull.style.display = 'inline-flex';
+      btnPull.className = 'ant-btn text-xs h-[28px] px-3 inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold border-amber-500 shadow-sm';
       if (pullBtnText) {
         pullBtnText.textContent = `Pull ngay (${info.behind_count} commit)`;
       }
-    } else if (info.ahead_count && info.ahead_count > 0) {
-      syncBadge.innerHTML = `<span class="text-cyan-400 font-mono bg-cyan-950/70 px-2 py-0.5 rounded border border-cyan-800">Nhanh hơn remote ${info.ahead_count} commit</span>`;
-      if (btnPull) btnPull.classList.add('hidden');
-    } else if (info.upstream) {
-      syncBadge.innerHTML = `<span class="text-emerald-400 font-mono bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-800">Đã đồng bộ mới nhất</span>`;
-      if (btnPull) btnPull.classList.add('hidden');
     } else {
-      syncBadge.innerHTML = `<span class="text-slate-400 font-mono text-[11px]">Chưa gắn remote upstream</span>`;
-      if (btnPull) btnPull.classList.add('hidden');
+      btnPull.classList.add('hidden');
+      btnPull.style.display = 'none';
     }
   }
 
@@ -942,9 +955,9 @@ function renderNotificationList() {
         <p class="text-[11.5px] text-slate-700 leading-relaxed truncate" title="${escapeHtml(item.desc)}">
           ${item.hash ? `<span class="font-mono text-blue-600 font-bold">${escapeHtml(item.hash)}: </span>` : ''}${escapeHtml(item.desc)}
         </p>
-        ${(item.author || item.date) ? `
+        ${(item.author || item.date || item.timestamp) ? `
           <div class="text-[10px] text-slate-500 font-medium">
-            ${item.author ? `Bởi ${escapeHtml(item.author)}${isAuthorMe(item.author, item.is_me) ? ' <span class="font-semibold text-[#1677ff] font-sans">(Tôi)</span>' : ''}` : ''} ${item.date ? `• ${escapeHtml(formatRelativeDate(item.date))}` : ''}
+            ${item.author ? `Bởi ${escapeHtml(item.author)}${isAuthorMe(item.author, item.is_me) ? ' <span class="font-semibold text-[#1677ff] font-sans">(Tôi)</span>' : ''}` : ''} ${(item.date || item.timestamp) ? `• ${escapeHtml(formatRelativeDate(item.date, item.timestamp))}` : ''}
           </div>
         ` : ''}
       </div>
@@ -1054,7 +1067,8 @@ function updateGitNotifications(notifs) {
       desc: item.latest ? (item.latest.subject || '') : 'Có bản cập nhật remote cần pull về local.',
       author: authorVal,
       is_me: isMeVal,
-      date: item.latest ? item.latest.date : (new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })),
+      date: item.latest ? (item.latest.iso_date || item.latest.date) : (new Date().toISOString()),
+      timestamp: item.latest ? (item.latest.timestamp || null) : (item.commits && item.commits[0] ? item.commits[0].timestamp : Date.now()),
       hash: commitHash,
       role: item.role,
       branch: item.branch,
@@ -2214,6 +2228,22 @@ async function checkSyncPullUpdates(doFetch = true) {
               diff_stat: info.diff_stat || '',
               latest: info.latest_commit || (info.commits && info.commits[0]) || null,
               commits: info.commits || []
+            });
+          }
+        });
+      });
+
+      ['fe', 'be'].forEach(r => {
+        ['staging', 'master', 'beta'].forEach(b => {
+          const info = data[r] && data[r][b];
+          if (info && !info.needs_pull) {
+            _savedNotifications.forEach(n => {
+              if (n.tag === 'git' && n.role === r && n.branch === b && n.status === 'pending') {
+                n.status = 'completed';
+                n.title = `${r.toUpperCase()} ${b}: Đã đồng bộ với remote`;
+                n.desc = 'Nhánh đã đồng bộ phiên bản mới nhất từ remote.';
+                _readNotifIds.add(n.id);
+              }
             });
           }
         });

@@ -12,6 +12,20 @@
   transition: all 0.15s ease-in-out;
   font-family: inherit;
 }
+.settings-nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 9999px;
+  transition: all 0.15s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
 .settings-sidebar-btn:not(.is-active) {
   background-color: #0c1628 !important;
   border: 1px solid rgba(36, 65, 112, 0.45) !important;
@@ -26,7 +40,13 @@
 }
 .settings-sidebar-btn:not(.is-active) .settings-nav-badge {
   background-color: #182c4f !important;
+  border: 1px solid #244170 !important;
   color: #94a3b8 !important;
+}
+.settings-sidebar-btn:not(.is-active):hover .settings-nav-badge {
+  background-color: #244170 !important;
+  border-color: #3b82f6 !important;
+  color: #ffffff !important;
 }
 .settings-sidebar-btn:not(.is-active) .settings-nav-desc {
   color: #64748b !important;
@@ -43,6 +63,16 @@ body.light-mode .settings-sidebar-btn:not(.is-active):hover {
   border-color: #1677ff !important;
   color: #0f172a !important;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08) !important;
+}
+body.light-mode .settings-sidebar-btn:not(.is-active) .settings-nav-badge {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+body.light-mode .settings-sidebar-btn:not(.is-active):hover .settings-nav-badge {
+  background-color: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
 }
 body.light-mode .settings-sidebar-btn:not(.is-active) .settings-nav-desc {
   color: #64748b !important;
@@ -68,10 +98,14 @@ body.light-mode .settings-sidebar-btn.is-active .settings-nav-desc {
   color: rgba(255, 255, 255, 0.9) !important;
 }
 .settings-sidebar-btn.is-active .settings-nav-badge,
-body.light-mode .settings-sidebar-btn.is-active .settings-nav-badge {
-  background-color: rgba(255, 255, 255, 0.22) !important;
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
-  color: #ffffff !important;
+body.light-mode .settings-sidebar-btn.is-active .settings-nav-badge,
+body.dark-mode .settings-sidebar-btn.is-active .settings-nav-badge,
+#settingsNav_mcp.is-active #mcpServerCountBadge {
+  background-color: #ffffff !important;
+  border: 1px solid #ffffff !important;
+  color: #1677ff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
 }
 
 /* ============================================================
@@ -182,11 +216,88 @@ body.light-mode .engine-card.is-active .engine-code {
   background-color: rgba(0, 0, 0, 0.25) !important;
   color: #ffffff !important;
 }
+
+/* ============================================================
+   CUSTOM CIRCULAR RADIO BUTTONS FOR ENGINE & EFFORT CARDS
+   (Loại bỏ hoàn toàn viền vuông outline [O], chuẩn Ant Design tròn 100%)
+   ============================================================ */
+.engine-card input[type="radio"],
+.effort-card input[type="radio"],
+body.light-mode .engine-card input[type="radio"],
+body.light-mode .effort-card input[type="radio"],
+body.dark-mode .engine-card input[type="radio"],
+body.dark-mode .effort-card input[type="radio"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+  width: 18px !important;
+  height: 18px !important;
+  border-radius: 50% !important;
+  border: 2px solid #94a3b8 !important;
+  background-color: transparent !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  outline: none !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  box-shadow: none !important;
+  position: relative !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.engine-card input[type="radio"]::after,
+.effort-card input[type="radio"]::after,
+body.light-mode .engine-card input[type="radio"]::after,
+body.light-mode .effort-card input[type="radio"]::after,
+body.dark-mode .engine-card input[type="radio"]::after,
+body.dark-mode .effort-card input[type="radio"]::after {
+  content: "" !important;
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background-color: transparent !important;
+  display: block !important;
+  transform: scale(0) !important;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Checked state in NOT active card */
+.engine-card:not(.is-active) input[type="radio"]:checked,
+.effort-card:not(.is-active) input[type="radio"]:checked,
+body.light-mode .engine-card:not(.is-active) input[type="radio"]:checked,
+body.light-mode .effort-card:not(.is-active) input[type="radio"]:checked {
+  border-color: #1677ff !important;
+  background-color: transparent !important;
+}
+.engine-card:not(.is-active) input[type="radio"]:checked::after,
+.effort-card:not(.is-active) input[type="radio"]:checked::after,
+body.light-mode .engine-card:not(.is-active) input[type="radio"]:checked::after,
+body.light-mode .effort-card:not(.is-active) input[type="radio"]:checked::after {
+  background-color: #1677ff !important;
+  transform: scale(1) !important;
+}
+
+/* ACTIVE card state - Nền xanh #1677ff, Viền tròn màu trắng, Chấm tròn màu trắng */
 .engine-card.is-active input[type="radio"],
-body.light-mode .engine-card.is-active input[type="radio"] {
-  accent-color: #ffffff !important;
-  outline: 2px solid #ffffff !important;
-  outline-offset: 1px !important;
+.effort-card.is-active input[type="radio"],
+body.light-mode .engine-card.is-active input[type="radio"],
+body.light-mode .effort-card.is-active input[type="radio"],
+body.dark-mode .engine-card.is-active input[type="radio"],
+body.dark-mode .effort-card.is-active input[type="radio"] {
+  border-color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4) !important;
+}
+.engine-card.is-active input[type="radio"]:checked::after,
+.effort-card.is-active input[type="radio"]:checked::after,
+body.light-mode .engine-card.is-active input[type="radio"]:checked::after,
+body.light-mode .effort-card.is-active input[type="radio"]:checked::after,
+body.dark-mode .engine-card.is-active input[type="radio"]:checked::after,
+body.dark-mode .effort-card.is-active input[type="radio"]:checked::after {
+  background-color: #ffffff !important;
+  transform: scale(1) !important;
 }
 
 /* ============================================================
@@ -399,4 +510,420 @@ body.dark-mode #btnSaveSettingsPage:not(.is-dirty),
 body.dark-mode #btnSaveSettingsPage:not(.is-dirty) *,
 #btnSaveSettingsPage:not(.is-dirty) * {
   color: #94a3b8 !important;
+}
+
+/* ============================================================
+   OPENCODE CONFIGURATION BOX (LIGHT & DARK MODE READY)
+   ============================================================ */
+.settings-opencode-box {
+  background-color: #0c1628;
+  border: 1px solid rgba(36, 65, 112, 0.7);
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+}
+.settings-opencode-box .opencode-box-title {
+  color: #e2e8f0;
+  font-size: 11px;
+}
+.settings-opencode-box .opencode-box-link {
+  color: #38bdf8;
+}
+.settings-opencode-box .opencode-box-badge {
+  background-color: rgba(8, 47, 73, 0.7);
+  border: 1px solid #0369a1;
+  color: #38bdf8;
+}
+.settings-opencode-box select {
+  background-color: #101e38;
+  border: 1.5px solid #244170;
+  color: #f1f5f9;
+  cursor: pointer;
+}
+.settings-opencode-box select:focus {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.25);
+}
+
+body.light-mode .settings-opencode-box {
+  background-color: #f8fafc !important;
+  border: 1.5px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+body.light-mode .settings-opencode-box .opencode-box-title {
+  color: #0f172a !important;
+  font-weight: 600;
+}
+body.light-mode .settings-opencode-box .opencode-box-link {
+  color: #1677ff !important;
+}
+body.light-mode .settings-opencode-box .opencode-box-badge {
+  background-color: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+  color: #1d4ed8 !important;
+}
+body.light-mode .settings-opencode-box select {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+}
+body.light-mode .settings-opencode-box select:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2) !important;
+}
+
+/* ============================================================
+   MCP SERVERS STYLES
+   ============================================================ */
+.mcp-server-card {
+  transition: all 0.2s ease;
+}
+body.light-mode .mcp-server-card {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+body.light-mode .mcp-server-card .font-bold.text-white {
+  color: #0f172a !important;
+}
+body.light-mode .mcp-code-preview {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+/* Light mode for MCP Settings Panel Cards and Controls */
+body.light-mode #settingsPanel_mcp > div {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+body.light-mode #settingsPanel_mcp h3,
+body.light-mode #settingsPanel_mcp h4 {
+  color: #0f172a !important;
+}
+body.light-mode #settingsPanel_mcp p {
+  color: #475569 !important;
+}
+body.light-mode #settingsPanel_mcp label {
+  color: #334155 !important;
+}
+body.light-mode #settingsPanel_mcp .border-\[\#244170\]\/60 {
+  border-color: #e2e8f0 !important;
+}
+body.light-mode #settingsPanel_mcp input,
+body.light-mode #settingsPanel_mcp textarea,
+body.light-mode #settingsPanel_mcp select {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+}
+body.light-mode #settingsPanel_mcp input:focus,
+body.light-mode #settingsPanel_mcp textarea:focus,
+body.light-mode #settingsPanel_mcp select:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.18) !important;
+}
+body.light-mode #settingsPanel_mcp input::placeholder,
+body.light-mode #settingsPanel_mcp textarea::placeholder {
+  color: #94a3b8 !important;
+}
+body.light-mode #settingsPanel_mcp #btnToggleJiraTokenMask {
+  color: #64748b !important;
+}
+body.light-mode #settingsPanel_mcp #btnToggleJiraTokenMask:hover {
+  color: #0f172a !important;
+}
+
+/* MCP Buttons */
+body.light-mode #settingsPanel_mcp button.border-\[\#244170\],
+body.light-mode #settingsPanel_mcp #btnTestJiraConnection,
+body.light-mode #settingsPanel_mcp #btnToggleJira,
+body.light-mode #settingsPanel_mcp #btnToggleJiraFooter,
+body.light-mode #settingsPanel_mcp button[onclick*="fetchMcpServers"] {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+}
+body.light-mode #settingsPanel_mcp button.border-\[\#244170\]:hover,
+body.light-mode #settingsPanel_mcp #btnTestJiraConnection:hover,
+body.light-mode #settingsPanel_mcp #btnToggleJira:hover,
+body.light-mode #settingsPanel_mcp #btnToggleJiraFooter:hover,
+body.light-mode #settingsPanel_mcp button[onclick*="fetchMcpServers"]:hover {
+  background-color: #f8fafc !important;
+  border-color: #1677ff !important;
+  color: #1677ff !important;
+}
+
+body.light-mode #settingsPanel_mcp #btnRemoveJira,
+body.light-mode #settingsPanel_mcp #btnRemoveJiraFooter {
+  background-color: #fff1f2 !important;
+  border: 1px solid #fecdd3 !important;
+  color: #e11d48 !important;
+}
+body.light-mode #settingsPanel_mcp #btnRemoveJira:hover,
+body.light-mode #settingsPanel_mcp #btnRemoveJiraFooter:hover {
+  background-color: #ffe4e6 !important;
+  border-color: #fda4af !important;
+  color: #be123c !important;
+}
+
+#settingsPanel_mcp #btnSaveJiraMcp,
+#settingsPanel_mcp #btnOpenAddCustomMcp,
+#settingsPanel_mcp #btnSaveCustomMcp {
+  background-color: #1677ff !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border: 1px solid #1677ff !important;
+}
+#settingsPanel_mcp #btnSaveJiraMcp:hover,
+#settingsPanel_mcp #btnOpenAddCustomMcp:hover,
+#settingsPanel_mcp #btnSaveCustomMcp:hover {
+  background-color: #0958d9 !important;
+  border-color: #0958d9 !important;
+}
+
+body.light-mode #settingsPanel_mcp .font-mono.text-slate-300 {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+body.light-mode #mcpServersContainer .border-dashed {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+body.light-mode #mcpServersContainer .border-dashed p {
+  color: #475569 !important;
+}
+body.light-mode #mcpServersContainer .border-dashed p.font-medium {
+  color: #0f172a !important;
+}
+
+/* MCP Status Stopped Badge (Đã dừng: Nền đỏ, chữ trắng) */
+.mcp-status-stopped,
+body.light-mode .mcp-status-stopped,
+body.dark-mode .mcp-status-stopped {
+  background-color: #dc2626 !important;
+  background-image: none !important;
+  border: 1px solid #b91c1c !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(220, 38, 38, 0.2) !important;
+}
+
+/* Jira Test Connection Alert Box (Theo chuẩn Ant Design Alert) */
+.jira-alert-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  transition: all 0.2s ease;
+  font-family: 'Be Vietnam Pro', Inter, system-ui, -apple-system, sans-serif;
+}
+.jira-alert-box .jira-alert-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.jira-alert-box .jira-alert-content {
+  flex: 1;
+  min-width: 0;
+}
+.jira-alert-box .jira-alert-title {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.jira-alert-box .jira-alert-desc {
+  font-size: 11.5px;
+  opacity: 0.95;
+  word-break: break-word;
+}
+
+/* 1. Loading / Info State */
+.jira-alert-box.is-loading,
+.jira-alert-box.is-info {
+  background-color: rgba(22, 119, 255, 0.1);
+  border: 1px solid rgba(22, 119, 255, 0.35);
+  color: #93c5fd;
+}
+.jira-alert-box.is-loading .jira-alert-icon,
+.jira-alert-box.is-info .jira-alert-icon {
+  background-color: #1677ff;
+  color: #ffffff;
+}
+.jira-alert-box.is-loading .jira-alert-title,
+.jira-alert-box.is-info .jira-alert-title {
+  color: #bfdbfe;
+}
+
+body.light-mode .jira-alert-box.is-loading,
+body.light-mode .jira-alert-box.is-info {
+  background-color: #e6f4ff !important;
+  border: 1px solid #91caff !important;
+  color: #0958d9 !important;
+}
+body.light-mode .jira-alert-box.is-loading .jira-alert-icon,
+body.light-mode .jira-alert-box.is-info .jira-alert-icon {
+  background-color: #1677ff !important;
+  color: #ffffff !important;
+}
+body.light-mode .jira-alert-box.is-loading .jira-alert-title,
+body.light-mode .jira-alert-box.is-info .jira-alert-title {
+  color: #003eb3 !important;
+}
+
+/* 2. Success State */
+.jira-alert-box.is-success {
+  background-color: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #6ee7b7;
+}
+.jira-alert-box.is-success .jira-alert-icon {
+  background-color: #059669;
+  color: #ffffff;
+}
+.jira-alert-box.is-success .jira-alert-title {
+  color: #a7f3d0;
+}
+
+body.light-mode .jira-alert-box.is-success {
+  background-color: #f6ffed !important;
+  border: 1px solid #b7eb8f !important;
+  color: #237804 !important;
+}
+body.light-mode .jira-alert-box.is-success .jira-alert-icon {
+  background-color: #52c41a !important;
+  color: #ffffff !important;
+}
+body.light-mode .jira-alert-box.is-success .jira-alert-title {
+  color: #135200 !important;
+}
+
+/* 3. Error State */
+.jira-alert-box.is-error {
+  background-color: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  color: #fda4af;
+}
+.jira-alert-box.is-error .jira-alert-icon {
+  background-color: #e11d48;
+  color: #ffffff;
+}
+.jira-alert-box.is-error .jira-alert-title {
+  color: #fecdd3;
+}
+
+body.light-mode .jira-alert-box.is-error {
+  background-color: #fff2f0 !important;
+  border: 1px solid #ffccc7 !important;
+  color: #a8071a !important;
+}
+body.light-mode .jira-alert-box.is-error .jira-alert-icon {
+  background-color: #ff4d4f !important;
+  color: #ffffff !important;
+}
+body.light-mode .jira-alert-box.is-error .jira-alert-title {
+  color: #cf1322 !important;
+}
+
+/* ============================================================
+   MCP PRESET CARDS & LOGOS
+   ============================================================ */
+.mcp-preset-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1.5px solid #244170 !important;
+  background-color: #0c1628 !important;
+  cursor: pointer;
+}
+.mcp-preset-card:not(.is-selected):hover {
+  border-color: #1677ff !important;
+  background-color: rgba(22, 119, 255, 0.08) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.mcp-preset-card:not(.is-selected) h5 {
+  color: #ffffff !important;
+}
+.mcp-preset-card:not(.is-selected) p {
+  color: #94a3b8 !important;
+}
+
+/* Light mode for unselected preset cards */
+body.light-mode .mcp-preset-card:not(.is-selected) {
+  background-color: #ffffff !important;
+  border: 1.5px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+body.light-mode .mcp-preset-card:not(.is-selected):hover {
+  border-color: #1677ff !important;
+  background-color: #f8fafc !important;
+  box-shadow: 0 4px 12px rgba(22, 119, 255, 0.1);
+}
+body.light-mode .mcp-preset-card:not(.is-selected) h5 {
+  color: #0f172a !important;
+}
+body.light-mode .mcp-preset-card:not(.is-selected) p {
+  color: #64748b !important;
+}
+body.light-mode .mcp-preset-card:not(.is-selected) span[id^="badgePreset_"] {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+/* ACTIVE / SELECTED PRESET CARD - Chuẩn AGENTS.md: Luôn là #1677ff (gradient), text trắng */
+.mcp-preset-card.is-selected,
+body.light-mode .mcp-preset-card.is-selected,
+body.dark-mode .mcp-preset-card.is-selected {
+  background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%) !important;
+  border-color: #1677ff !important;
+  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.35) !important;
+}
+.mcp-preset-card.is-selected *,
+body.light-mode .mcp-preset-card.is-selected *,
+body.dark-mode .mcp-preset-card.is-selected * {
+  color: #ffffff !important;
+}
+.mcp-preset-card.is-selected p,
+body.light-mode .mcp-preset-card.is-selected p {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+.mcp-preset-card.is-selected span[id^="badgePreset_"],
+body.light-mode .mcp-preset-card.is-selected span[id^="badgePreset_"] {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  color: #ffffff !important;
+}
+
+/* GitHub Mark SVG styling across modes */
+.github-logo-svg {
+  fill: #ffffff !important;
+  color: #ffffff !important;
+}
+body.light-mode .mcp-preset-card:not(.is-selected) .github-logo-svg {
+  fill: #0f172a !important;
+  color: #0f172a !important;
+}
+.mcp-preset-card.is-selected .github-logo-svg,
+body.light-mode .mcp-preset-card.is-selected .github-logo-svg {
+  fill: #ffffff !important;
+  color: #ffffff !important;
+}
+body.light-mode .mcp-preset-card:not(.is-selected) svg.text-slate-300 {
+  color: #475569 !important;
+  stroke: #475569 !important;
 }

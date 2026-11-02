@@ -92,7 +92,7 @@ def close_task_terminals(task_id: str):
                 print(f"[STUDIO] Đã đóng terminal ngầm và giải phóng context của tác vụ [{tid}] (key: {key})")
 
 
-def get_or_start_background_terminal(role: str, task_id: str = None):
+def get_or_start_background_terminal(role: str, task_id: str = None, verbose: bool = True):
     """
     Lấy hoặc khởi tạo cấu hình/tiến trình AI Terminal ngầm cho từng tác vụ (task_id) trên FE hoặc BE.
     Hỗ trợ chuyển đổi mượt mà giữa:
@@ -109,7 +109,8 @@ def get_or_start_background_terminal(role: str, task_id: str = None):
         settings = app_state.get('settings', {}) if isinstance(app_state.get('settings'), dict) else load_settings()
         target_engine = str(settings.get('engine') or 'gemini_cli').strip().lower()
         target_effort = str(settings.get('effort') or 'high').strip()
-        target_model = str(settings.get('model') or '').strip()
+        target_opencode_model = str(settings.get('opencode_model') or '9router/ag/gemini-3.8-flash-high').strip()
+        target_model = target_opencode_model if target_engine == 'opencode' else str(settings.get('model') or '').strip()
 
         last_cid = None
         if existing:
@@ -135,7 +136,8 @@ def get_or_start_background_terminal(role: str, task_id: str = None):
                         old_proc.kill()
                     except Exception:
                         pass
-                print(f"[STUDIO] Thay đổi cấu hình [{key}]: Engine={curr_engine}->{target_engine}, Effort={curr_effort}->{target_effort} (giữ conversation_id: {last_cid})")
+                if verbose:
+                    print(f"[STUDIO] Thay đổi cấu hình [{key}]: Engine={curr_engine}->{target_engine}, Effort={curr_effort}->{target_effort} (giữ conversation_id: {last_cid})")
 
         # Tìm conversation_id từ active_tasks nếu existing chưa lưu
         if not last_cid and task_id:
@@ -171,7 +173,8 @@ def get_or_start_background_terminal(role: str, task_id: str = None):
             task_terminals[key] = info
             background_terminals[role] = info
             resumed_str = f" (Nối tiếp session {last_cid[:8]}...)" if last_cid else " (Session mới)"
-            print(f"[STUDIO] Đã cấu hình 9router OpenCode cho {label} [Model: {opencode_model}]{resumed_str}")
+            if verbose:
+                print(f"[STUDIO] Đã cấu hình 9router OpenCode cho {label} [Model: {opencode_model}]{resumed_str}")
             return info
 
         # TRƯỜNG HỢP 2: Google Gemini CLI (Antigravity Engine với streaming realtime theo lượt)
@@ -194,7 +197,8 @@ def get_or_start_background_terminal(role: str, task_id: str = None):
         task_terminals[key] = info
         background_terminals[role] = info
         resumed_str = f" (Nối tiếp cuộc hội thoại {last_cid[:8]}... với Effort: {target_effort.upper()})" if last_cid else f" (Effort: {target_effort.upper()})"
-        print(f"[STUDIO] Đã cấu hình Gemini CLI ngầm cho {label}{resumed_str}")
+        if verbose:
+            print(f"[STUDIO] Đã cấu hình Gemini CLI ngầm cho {label}{resumed_str}")
         return info
 
 
@@ -219,10 +223,10 @@ def restart_background_terminal(role: str, task_id: str = None):
         return get_or_start_background_terminal(role, task_id=task_id)
 
 
-def ensure_background_terminals():
+def ensure_background_terminals(verbose: bool = False):
     """Tự động kiểm tra/khởi tạo terminal ngầm mặc định cho FE & BE."""
     for role in ('fe', 'be'):
-        get_or_start_background_terminal(role)
+        get_or_start_background_terminal(role, verbose=verbose)
 
 
 def build_fallback_cli_cmd(prompt_str: str, conversation_id: str = None) -> list:
@@ -689,6 +693,7 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
                     '--session', opencode_session_id,
                     prompt_text
                 ]
+                print(f"[STUDIO] AI Terminal [{role.upper()}] thực thi lượt mới qua OpenCode (9router) [Model: {opencode_model}]...")
                 proc = subprocess.Popen(
                     opencode_cmd,
                     cwd=cwd,

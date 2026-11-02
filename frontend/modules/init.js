@@ -77,6 +77,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const subRoutes = window.SETTINGS_SUBTAB_ROUTES || {
       'effort': '/settings/effort',
       'engine': '/settings/engine',
+      'mcp': '/settings/mcp',
       'account': '/settings/account',
       'api': '/settings/api',
       'env': '/settings/env'

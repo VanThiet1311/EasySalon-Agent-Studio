@@ -156,3 +156,26 @@ def get_opencode_bin():
         or 'opencode'
     )
 
+
+def get_nine_router_bin():
+    """
+    Tìm đường dẫn file thực thi 9router (Proxy 9router cho OpenCode).
+    """
+    custom = os.environ.get('NINE_ROUTER_BIN')
+    if custom and (os.path.exists(custom) or shutil.which(custom)):
+        return custom
+
+    st = _read_json_settings()
+    j_bin = st.get('nine_router_bin')
+    if j_bin and (os.path.exists(j_bin) or shutil.which(j_bin)):
+        return j_bin
+
+    return (
+        shutil.which('9router')
+        or os.path.expanduser('~/.npm-global/bin/9router')
+        or os.path.expanduser('~/.local/bin/9router')
+        or '/usr/local/bin/9router'
+        or '9router'
+    )
+
+

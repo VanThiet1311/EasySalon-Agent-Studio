@@ -1,0 +1,19 @@
+{
+  "name": "easysalon-tool",
+  "version": "1.0.0",
+  "description": "Nền tảng điều khiển và phối hợp AI Agent đa tác nhân (Multi-Agent Collaboration) giữa **Frontend (React/TypeScript)** và **Backend (.NET API)** dành riêng cho dự án EasySalon.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "monaco-editor": "^0.57.0"
+  }
+}

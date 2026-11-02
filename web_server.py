@@ -6706,11 +6706,6 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           <div id="feedTaskFilterTabs" class="flex items-center gap-1 bg-[#0e192c] p-0.5 rounded border border-[#244170] overflow-x-auto max-w-[520px] scrollbar-thin">
             <!-- Rendered dynamically by JS: [Tất cả] [Task 1] [Task 2] -->
           </div>
-          <button id="btnClearCompletedFeed" type="button" onclick="clearCompletedTasks()" title="Xóa tất cả các tác vụ đã hoàn thành hoặc đã dừng"
-            class="hidden px-2.5 py-1 rounded text-[11px] font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-white border border-rose-500/30 transition flex items-center gap-1 shrink-0 cursor-pointer">
-            <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-            <span>Xóa task đã xong</span>
-          </button>
         </div>
       </div>
       <div id="taskFeed" class="flex-1 overflow-y-auto p-4 space-y-4">
@@ -11621,18 +11616,6 @@ function renderFeedFilterTabs() {
   const container = document.getElementById('feedTaskFilterTabs');
   if (!container) return;
 
-  const btnClear = document.getElementById('btnClearCompletedFeed');
-  const hasFinished = parallelTasks.some(t => t.status === 'completed' || t.status === 'done' || t.status === 'stopped');
-  if (btnClear) {
-    if (hasFinished) {
-      btnClear.classList.remove('hidden');
-      btnClear.classList.add('flex');
-    } else {
-      btnClear.classList.add('hidden');
-      btnClear.classList.remove('flex');
-    }
-  }
-
   const tabs = [
     { id: 'all', label: `Tất cả (${parallelTasks.length})` },
     ...parallelTasks.map((t, idx) => ({ id: t.id, name: t.name, status: t.status, type: t.type, idx: idx + 1 }))
@@ -16235,9 +16218,8 @@ def main():
 
     try:
         server = ThreadedHTTPServer((host, port), AgentStudioHandler)
-        print(f"\n[EasySalon Studio] Server is live.")
-        print(f"Local URL: http://localhost:{port}")
-        print("=" * 70 + "\n")
+        from easysalon_studio import print_startup_banner
+        print_startup_banner(host, port)
         server.serve_forever()
     except KeyboardInterrupt:
         sys.exit(0)

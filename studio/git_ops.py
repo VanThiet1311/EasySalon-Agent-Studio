@@ -368,7 +368,8 @@ def switch_git_branch(workspace, branch_name, create_new=False, base_branch=''):
             # Trường hợp 1: Người dùng yêu cầu tạo nhánh mới (-b)
             if create_new:
                 cmd = ['git', 'checkout', '-b', branch_name]
-                if base_branch:
+                is_from_head = not base_branch or base_branch.upper() in ('HEAD', 'CURRENT', 'CURRENT_BRANCH')
+                if not is_from_head:
                     cmd.append(base_branch)
 
                 res = subprocess.run(
@@ -380,11 +381,11 @@ def switch_git_branch(workspace, branch_name, create_new=False, base_branch=''):
                 )
                 msg = (res.stdout.strip() + '\n' + res.stderr.strip()).strip()
                 if res.returncode == 0:
-                    from_info = f" từ nhánh '{base_branch}'" if base_branch else ""
+                    from_info = " từ nhánh hiện tại (HEAD)" if is_from_head else f" từ nhánh '{base_branch}'"
                     return True, f"Đã tạo mới và chuyển sang nhánh '{branch_name}'{from_info} thành công."
 
                 # Nếu base_branch không tìm thấy ở local, thử với origin/<base_branch>
-                if base_branch and ('not a valid object name' in msg or 'fatal: Cannot update paths' in msg or 'fatal: invalid reference' in msg):
+                if not is_from_head and ('not a valid object name' in msg or 'fatal: Cannot update paths' in msg or 'fatal: invalid reference' in msg):
                     cmd_rem = ['git', 'checkout', '-b', branch_name, f'origin/{base_branch}']
                     res_rem = subprocess.run(cmd_rem, cwd=workspace, capture_output=True, text=True, timeout=25)
                     if res_rem.returncode == 0:
@@ -1372,18 +1373,21 @@ def check_sync_pull_status(workspace, branches=('staging', 'master', 'beta'), do
         # 2. Lấy commit mới nhất trên remote
         try:
             latest_raw = subprocess.check_output(
-                ['git', 'log', '-1', '--format=%h|%s|%an|%cr', f'origin/{br}'],
+                ['git', 'log', '-1', '--format=%h|%s|%an|%cr|%ct|%cI', f'origin/{br}'],
                 cwd=workspace, text=True, stderr=subprocess.DEVNULL
             ).strip()
             if latest_raw:
-                p = latest_raw.split('|', 3)
+                p = latest_raw.split('|', 5)
                 author_val = p[2].strip() if len(p) > 2 else ''
+                epoch_sec = int(p[4].strip()) if len(p) > 4 and p[4].strip().isdigit() else None
                 branch_res['latest_commit'] = {
                     'hash': p[0].strip(),
                     'subject': p[1].strip() if len(p) > 1 else '',
                     'author': author_val,
                     'is_me': _is_me(author_val),
-                    'date': format_git_relative_date(p[3].strip()) if len(p) > 3 else ''
+                    'date': format_git_relative_date(p[3].strip()) if len(p) > 3 else '',
+                    'timestamp': epoch_sec * 1000 if epoch_sec else None,
+                    'iso_date': p[5].strip() if len(p) > 5 else ''
                 }
         except Exception:
             pass
@@ -1436,18 +1440,20 @@ def check_sync_pull_status(workspace, branches=('staging', 'master', 'beta'), do
 
             try:
                 commits_raw = subprocess.check_output(
-                    ['git', 'log', f'{br}..origin/{br}', '--format=%h|%s|%an|%cr', '-n', '15'],
+                    ['git', 'log', f'{br}..origin/{br}', '--format=%h|%s|%an|%cr|%ct|%cI', '-n', '15'],
                     cwd=workspace, text=True, stderr=subprocess.DEVNULL
                 ).strip().splitlines()
                 commit_list = []
                 for line in commits_raw:
                     if not line.strip():
                         continue
-                    p = line.split('|', 3)
+                    p = line.split('|', 5)
                     h = p[0].strip()
                     subject_val = p[1].strip() if len(p) > 1 else ''
                     author_val = p[2].strip() if len(p) > 2 else ''
                     date_val = p[3].strip() if len(p) > 3 else ''
+                    epoch_sec = int(p[4].strip()) if len(p) > 4 and p[4].strip().isdigit() else None
+                    iso_str = p[5].strip() if len(p) > 5 else ''
 
                     # Chi tiết các file thay đổi riêng trong commit này
                     c_files = []
@@ -1463,6 +1469,8 @@ def check_sync_pull_status(workspace, branches=('staging', 'master', 'beta'), do
                                     'path': parts[2].strip(),
                                     'additions': int(parts[0]) if parts[0].isdigit() else 0,
                                     'deletions': int(parts[1]) if parts[1].isdigit() else 0,
+                                    'timestamp': epoch_sec * 1000 if epoch_sec else None,
+                                    'iso_date': iso_str
                                 })
                     except Exception:
                         pass
@@ -1485,6 +1493,8 @@ def check_sync_pull_status(workspace, branches=('staging', 'master', 'beta'), do
                         'author': author_val,
                         'is_me': _is_me(author_val),
                         'date': format_git_relative_date(date_val),
+                        'timestamp': epoch_sec * 1000 if epoch_sec else None,
+                        'iso_date': iso_str,
                         'files': c_files,
                         'diff': c_diff
                     })
@@ -1746,5 +1756,177 @@ def continue_git_conflict(workspace, commit_message=None):
     if op == 'cherry_pick':
         return continue_git_cherry_pick(workspace)
     return continue_git_merge(workspace, commit_message=commit_message)
+
+
+def get_file_blame_and_author_details(workspace: str, file_path: str) -> dict:
+    """
+    Trích xuất thông tin Git blame và tác giả (Creator, Last Modifier, Line-by-line blame, Commit bodies).
+    Tương tự như GitLens trên VS Code để phục vụ tính năng hover và hiển thị tác giả.
+    """
+    if file_path.startswith(workspace):
+        clean_path = os.path.relpath(file_path, workspace)
+    else:
+        clean_path = os.path.normpath(file_path).lstrip('/')
+    abs_file = os.path.abspath(os.path.join(workspace, clean_path))
+    if not os.path.exists(abs_file):
+        return {'success': False, 'message': f'File không tồn tại: {file_path}'}
+
+    current_author = ""
+    current_email = ""
+    try:
+        current_author = subprocess.run(['git', 'config', 'user.name'], cwd=workspace, capture_output=True, text=True, timeout=1.5).stdout.strip()
+        current_email = subprocess.run(['git', 'config', 'user.email'], cwd=workspace, capture_output=True, text=True, timeout=1.5).stdout.strip()
+    except Exception:
+        pass
+
+    def _is_me(name):
+        if not name:
+            return False
+        n_low = name.lower().strip()
+        c_low = current_author.lower().strip() if current_author else ""
+        e_low = current_email.lower().strip() if current_email else ""
+        if c_low and (c_low in n_low or n_low in c_low):
+            return True
+        if e_low and (e_low in n_low or n_low in e_low):
+            return True
+        return bool('thiết' in n_low or 'thiet' in n_low)
+
+    creator = None
+    last_mod = None
+
+    try:
+        c1 = subprocess.run(
+            ['git', 'log', '--reverse', '--format=%h%x00%an%x00%ae%x00%at%x00%s%x00%b', '-1', '--', clean_path],
+            cwd=workspace, capture_output=True, text=True, timeout=3.0
+        )
+        if c1.returncode == 0 and c1.stdout.strip():
+            parts = c1.stdout.strip().split('\x00')
+            if len(parts) >= 5:
+                author_name = parts[1]
+                creator = {
+                    'hash': parts[0],
+                    'author': 'You' if _is_me(author_name) else author_name,
+                    'raw_author': author_name,
+                    'is_me': _is_me(author_name),
+                    'email': parts[2],
+                    'time': int(parts[3]) if parts[3].isdigit() else 0,
+                    'summary': parts[4],
+                    'body': parts[5].strip() if len(parts) > 5 else ''
+                }
+    except Exception:
+        pass
+
+    try:
+        c2 = subprocess.run(
+            ['git', 'log', '-1', '--format=%h%x00%an%x00%ae%x00%at%x00%s%x00%b', '--', clean_path],
+            cwd=workspace, capture_output=True, text=True, timeout=3.0
+        )
+        if c2.returncode == 0 and c2.stdout.strip():
+            parts = c2.stdout.strip().split('\x00')
+            if len(parts) >= 5:
+                author_name = parts[1]
+                last_mod = {
+                    'hash': parts[0],
+                    'author': 'You' if _is_me(author_name) else author_name,
+                    'raw_author': author_name,
+                    'is_me': _is_me(author_name),
+                    'email': parts[2],
+                    'time': int(parts[3]) if parts[3].isdigit() else 0,
+                    'summary': parts[4],
+                    'body': parts[5].strip() if len(parts) > 5 else ''
+                }
+    except Exception:
+        pass
+
+    lines = {}
+    commits = {}
+    try:
+        res = subprocess.run(
+            ['git', 'blame', '--line-porcelain', '--', clean_path],
+            cwd=workspace, capture_output=True, text=True, timeout=5.0
+        )
+        if res.returncode == 0 and res.stdout:
+            cur_hash = ''
+            cur_author = ''
+            cur_mail = ''
+            cur_time = 0
+            cur_summary = ''
+            line_num = 1
+
+            for raw in res.stdout.splitlines():
+                if raw.startswith('\t'):
+                    is_uncommitted = cur_hash.startswith('00000000') or not cur_hash
+                    author_display = 'You' if (is_uncommitted or _is_me(cur_author)) else cur_author
+                    lines[line_num] = {
+                        'hash': 'uncommitted' if is_uncommitted else cur_hash[:9],
+                        'author': author_display,
+                        'raw_author': cur_author,
+                        'is_me': is_uncommitted or _is_me(cur_author),
+                        'email': cur_mail,
+                        'time': cur_time,
+                        'summary': 'Uncommitted changes' if is_uncommitted else cur_summary
+                    }
+                    line_num += 1
+                elif raw.startswith('author '):
+                    cur_author = raw[7:].strip()
+                elif raw.startswith('author-mail '):
+                    cur_mail = raw[12:].strip('<> ')
+                elif raw.startswith('author-time '):
+                    try:
+                        cur_time = int(raw[12:].strip())
+                    except Exception:
+                        cur_time = 0
+                elif raw.startswith('summary '):
+                    cur_summary = raw[8:].strip()
+                elif len(raw.split(' ')[0]) == 40:
+                    cur_hash = raw.split(' ')[0]
+
+            unique_hashes = list({v['hash'] for v in lines.values() if v['hash'] and v['hash'] != 'uncommitted'})
+            for h in unique_hashes[:30]:
+                try:
+                    show_res = subprocess.run(
+                        ['git', 'show', '-s', '--format=%h%x00%an%x00%ae%x00%at%x00%s%x00%b', h],
+                        cwd=workspace, capture_output=True, text=True, timeout=1.5
+                    )
+                    if show_res.returncode == 0 and show_res.stdout:
+                        sp = show_res.stdout.split('\x00')
+                        if len(sp) >= 5:
+                            c_author = sp[1]
+                            commit_obj = {
+                                'hash': sp[0],
+                                'author': 'You' if _is_me(c_author) else c_author,
+                                'raw_author': c_author,
+                                'is_me': _is_me(c_author),
+                                'email': sp[2],
+                                'time': int(sp[3]) if sp[3].isdigit() else 0,
+                                'summary': sp[4],
+                                'body': sp[5].strip() if len(sp) > 5 else ''
+                            }
+                            commits[h] = commit_obj
+                            if sp[0] not in commits:
+                                commits[sp[0]] = commit_obj
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    if creator:
+        commits['creator'] = creator
+        if creator.get('hash'):
+            commits[creator['hash']] = creator
+    if last_mod:
+        commits['last_mod'] = last_mod
+        if last_mod.get('hash'):
+            commits[last_mod['hash']] = last_mod
+
+    return {
+        'success': True,
+        'path': clean_path,
+        'creator': creator,
+        'last_modifier': last_mod,
+        'lines': lines,
+        'commits': commits
+    }
+
 
 

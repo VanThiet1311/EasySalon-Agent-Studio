@@ -45,6 +45,7 @@
     window.SETTINGS_SUBTAB_ROUTES = {
       'effort': '/settings/effort',
       'engine': '/settings/engine',
+      'mcp': '/settings/mcp',
       'account': '/settings/account',
       'api': '/settings/api',
       'env': '/settings/env'
@@ -60,6 +61,10 @@
       '/settings/engine': 'engine',
       '/engine/settings': 'engine',
       '/engine': 'engine',
+      '/settings/mcp': 'mcp',
+      '/mcp/settings': 'mcp',
+      '/mcp': 'mcp',
+      '/mcp-servers': 'mcp',
       '/settings/account': 'account',
       '/account/settings': 'account',
       '/account': 'account',
@@ -430,11 +435,6 @@
           <div id="feedTaskFilterTabs" class="flex items-center gap-1 bg-[#0e192c] p-0.5 rounded border border-[#244170] overflow-x-auto max-w-[520px] scrollbar-thin">
             <!-- Rendered dynamically by JS: [Tất cả] [Task 1] [Task 2] -->
           </div>
-          <button id="btnClearCompletedFeed" type="button" onclick="clearCompletedTasks()" title="Xóa tất cả các tác vụ đã hoàn thành hoặc đã dừng"
-            class="hidden px-2.5 py-1 rounded text-[11px] font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-white border border-rose-500/30 transition flex items-center gap-1 shrink-0 cursor-pointer">
-            <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-            <span>Xóa task đã xong</span>
-          </button>
         </div>
       </div>
       <div id="taskFeed" class="flex-1 overflow-y-auto p-4 space-y-4">
@@ -509,23 +509,32 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-          <span class="font-semibold text-xs text-white">Tạo nhánh (Frontend & Backend)</span>
+          <span class="font-semibold text-xs text-white">Tạo nhánh &amp; Checkout</span>
         </div>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-        <div class="md:col-span-5">
+        <div class="md:col-span-4">
           <label class="text-[11px] text-slate-300 block mb-1">Tên nhánh mới (-b):</label>
           <input type="text" id="bothBranchInput" placeholder="Ví dụ: feat/nvt/EAS-12373/booking-bed-room-management"
             class="w-full bg-[#0e192c] border border-[#244170] rounded-md px-3 py-1.5 text-xs font-mono text-slate-100 placeholder-slate-400 focus:outline-none focus:border-[#38bdf8]" />
         </div>
-        <div class="md:col-span-4">
-          <label class="text-[11px] text-slate-300 block mb-1">Từ nhánh gốc:</label>
-          <select id="bothBaseBranchSelect" class="w-full bg-[#0e192c] border border-[#244170] rounded-md px-3 py-1.5 text-xs font-mono text-slate-100 focus:outline-none focus:border-[#38bdf8]">
-            <option value="staging">staging (khuyên dùng)</option>
-            <option value="master">master</option>
+        <div class="md:col-span-3">
+          <label class="text-[11px] text-slate-300 block mb-1">Áp dụng checkout:</label>
+          <select id="bothTargetWorkspaceSelect" class="w-full bg-[#0e192c] border border-[#244170] rounded-md px-3 py-1.5 text-xs font-sans text-slate-100 focus:outline-none focus:border-[#38bdf8]">
+            <option value="both">Cả hai (Frontend &amp; Backend)</option>
+            <option value="fe">Chỉ Frontend (easysalon-webapp)</option>
+            <option value="be">Chỉ Backend (easysalon-api)</option>
           </select>
         </div>
         <div class="md:col-span-3">
+          <label class="text-[11px] text-slate-300 block mb-1">Từ nhánh gốc:</label>
+          <select id="bothBaseBranchSelect" class="w-full bg-[#0e192c] border border-[#244170] rounded-md px-3 py-1.5 text-xs font-mono text-slate-100 focus:outline-none focus:border-[#38bdf8]">
+            <option value="staging">staging (khuyên dùng)</option>
+            <option value="beta">beta</option>
+            <option value="master">master</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
           <button id="btnSwitchBoth" onclick="doCreateNewBranchBoth()" class="ant-btn ant-btn-primary w-full h-[32px] text-xs font-medium whitespace-nowrap">
             <svg class="w-3.5 h-3.5 fill-none stroke-current mr-1" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             <span>Tạo nhánh</span>
@@ -579,9 +588,9 @@
                 <span class="text-slate-400 text-[11px]">Đồng bộ Remote:</span>
                 <span id="feSyncBadge" class="text-[11px] font-mono text-slate-300">Đang kiểm tra...</span>
               </div>
-              <button id="btnPullFe" onclick="doPullBranch('fe')" class="hidden ant-btn text-xs h-[28px] px-3 flex items-center gap-1.5 bg-[#182c4f] border-[#2e528f] text-cyan-300 hover:bg-[#244170]">
+              <button id="btnPullFe" onclick="doPullBranch('fe')" style="display: none;" class="hidden ant-btn text-xs h-[28px] px-3 items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold border-amber-500 shadow-sm">
                 <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-                <span id="fePullBtnText">Pull nhánh này</span>
+                <span id="fePullBtnText">Pull ngay</span>
               </button>
             </div>
           </div>
@@ -653,9 +662,9 @@
                 <span class="text-slate-400 text-[11px]">Đồng bộ Remote:</span>
                 <span id="beSyncBadge" class="text-[11px] font-mono text-slate-300">Đang kiểm tra...</span>
               </div>
-              <button id="btnPullBe" onclick="doPullBranch('be')" class="hidden ant-btn text-xs h-[28px] px-3 flex items-center gap-1.5 bg-[#182c4f] border-[#2e528f] text-emerald-300 hover:bg-[#244170]">
+              <button id="btnPullBe" onclick="doPullBranch('be')" style="display: none;" class="hidden ant-btn text-xs h-[28px] px-3 items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold border-amber-500 shadow-sm">
                 <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-                <span id="bePullBtnText">Pull nhánh này</span>
+                <span id="bePullBtnText">Pull ngay</span>
               </button>
             </div>
           </div>
@@ -2073,14 +2082,15 @@
           </div>
         </button>
 
-        <!-- Tab 3: Tài khoản AI (Tài khoản & Xác thực) -->
-        <button type="button" id="settingsNav_account" onclick="switchSettingsSidebarTab('account')"
+        <!-- Tab 3: MCP Servers (Model Context Protocol: Jira, Tools, Database) -->
+        <button type="button" id="settingsNav_mcp" onclick="switchSettingsSidebarTab('mcp')"
           class="settings-sidebar-btn w-full text-left p-3 rounded-lg border transition flex items-start gap-3 bg-[#0c1628] border-[#244170]/40 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer select-none">
           <div class="flex-1 min-w-0">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-bold">Tài khoản AI</span>
+              <span class="text-xs font-bold">MCP Servers</span>
+              <span id="mcpServerCountBadge" class="settings-nav-badge">0</span>
             </div>
-            <div class="settings-nav-desc text-[11px] text-slate-400 truncate mt-0.5">Xác thực Google Gemini CLI</div>
+            <div class="settings-nav-desc text-[11px] text-slate-400 truncate mt-0.5">Jira, Database, Filesystem & APIs</div>
           </div>
         </button>
 
@@ -2123,23 +2133,75 @@
               </div>
             </div>
 
-            <!-- Model Family Tabs (Phân loại từng model) -->
-            <div class="flex items-center gap-2 border-b border-[#244170]/60 pb-3 overflow-x-auto scrollbar-thin">
-              <button type="button" id="tab_btn_model_gemini" onclick="switchModelFamilyTab('gemini')" class="model-family-tab is-active px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition cursor-pointer select-none">
-                <span>Google Gemini</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded font-sans font-medium tab-pill">3 mức</span>
-              </button>
-              <button type="button" id="tab_btn_model_claude" onclick="switchModelFamilyTab('claude')" class="model-family-tab px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition cursor-pointer select-none">
-                <span>Anthropic Claude</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded font-sans font-medium tab-pill">5 mức</span>
-              </button>
-              <button type="button" id="tab_btn_model_openai" onclick="switchModelFamilyTab('openai')" class="model-family-tab px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition cursor-pointer select-none">
-                <span>OpenAI / GPT</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded font-sans font-medium tab-pill">3 mức</span>
-              </button>
+            <!-- Bộ máy thực thi AI (AI Execution Engine: Gemini CLI vs OpenCode 9router) -->
+            <div class="pb-3 border-b border-slate-200 dark:border-[#244170]/40 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-[11px] font-semibold text-slate-300">
+                    Bộ máy thực thi AI (AI Execution Engine):
+                  </div>
+                  <p class="text-[11px] text-slate-400 mt-0.5">
+                    Chọn phương thức chạy ngầm khi AI thực hiện lập trình và sửa lỗi (Gemini CLI native persistent stream hoặc OpenCode qua proxy 9router).
+                  </p>
+                </div>
+                <span id="quickEngineTag" class="text-[10px] font-sans px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 uppercase font-semibold tracking-wider">GEMINI CLI</span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <!-- Option 1: Gemini CLI -->
+                <label id="quick_card_engine_gemini_cli" onclick="onPageEngineChange('gemini_cli')" class="engine-card is-active cursor-pointer flex items-start gap-3 p-3 rounded-xl border transition">
+                  <input type="radio" name="quick_engine" value="gemini_cli" checked class="mt-0.5 cursor-pointer" onchange="onPageEngineChange('gemini_cli')">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                      <span class="engine-card-title text-xs font-bold">Google Gemini CLI</span>
+                      <span class="engine-card-badge text-[10px] font-sans font-medium px-1.5 py-0.5 rounded">Native agy</span>
+                    </div>
+                    <p class="engine-card-desc text-[11px] mt-1 leading-snug">Chạy trực tiếp qua Antigravity CLI native với persistent stream terminal.</p>
+                  </div>
+                </label>
+
+                <!-- Option 2: OpenCode (9router) -->
+                <label id="quick_card_engine_opencode" onclick="onPageEngineChange('opencode')" class="engine-card cursor-pointer flex items-start gap-3 p-3 rounded-xl border transition">
+                  <input type="radio" name="quick_engine" value="opencode" class="mt-0.5 cursor-pointer" onchange="onPageEngineChange('opencode')">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                      <span class="engine-card-title text-xs font-bold">OpenCode CLI (9router)</span>
+                      <span id="quickNineRouterPill" class="engine-card-badge text-[10px] font-sans font-medium px-2 py-0.5 rounded">9router: ...</span>
+                    </div>
+                    <p class="engine-card-desc text-[11px] mt-1 leading-snug">Chạy qua OpenCode kết nối proxy 9router (127.0.0.1:20128), điều phối qua mô hình Gemini.</p>
+                  </div>
+                </label>
+              </div>
+
+              <!-- Hộp cấu hình nhanh mô hình OpenCode khi chọn OpenCode -->
+              <div id="quickOpencodeSection" class="settings-opencode-box hidden space-y-2.5 transition-all duration-200">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="opencode-box-title font-sans font-semibold">Mô hình OpenCode (truy vấn động từ 9router):</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button type="button" onclick="fetchOpenCodeModels(true)" class="opencode-box-link text-[11px] font-sans cursor-pointer hover:underline">Làm mới danh sách</button>
+                    <span class="opencode-box-badge text-[10px] font-mono px-2 py-0.5 rounded font-medium">Port 20128</span>
+                  </div>
+                </div>
+                <select id="quickOpencodeModelSelect" onchange="onOpenCodeModelChange(this.value)" class="w-full font-sans text-xs rounded-lg p-2.5 transition focus:outline-none">
+                  <option value="">Đang tải danh sách mô hình từ 9router...</option>
+                </select>
+              </div>
             </div>
 
-            <!-- Panel 1: Gemini (Chỉ có Low, Medium, High) -->
+            <!-- Model Family: Google Gemini (3 mức suy luận) -->
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-[#244170]/40 pb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-white uppercase tracking-wider">Mô hình AI:</span>
+                <span id="tab_btn_model_gemini" class="model-family-tab is-active px-3 py-1 rounded-lg text-xs font-medium flex items-center gap-2 select-none">
+                  <span>Google Gemini</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded font-sans font-medium tab-pill">3 mức suy luận</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- Panel: Gemini (Low, Medium, High) -->
             <div id="tab_panel_model_gemini" class="model-family-panel space-y-4">
               <div>
                 <div class="text-[11px] font-semibold text-slate-300 mb-2.5">
@@ -2147,8 +2209,8 @@
                 </div>
                 <!-- Reasoning Effort Cards Grid cho Gemini: ĐÚNG 3 MỨC -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <label id="page_card_effort_low" class="effort-card cursor-pointer flex items-start gap-3 p-3.5 rounded-xl border transition">
-                    <input type="radio" name="page_effort" value="low" class="mt-0.5 accent-[#199cff] cursor-pointer" onchange="onPageEffortChange('low')">
+                  <label id="page_card_effort_low" onclick="onPageEffortChange('low')" class="effort-card cursor-pointer flex items-start gap-3 p-3.5 rounded-xl border transition">
+                    <input type="radio" name="page_effort" value="low" class="cursor-pointer" onchange="onPageEffortChange('low')">
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center justify-between">
                         <span class="effort-card-title text-xs font-bold">Low</span>
@@ -2158,8 +2220,8 @@
                     </div>
                   </label>
 
-                  <label id="page_card_effort_medium" class="effort-card cursor-pointer flex items-start gap-3 p-3.5 rounded-xl border transition">
-                    <input type="radio" name="page_effort" value="medium" class="mt-0.5 accent-[#199cff] cursor-pointer" onchange="onPageEffortChange('medium')">
+                  <label id="page_card_effort_medium" onclick="onPageEffortChange('medium')" class="effort-card cursor-pointer flex items-start gap-3 p-3.5 rounded-xl border transition">
+                    <input type="radio" name="page_effort" value="medium" class="cursor-pointer" onchange="onPageEffortChange('medium')">
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center justify-between">
                         <span class="effort-card-title text-xs font-bold">Medium</span>
@@ -2169,122 +2231,14 @@
                     </div>
                   </label>
 
-                  <label id="page_card_effort_high" class="effort-card is-active cursor-pointer flex items-start gap-3 p-3.5 rounded-xl border transition">
-                    <input type="radio" name="page_effort" value="high" checked class="mt-0.5 accent-[#199cff] cursor-pointer" onchange="onPageEffortChange('high')">
+                  <label id="page_card_effort_high" onclick="onPageEffortChange('high')" class="effort-card is-active cursor-pointer flex items-start gap-3 p-3.5 rounded-xl border transition">
+                    <input type="radio" name="page_effort" value="high" checked class="cursor-pointer" onchange="onPageEffortChange('high')">
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center justify-between">
                         <span class="effort-card-title text-xs font-bold">High</span>
                         <span class="effort-card-badge text-[10px] font-sans font-medium px-1.5 py-0.5 rounded">Khuyên dùng</span>
                       </div>
                       <p class="effort-card-desc text-[11px] mt-1 leading-snug">Suy luận nhiều bước, đào sâu qua nhiều file code để phát hiện nguyên nhân gốc rễ.</p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <!-- Panel 2: Claude (5 mức: Low, Medium, High, Extra High, Max) -->
-            <div id="tab_panel_model_claude" class="model-family-panel hidden space-y-4">
-              <div>
-                <div class="text-[11px] font-semibold text-slate-300 mb-2.5">
-                  <span>Mức độ suy luận cho Claude:</span>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <label id="page_card_effort_claude_low" class="effort-card cursor-pointer flex items-start gap-3 p-3 rounded-lg border transition">
-                    <input type="radio" name="page_effort" value="low" class="mt-0.5 accent-[#199cff] cursor-pointer" onchange="onPageEffortChange('low')">
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center justify-between">
-                        <span class="effort-card-title text-xs font-bold">Low</span>
-                        <span class="effort-card-badge text-[10px] font-sans font-medium px-1.5 py-0.5 rounded">Tốc độ cao</span>
-                      </div>
-                      <p class="effort-card-desc text-[11px] mt-1 leading-snug">Thinking budget ngắn, phản hồi tức thì.</p>
-                    </div>
-                  </label>
-
-                  <label id="page_card_effort_claude_medium" class="effort-card cursor-pointer flex items-start gap-3 p-3 rounded-lg border transition">
-                    <input type="radio" name="page_effort" value="medium" class="mt-0.5 accent-[#199cff] cursor-pointer" onchange="onPageEffortChange('medium')">
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center justify-between">
-                        <span class="effort-card-title text-xs font-bold">Medium</span>
-                        <span class="effort-card-badge text-[10px] font-sans font-medium px-1.5 py-0.5 rounded">Cân bằng</span>
-                      </div>
-                      <p class="effort-card-desc text-[11px] mt-1 leading-snug">Thinking vừa phải, cân đối tốc độ và logic.</p>
-                    </div>
-                  </label>
-
-                  <label id="page_card_effort_claude_high" class="effort-card cursor-pointer flex items-start gap-3 p-3 rounded-lg border transition">
-                    <input type="radio" name="page_effort" value="high" class="mt-0.5 accent-[#199cff] cursor-pointer" onchange="onPageEffortChange('high')">
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center justify-between">
-                        <span class="effort-card-title text-xs font-bold">High</span>
-                        <span class="effort-card-badge text-[10px] font-sans font-medium px-1.5 py-0.5 rounded">Khuyên dùng</span>
-                      </div>
-                      <p class="effort-card-desc text-[11px] mt-1 leading-snug">Đào sâu qua codebase, phân tích logic đa tệp.</p>
-                    </div>
-                  </label>
-
-                  <label id="page_card_effort_claude_xhigh" class="effort-card cursor-pointer flex items-start gap-3 p-3 rounded-lg border transition">
-                    <input type="radio" name="page_effort" value="xhigh" class="mt-0.5 accent-[#199cff] cursor-pointer" onchange="onPageEffortChange('xhigh')">
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center justify-between">
-                        <span class="effort-card-title text-xs font-bold">Extra High</span>
-                        <span class="effort-card-badge text-[10px] font-sans font-medium px-1.5 py-0.5 rounded">Chuyên sâu</span>
-                      </div>
-                      <p class="effort-card-desc text-[11px] mt-1 leading-snug">Tái cấu trúc kiến trúc lớn, thiết kế schema phức tạp.</p>
-                    </div>
-                  </label>
-
-                  <label id="page_card_effort_claude_max" class="effort-card cursor-pointer flex items-start gap-3 p-3 rounded-lg border transition">
-                    <input type="radio" name="page_effort" value="max" class="mt-0.5 accent-[#199cff] cursor-pointer" onchange="onPageEffortChange('max')">
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center justify-between">
-                        <span class="effort-card-title text-xs font-bold">Max</span>
-                        <span class="effort-card-badge text-[10px] font-sans font-medium px-1.5 py-0.5 rounded">Tối đa</span>
-                      </div>
-                      <p class="effort-card-desc text-[11px] mt-1 leading-snug">Vận dụng tối đa token suy nghĩ trước khi xuất mã.</p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <!-- Panel 3: OpenAI / GPT (3 mức: Low, Medium, High) -->
-            <div id="tab_panel_model_openai" class="model-family-panel hidden space-y-4">
-              <div>
-                <div class="text-[11px] font-semibold text-slate-300 mb-2.5">
-                  <span>Mức độ suy luận cho OpenAI:</span>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <label id="page_card_effort_openai_low" class="effort-card cursor-pointer flex items-start gap-3 p-3.5 rounded-xl border transition">
-                    <input type="radio" name="page_effort" value="low" class="mt-0.5 accent-[#199cff] cursor-pointer" onchange="onPageEffortChange('low')">
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center justify-between">
-                        <span class="effort-card-title text-xs font-bold">Low</span>
-                        <span class="effort-card-badge text-[10px] font-sans font-medium px-1.5 py-0.5 rounded">Tốc độ cao</span>
-                      </div>
-                      <p class="effort-card-desc text-[11px] mt-1 leading-snug">Ít reasoning token, phản hồi tức thì.</p>
-                    </div>
-                  </label>
-
-                  <label id="page_card_effort_openai_medium" class="effort-card cursor-pointer flex items-start gap-3 p-3.5 rounded-xl border transition">
-                    <input type="radio" name="page_effort" value="medium" class="mt-0.5 accent-[#199cff] cursor-pointer" onchange="onPageEffortChange('medium')">
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center justify-between">
-                        <span class="effort-card-title text-xs font-bold">Medium</span>
-                        <span class="effort-card-badge text-[10px] font-sans font-medium px-1.5 py-0.5 rounded">Cân bằng</span>
-                      </div>
-                      <p class="effort-card-desc text-[11px] mt-1 leading-snug">Mức suy luận vừa phải, cân đối tốc độ và chất lượng.</p>
-                    </div>
-                  </label>
-
-                  <label id="page_card_effort_openai_high" class="effort-card cursor-pointer flex items-start gap-3 p-3.5 rounded-xl border transition">
-                    <input type="radio" name="page_effort" value="high" class="mt-0.5 accent-[#199cff] cursor-pointer" onchange="onPageEffortChange('high')">
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center justify-between">
-                        <span class="effort-card-title text-xs font-bold">High</span>
-                        <span class="effort-card-badge text-[10px] font-sans font-medium px-1.5 py-0.5 rounded">Khuyên dùng</span>
-                      </div>
-                      <p class="effort-card-desc text-[11px] mt-1 leading-snug">Suy luận nhiều bước, đào sâu xử lý bài toán khó.</p>
                     </div>
                   </label>
                 </div>
@@ -2298,12 +2252,6 @@
               <option value="gemini-3.8-flash-low">Gemini 3.8 Flash (Low)</option>
               <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
               <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-              <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
-              <option value="claude-opus-4-6-thinking">Claude Opus 4.6 (Thinking)</option>
-              <option value="claude-3-7-sonnet">Claude 3.7 Sonnet</option>
-              <option value="gpt-oss-120b-medium">GPT-OSS 120B (Medium)</option>
-              <option value="gpt-4o">GPT-4o</option>
-              <option value="o3-mini">OpenAI o3-mini</option>
             </select>
           </div>
         </div>
@@ -2317,23 +2265,28 @@
                 <h3 class="text-xs font-bold text-white uppercase tracking-wider">
                   AI Execution Engine (Bộ máy thực thi)
                 </h3>
-                <p class="text-[11px] text-slate-400 mt-0.5">Chọn backend AI để thực hiện các tác vụ lập trình và fix bug. Chỉ cần chọn là hệ thống lập tức chuyển đổi.</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Chọn phương thức và môi trường thực thi chạy ngầm cho các tác vụ lập trình & fix bug (chạy native trực tiếp qua Gemini CLI persistent stream hoặc OpenCode CLI kết nối proxy 9router nội bộ). Hệ thống tự động chuyển đổi phương thức thực thi ngay khi chọn.</p>
               </div>
               <span id="pageCurrentEngineTag" class="text-[10px] font-sans px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 uppercase font-semibold tracking-wider">GEMINI CLI</span>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <!-- Engine Option 1: Gemini CLI -->
-              <label id="page_card_engine_gemini_cli" class="engine-card is-active cursor-pointer flex flex-col justify-between p-4 rounded-xl border transition space-y-3">
+              <label id="page_card_engine_gemini_cli" onclick="onPageEngineChange('gemini_cli')" class="engine-card is-active cursor-pointer flex flex-col justify-between p-4 rounded-xl border transition space-y-3">
                 <div class="flex items-start justify-between gap-3">
                   <div class="flex items-center gap-2.5">
-                    <input type="radio" name="page_engine" value="gemini_cli" checked class="mt-0.5 accent-[#199cff] w-4 h-4 cursor-pointer" onchange="onPageEngineChange('gemini_cli')">
+                    <input type="radio" name="page_engine" value="gemini_cli" checked class="mt-0.5 cursor-pointer" onchange="onPageEngineChange('gemini_cli')">
                     <div>
                       <span class="engine-card-title text-sm font-bold flex items-center gap-1.5">Gemini CLI</span>
                       <span class="engine-card-sub text-[11px] block font-sans">Antigravity Native CLI (<code class="font-mono text-[10px]">agy</code>)</span>
                     </div>
                   </div>
-                  <span id="pageGeminiCliStatusPill" class="engine-card-badge text-[10px] font-sans font-medium px-2 py-0.5 rounded uppercase">Đang kiểm tra...</span>
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" id="btnPageStartGeminiCli" onclick="event.stopPropagation(); startGeminiCliBackground(this);" class="text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center gap-1 cursor-pointer" title="Antigravity CLI native daemon chạy ngầm (agy remote-control start)">
+                      <span>▶ Chạy ngầm</span>
+                    </button>
+                    <span id="pageGeminiCliStatusPill" class="engine-card-badge text-[10px] font-sans font-medium px-2 py-0.5 rounded uppercase">Đang kiểm tra...</span>
+                  </div>
                 </div>
                 <p class="engine-card-desc text-xs leading-relaxed">
                   Chạy trực tiếp qua Antigravity CLI native với persistent background terminal. Hỗ trợ đầy đủ các mức độ suy luận (Reasoning Effort), stream chi tiết từng tool call qua NDJSON và quản lý tiến trình ngầm.
@@ -2345,16 +2298,21 @@
               </label>
 
               <!-- Engine Option 2: OpenCode (9router) -->
-              <label id="page_card_engine_opencode" class="engine-card cursor-pointer flex flex-col justify-between p-4 rounded-xl border transition space-y-3">
+              <label id="page_card_engine_opencode" onclick="onPageEngineChange('opencode')" class="engine-card cursor-pointer flex flex-col justify-between p-4 rounded-xl border transition space-y-3">
                 <div class="flex items-start justify-between gap-3">
                   <div class="flex items-center gap-2.5">
-                    <input type="radio" name="page_engine" value="opencode" class="mt-0.5 accent-[#199cff] w-4 h-4 cursor-pointer" onchange="onPageEngineChange('opencode')">
+                    <input type="radio" name="page_engine" value="opencode" class="mt-0.5 cursor-pointer" onchange="onPageEngineChange('opencode')">
                     <div>
                       <span class="engine-card-title text-sm font-bold flex items-center gap-1.5">OpenCode CLI</span>
                       <span class="engine-card-sub text-[11px] block font-sans">Proxy 9router Local</span>
                     </div>
                   </div>
-                  <span id="pageNineRouterStatusPill" class="engine-card-badge text-[10px] font-sans font-medium px-2 py-0.5 rounded uppercase">9router: ...</span>
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" id="btnPageStartNineRouter" onclick="event.stopPropagation(); startNineRouterBackground(this);" class="text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center gap-1 cursor-pointer" title="Khởi động 9router proxy chạy ngầm trên cổng 20128">
+                      <span>▶ Chạy ngầm</span>
+                    </button>
+                    <span id="pageNineRouterStatusPill" class="engine-card-badge text-[10px] font-sans font-medium px-2 py-0.5 rounded uppercase">9router: ...</span>
+                  </div>
                 </div>
                 <p class="engine-card-desc text-xs leading-relaxed">
                   Chạy thông qua OpenCode v2.2.0 kết nối với proxy 9router nội bộ (<code class="engine-code px-1 py-0.5 rounded font-mono">127.0.0.1:20128</code>). Tốc độ cực nhanh như chạy trực tiếp trên terminal, session độc lập cách ly cho từng tác vụ.
@@ -2375,10 +2333,14 @@
                 <span>Trạng thái Gemini CLI Native:</span>
                 <span class="font-mono text-emerald-400">agy --active</span>
               </div>
-              <div class="bg-[#0c1628] rounded-lg p-3 text-xs text-slate-300 font-sans space-y-1 border border-[#244170]/60">
+              <div class="bg-[#0c1628] rounded-lg p-3 text-xs text-slate-300 font-sans space-y-1.5 border border-[#244170]/60">
                 <div>Provider: <strong class="text-cyan-300">Antigravity Multi-Agent Harness</strong></div>
                 <div>Protocol: <strong class="text-white">NDJSON Persistent Background Stream</strong></div>
                 <div>Isolation: <strong class="text-emerald-400">Tách biệt 2 process Frontend (agy) & Backend (agy)</strong></div>
+                <div class="pt-1.5 border-t border-[#244170]/50 text-[11px]">
+                  <span>Lệnh thực thi ngầm: </span>
+                  <code class="font-mono text-cyan-300 bg-black/40 px-2 py-0.5 rounded text-[10.5px]">agy --dangerously-skip-permissions --mode accept-edits --effort &lt;level&gt; --output-format stream-json</code>
+                </div>
               </div>
             </div>
 
@@ -2394,11 +2356,8 @@
               </div>
 
               <div>
-                <select id="pageSettingsOpencodeModelSelect" onchange="onSettingsOptionChanged()" class="w-full max-w-md bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#199cff] font-sans">
-                  <option value="9router/ag/gemini-3.8-flash-high" selected>9router/ag/gemini-3.8-flash-high (Nhanh & Tối ưu nhất)</option>
-                  <option value="9router/ag/claude-sonnet-4-6">9router/ag/claude-sonnet-4-6 (Claude Sonnet 4.6)</option>
-                  <option value="9router/ag/gpt-oss-120b-medium">9router/ag/gpt-oss-120b-medium (GPT-OSS 120B)</option>
-                  <option value="9router/ag/gemini-3.8-flash-medium">9router/ag/gemini-3.8-flash-medium</option>
+                <select id="pageSettingsOpencodeModelSelect" onchange="onOpenCodeModelChange(this.value)" class="w-full max-w-md bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#199cff] font-sans">
+                  <option value="">Đang tải danh sách mô hình từ 9router...</option>
                 </select>
               </div>
 
@@ -2411,125 +2370,503 @@
           </div>
         </div>
 
-        <!-- PANEL 3: TÀI KHOẢN AI (ACCOUNT & AUTHENTICATION) -->
-        <div id="settingsPanel_account" class="settings-content-panel hidden space-y-4">
-          <!-- Card: Thông tin tài khoản đăng nhập AI -->
-          <div class="bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
-            <div class="flex items-center justify-between">
+        <!-- PANEL 3: MCP SERVERS (MODEL CONTEXT PROTOCOL) -->
+        <div id="settingsPanel_mcp" class="settings-content-panel hidden space-y-4">
+          <!-- Card 1: Giới thiệu & Đồng bộ 2 Engine -->
+          <div class="bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 class="text-xs font-bold text-white uppercase tracking-wider">
-                  Tài khoản AI & Thông tin xác thực
+                  Model Context Protocol (MCP) Servers
                 </h3>
-                <p class="text-[11px] text-slate-400 mt-0.5">
-                  Xem thông tin đăng nhập, trạng thái xác thực và phiên làm việc của tài khoản Google Gemini (Antigravity CLI).
+                <p class="text-[11px] text-slate-400 mt-1">
+                  Kết nối AI Agent với các hệ thống và nguồn dữ liệu bên ngoài: Jira, GitHub, PostgreSQL, GitLab và các API tùy biến. Cấu hình được đồng bộ tự động thời gian thực cho cả <strong>Antigravity CLI (Gemini CLI)</strong> và <strong>OpenCode CLI</strong>.
                 </p>
               </div>
-              <span id="pageAccountStatusTag" class="text-[10px] font-sans px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 uppercase font-semibold tracking-wider">ĐÃ ĐĂNG NHẬP</span>
+              <button type="button" id="btnOpenAddCustomMcp" onclick="selectMcpPreset('custom')" class="hidden"></button>
+            </div>
+          </div>
+
+          <!-- Card 2: DANH MỤC CÁC CÔNG CỤ MCP HỖ TRỢ (PRESET CARDS) -->
+          <div class="bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-3.5">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#244170]/60 pb-2.5">
+              <div>
+                <h4 class="text-xs font-bold text-white uppercase tracking-wider">
+                  Chọn công cụ MCP để tích hợp
+                </h4>
+                <p class="text-[11px] text-slate-400 mt-0.5">
+                  Chọn thẻ bên dưới để xem bộ khung cấu hình, lệnh thực thi và danh sách biến môi trường cần thiết:
+                </p>
+              </div>
             </div>
 
-            <!-- Profile Summary Box -->
-            <div class="p-4 rounded-xl bg-[#0c1628] border border-[#244170]/80 space-y-3">
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 font-bold text-base shrink-0">
-                    G
+            <!-- Grid 5 Cards: Jira, GitHub, PostgreSQL, GitLab, Custom -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <!-- 1. Card Atlassian Jira -->
+              <div id="cardPreset_jira" onclick="selectMcpPreset('jira')"
+                class="mcp-preset-card is-selected p-3.5 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
+                <div class="space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <!-- Authentic Atlassian Jira Logo SVG -->
+                    <svg viewBox="0 0 256 256" class="w-6 h-6 shrink-0" preserveAspectRatio="xMidYMid">
+                      <defs>
+                        <linearGradient id="jira-card-grad-a" x1="98%" x2="58%" y1="0%" y2="40%">
+                          <stop offset="18%" stop-color="#0052cc"/>
+                          <stop offset="100%" stop-color="#2684ff"/>
+                        </linearGradient>
+                        <linearGradient id="jira-card-grad-b" x1="100%" x2="55%" y1="0%" y2="45%">
+                          <stop offset="18%" stop-color="#0052cc"/>
+                          <stop offset="100%" stop-color="#2684ff"/>
+                        </linearGradient>
+                      </defs>
+                      <path fill="#2684ff" d="M244.658 0H121.707a55.5 55.5 0 0 0 55.502 55.502h22.649V77.37c.02 30.625 24.841 55.447 55.466 55.467V10.666C255.324 4.777 250.55 0 244.658 0"/>
+                      <path fill="url(#jira-card-grad-a)" d="M183.822 61.262H60.872c.019 30.625 24.84 55.447 55.466 55.467h22.649v21.938c.039 30.625 24.877 55.43 55.502 55.43V71.93c0-5.891-4.776-10.667-10.667-10.667"/>
+                      <path fill="url(#jira-card-grad-b)" d="M122.951 122.489H0c0 30.653 24.85 55.502 55.502 55.502h22.72v21.867c.02 30.597 24.798 55.408 55.396 55.466V133.156c0-5.891-4.776-10.667-10.667-10.667"/>
+                    </svg>
+                    <span id="badgePreset_jira" class="text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400">Chưa kết nối</span>
                   </div>
                   <div>
-                    <div class="flex items-center gap-2">
-                      <span id="accountProviderName" class="text-sm font-bold text-white">Google Gemini</span>
-                      <span id="accountCliVersionBadge" class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-[#1677ff] text-white border border-blue-400">Antigravity CLI v1.4.10</span>
-                    </div>
-                    <div class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-2">
-                      <span>Tài khoản máy:</span>
-                      <span id="accountSystemUser" class="font-mono text-cyan-300">thietnv (Linux)</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="flex items-center gap-2">
-                  <button type="button" id="btnCheckAccountAuth" onclick="checkGeminiCliAuthStatus(true)" class="ant-btn text-xs h-[32px] px-3.5 text-slate-200 hover:text-white border-[#244170] hover:border-[#1677ff] bg-[#122344]">
-                    Kiểm tra lại xác thực
-                  </button>
-                  <button type="button" id="btnTestCliPing" onclick="testGeminiCliPing()" class="ant-btn ant-btn-primary text-xs h-[32px] px-3.5">
-                    Kiểm tra phản hồi CLI
-                  </button>
-                </div>
-              </div>
-
-              <!-- Result alert (hidden by default) -->
-              <div id="accountTestResultMsg" class="hidden px-3 py-2 rounded-lg text-xs"></div>
-
-              <!-- Chi tiết metadata tài khoản -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-sans pt-1">
-                <div class="p-3 rounded-lg bg-[#101e38] border border-[#244170]/60 space-y-1">
-                  <div class="text-slate-400 text-[11px]">Trạng thái đăng nhập:</div>
-                  <div id="accountLoginStatus" class="font-semibold text-emerald-400 flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
-                    <span>Đã đăng nhập và sẵn sàng thực thi</span>
-                  </div>
-                </div>
-
-                <div class="p-3 rounded-lg bg-[#101e38] border border-[#244170]/60 space-y-1">
-                  <div class="text-slate-400 text-[11px]">Phương thức xác thực:</div>
-                  <div id="accountAuthMethod" class="font-semibold text-slate-200">
-                    Google OAuth2 / Credential User Scope
-                  </div>
-                </div>
-
-                <div class="p-3 rounded-lg bg-[#101e38] border border-[#244170]/60 space-y-1">
-                  <div class="text-slate-400 text-[11px]">Credential Scope ID:</div>
-                  <div class="flex items-center justify-between gap-2">
-                    <code id="accountScopeId" class="font-mono text-cyan-300 text-[11px] truncate">ucebebd2d532368c4</code>
-                    <button type="button" onclick="copyScopeId()" class="text-[10px] text-slate-400 hover:text-white underline cursor-pointer shrink-0">Sao chép</button>
-                  </div>
-                </div>
-
-                <div class="p-3 rounded-lg bg-[#101e38] border border-[#244170]/60 space-y-1">
-                  <div class="text-slate-400 text-[11px]">File xác thực (Credential Path):</div>
-                  <code id="accountScopePath" class="font-mono text-slate-300 text-[11px] truncate block">~/.config/antigravity/credential-user-scope</code>
-                </div>
-
-                <div class="p-3 rounded-lg bg-[#101e38] border border-[#244170]/60 space-y-1">
-                  <div class="text-slate-400 text-[11px]">Đường dẫn CLI Binary:</div>
-                  <code id="accountCliPath" class="font-mono text-cyan-300 text-[11px] truncate block">/home/thietnv/.local/bin/agy</code>
-                </div>
-
-                <div class="p-3 rounded-lg bg-[#101e38] border border-[#244170]/60 space-y-1">
-                  <div class="text-slate-400 text-[11px]">Installation UUID:</div>
-                  <code id="accountInstallationId" class="font-mono text-slate-300 text-[11px] truncate block">23e60f01-7f75-44ed-bd01-f13ba3742862</code>
-                </div>
-
-                <div class="p-3 rounded-lg bg-[#101e38] border border-[#244170]/60 space-y-1">
-                  <div class="text-slate-400 text-[11px]">Mô hình Gemini đang liên kết:</div>
-                  <div class="flex items-center justify-between gap-2">
-                    <span id="accountActiveModel" class="font-semibold text-white">Gemini 3.8 Flash (High)</span>
-                    <span id="accountEffortBadge" class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-800 uppercase">HIGH</span>
-                  </div>
-                </div>
-
-                <div class="p-3 rounded-lg bg-[#101e38] border border-[#244170]/60 space-y-1">
-                  <div class="text-slate-400 text-[11px]">Chế độ Agent CLI & Workspace:</div>
-                  <div class="flex items-center justify-between gap-2">
-                    <span id="accountAgentMode" class="font-mono text-slate-200">mode: accept-edits</span>
-                    <span id="accountTrustedCount" class="text-[10px] font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-300">10 workspaces</span>
+                    <h5 class="text-xs font-bold text-white">Atlassian Jira</h5>
+                    <p class="text-[10.5px] text-slate-400 line-clamp-2 mt-0.5">Issue, bug tracking &amp; sync comment</p>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Hướng dẫn đăng nhập / chuyển đổi tài khoản -->
-            <div class="p-3.5 rounded-lg bg-[#0c1628] border border-[#244170]/60 text-xs text-slate-300 space-y-2">
-              <div class="font-semibold text-white flex items-center gap-1.5">
-                <span>Hướng dẫn đăng nhập & đổi tài khoản AI:</span>
+              <!-- 2. Card GitHub -->
+              <div id="cardPreset_github" onclick="selectMcpPreset('github')"
+                class="mcp-preset-card is-unconfigured p-3.5 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
+                <div class="space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <!-- Official GitHub Mark SVG (Responsive color for Light/Dark mode) -->
+                    <svg viewBox="0 0 24 24" class="w-6 h-6 shrink-0 github-logo-svg" fill="currentColor">
+                      <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+                    </svg>
+                    <span id="badgePreset_github" class="text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400">Chưa cấu hình</span>
+                  </div>
+                  <div>
+                    <h5 class="text-xs font-bold text-white">GitHub</h5>
+                    <p class="text-[10.5px] text-slate-400 line-clamp-2 mt-0.5">Pull Request, diff, review &amp; issue</p>
+                  </div>
+                </div>
               </div>
-              <p class="text-slate-400 text-[11px] leading-relaxed">
-                Antigravity CLI sử dụng tài khoản Google để xác thực quyền truy cập mô hình Gemini. Khi bạn chạy lệnh <code class="font-mono text-cyan-300 bg-[#101e38] px-1.5 py-0.5 rounded">agy</code> lần đầu trên terminal, CLI sẽ mở trình duyệt để hoàn tất đăng nhập OAuth và cấp mã phiên.
-              </p>
-              <div class="text-[11px] text-slate-400 leading-relaxed">
-                Để đổi tài khoản khác: Mở terminal, đăng nhập bằng tài khoản Google mới qua lệnh <code class="font-mono text-cyan-300 bg-[#101e38] px-1.5 py-0.5 rounded">agy</code>, sau đó quay lại trang này bấm <strong class="text-white">Kiểm tra lại xác thực</strong>.
+
+              <!-- 3. Card PostgreSQL -->
+              <div id="cardPreset_postgres" onclick="selectMcpPreset('postgres')"
+                class="mcp-preset-card is-unconfigured p-3.5 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
+                <div class="space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <!-- Official PostgreSQL Elephant SVG -->
+                    <svg viewBox="0 0 256 264" class="w-6 h-6 shrink-0" preserveAspectRatio="xMidYMid">
+                      <path fill="#336791" d="M237.906 160.722c-29.74 6.135-31.785-3.934-31.785-3.934 31.4-46.593 44.527-105.736 33.2-120.211-30.904-39.485-84.399-20.811-85.292-20.327l-.287.052c-5.876-1.22-12.451-1.946-19.842-2.067-13.456-.22-23.664 3.528-31.41 9.402 0 0-95.43-39.314-90.991 49.444.944 18.882 27.064 142.873 58.218 105.422 11.387-13.695 22.39-25.274 22.39-25.274 5.464 3.63 12.006 5.482 18.864 4.817l.533-.452c-.166 1.7-.09 3.363.213 5.332-8.026 8.967-5.667 10.541-21.711 13.844-16.235 3.346-6.698 9.302-.471 10.86 7.549 1.887 25.013 4.561 36.813-11.958l-.47 1.885c3.144 2.519 5.352 16.383 4.982 28.952-.37 12.568-.617 21.197 1.86 27.937 2.479 6.74 4.948 21.905 26.04 17.386 17.623-3.777 26.756-13.564 28.027-29.89.901-11.606 2.942-9.89 3.07-20.267l1.637-4.912c1.887-15.733.3-20.809 11.157-18.448l2.64.232c7.99.363 18.45-1.286 24.589-4.139 13.218-6.134 21.058-16.377 8.024-13.686z"/>
+                      <path fill="#fff" d="M108.076 81.525c-2.68-.373-5.107-.028-6.335.902-.69.523-.904 1.129-.962 1.546-.154 1.105.62 2.327 1.096 2.957 1.346 1.784 3.312 3.01 5.258 3.28q.423.059.842.058c3.245 0 6.196-2.527 6.456-4.392.325-2.336-3.066-3.893-6.355-4.35m88.784.073c-.256-1.831-3.514-2.353-6.606-1.923-3.088.43-6.082 1.824-5.832 3.659.2 1.427 2.777 3.863 5.827 3.863q.387 0 .78-.054c2.036-.282 3.53-1.575 4.24-2.32 1.08-1.136 1.706-2.402 1.591-3.225"/>
+                    </svg>
+                    <span id="badgePreset_postgres" class="text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400">Chưa cấu hình</span>
+                  </div>
+                  <div>
+                    <h5 class="text-xs font-bold text-white">PostgreSQL</h5>
+                    <p class="text-[10.5px] text-slate-400 line-clamp-2 mt-0.5">Truy vấn schema &amp; SQL database</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4. Card GitLab -->
+              <div id="cardPreset_gitlab" onclick="selectMcpPreset('gitlab')"
+                class="mcp-preset-card is-unconfigured p-3.5 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
+                <div class="space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <!-- Official GitLab Fox SVG -->
+                    <svg viewBox="0 0 256 247" class="w-6 h-6 shrink-0" preserveAspectRatio="xMidYMid">
+                      <path fill="#e24329" d="m251.845 97.642-.328-.986-34.85-90.903c-.657-1.808-1.972-3.287-3.616-4.274Q210.586 0 207.627 0c-1.973 0-3.78.822-5.26 1.973a8.73 8.73 0 0 0-3.124 4.767l-23.506 71.999H80.56l-23.506-72c-.493-1.808-1.644-3.451-3.123-4.766C52.45.822 50.643 0 48.67 0s-3.781.329-5.425 1.48c-1.644.986-2.96 2.465-3.617 4.273L4.781 96.656l-.33.986c-10.355 26.959-1.479 57.37 21.535 74.794h.328c0 .164 53.096 39.944 53.096 39.944l26.3 19.89 15.946 12c3.78 2.96 9.205 2.96 12.986 0l15.945-12 26.3-19.89 53.424-39.944c23.014-17.425 31.726-47.835 21.37-74.794z"/>
+                      <path fill="#fc6d26" d="m251.845 97.642-.328-.986c-17.26 3.616-33.205 10.85-46.849 21.04-.164 0-41.424 31.398-76.602 57.863a18377 18377 0 0 0 48.657 36.821l53.424-39.944c23.013-17.425 31.726-47.835 21.37-74.794z"/>
+                      <path fill="#fca326" d="m79.245 212.38 26.301 19.89 15.945 12c3.78 2.96 9.206 2.96 12.986 0l15.945-12 26.301-19.89s-22.684-17.095-48.657-36.82c-26.136 19.725-48.82 36.82-48.82 36.82"/>
+                      <path fill="#fc6d26" d="M51.465 117.697c-13.644-10.192-29.589-17.589-46.849-21.04l-.329.985c-10.356 26.959-1.479 57.37 21.534 74.794h.33c0 .164 53.094 39.944 53.094 39.944s22.685-17.095 48.821-36.82c-35.013-26.466-76.272-57.699-76.601-57.863"/>
+                    </svg>
+                    <span id="badgePreset_gitlab" class="text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400">Chưa cấu hình</span>
+                  </div>
+                  <div>
+                    <h5 class="text-xs font-bold text-white">GitLab</h5>
+                    <p class="text-[10.5px] text-slate-400 line-clamp-2 mt-0.5">CI/CD pipelines &amp; Merge Requests</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5. Card Custom MCP -->
+              <div id="cardPreset_custom" onclick="selectMcpPreset('custom')"
+                class="mcp-preset-card is-unconfigured p-3.5 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
+                <div class="space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <!-- Clean Terminal / Command Line SVG -->
+                    <svg viewBox="0 0 24 24" class="w-6 h-6 shrink-0 text-slate-300" fill="none" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span id="badgePreset_custom" class="text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400">Tùy biến</span>
+                  </div>
+                  <div>
+                    <h5 class="text-xs font-bold text-white">MCP Tùy chỉnh</h5>
+                    <p class="text-[10.5px] text-slate-400 line-clamp-2 mt-0.5">Stdio CLI hoặc Remote HTTP URL</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+
+          <!-- Card 3: BỘ KHUNG CẤU HÌNH CHI TIẾT THEO MCP ĐƯỢC CHỌN -->
+          
+          <!-- 3.1 Khung Cấu hình Atlassian Jira -->
+          <div id="mcpConfigFrame_jira" class="bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#244170]/60 pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="text-xs font-bold text-white uppercase tracking-wider">
+                    Cấu hình Atlassian Jira MCP
+                  </h4>
+                  <span class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-blue-500/20 text-blue-300">Jira Cloud &amp; Server</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">
+                  AI Agent tự động đọc nội dung issue (mô tả lỗi, các bước tái hiện bug, acceptance criteria), tạo nhánh Git theo mã Jira và phản hồi kết quả trực tiếp lên ticket.
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="jiraSyncStatusBadge" class="text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400">Chưa kết nối</span>
+              </div>
+            </div>
+
+            <!-- Form cấu hình Jira: 3 trường bắt buộc -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Trường 1: Jira Host URL -->
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                  <span>Jira Host / Domain URL:</span>
+                  <span class="text-[10px] text-slate-400 font-normal">https://your-domain.atlassian.net</span>
+                </label>
+                <input type="text" id="input_jira_host" placeholder="https://easysalon.atlassian.net"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+              </div>
+
+              <!-- Trường 2: Email tài khoản Jira -->
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                  <span>Email tài khoản Jira:</span>
+                  <span class="text-[10px] text-slate-400 font-normal">Email dùng để tạo API Token</span>
+                </label>
+                <input type="email" id="input_jira_email" placeholder="dev@easysalon.vn"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+              </div>
+
+              <!-- Trường 3: Jira API Token (Chiếm cả 2 cột) -->
+              <div class="md:col-span-2 space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <label class="text-[11px] font-semibold text-slate-300">
+                    Jira API Token:
+                  </label>
+                  <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noopener noreferrer"
+                    class="text-[10px] text-blue-400 hover:text-blue-300 underline font-sans">
+                    Lấy API Token tại Atlassian Account Settings
+                  </a>
+                </div>
+                <div class="relative">
+                  <input type="password" id="input_jira_token" placeholder="Dán mã API Token của Atlassian vào đây (ví dụ: ATATT3xFfGF0...)"
+                    class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+                  <button type="button" id="btnToggleJiraTokenMask" onclick="toggleJiraTokenMask()"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs cursor-pointer select-none">
+                    Hiện
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hộp thông báo kết quả kiểm tra -->
+            <div id="jiraTestStatusResult" class="hidden text-xs p-3 rounded-lg border font-sans leading-relaxed"></div>
+
+            <!-- Nút hành động Jira MCP -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <div class="flex items-center gap-2">
+                <button type="button" id="btnToggleJiraFooter" onclick="toggleJiraServer()"
+                  class="hidden text-xs px-3 py-1.5 rounded-lg border border-[#244170] text-slate-300 hover:text-white hover:bg-white/5 transition cursor-pointer font-sans">
+                  Tắt MCP
+                </button>
+                <button type="button" id="btnRemoveJiraFooter" onclick="removeJiraServer()"
+                  class="hidden text-xs px-3 py-1.5 rounded-lg border border-rose-900/60 text-rose-400 hover:bg-rose-950/50 transition cursor-pointer font-sans">
+                  Xóa cấu hình
+                </button>
+              </div>
+              <div class="flex items-center gap-2 ml-auto">
+                <button type="button" id="btnTestJiraConnection" onclick="testJiraConnection(this)"
+                  class="px-3.5 py-1.5 rounded-lg border border-[#244170] text-xs font-sans text-slate-200 hover:bg-white/5 transition cursor-pointer">
+                  Kiểm tra kết nối Jira
+                </button>
+                <button type="button" id="btnSaveJiraMcp" onclick="saveJiraMcp(this)"
+                  class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5">
+                  Lưu &amp; Kích hoạt Jira MCP
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3.2 Khung Cấu hình GitHub MCP -->
+          <div id="mcpConfigFrame_github" class="hidden bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#244170]/60 pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="text-xs font-bold text-white uppercase tracking-wider">
+                    Cấu hình GitHub MCP
+                  </h4>
+                  <span class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300">Official GitHub MCP</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">
+                  Cho phép AI Agent duyệt commit diff, đọc pull request, phân tích source code từ xa và tương tác với GitHub API.
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="githubSyncStatusBadge" class="text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400">Chưa cấu hình</span>
+              </div>
+            </div>
+
+            <!-- Form cấu hình GitHub -->
+            <div class="space-y-4">
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <label class="text-[11px] font-semibold text-slate-300">
+                    GitHub Personal Access Token (classic hoặc fine-grained):
+                  </label>
+                  <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer"
+                    class="text-[10px] text-blue-400 hover:text-blue-300 underline font-sans">
+                    Lấy Token tại GitHub Developer Settings (yêu cầu quyền repo)
+                  </a>
+                </div>
+                <div class="relative">
+                  <input type="password" id="input_github_token" placeholder="ghp_... hoặc github_pat_..."
+                    class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans font-mono">
+                  <button type="button" onclick="togglePasswordVisibility('input_github_token')"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs cursor-pointer select-none">
+                    👁
+                  </button>
+                </div>
+              </div>
+
+              <div id="githubTestStatusResult" class="hidden text-xs p-3 rounded-lg border font-sans leading-relaxed"></div>
+            </div>
+
+            <!-- Nút hành động GitHub -->
+            <div class="flex items-center justify-end gap-2 pt-1 border-t border-[#244170]/40">
+              <button type="button" id="btnTestGithubConnection" onclick="testGithubConnection(this)"
+                class="px-3.5 py-1.5 rounded-lg border border-[#244170] text-xs font-sans text-slate-200 hover:bg-white/5 transition cursor-pointer">
+                Kiểm tra kết nối GitHub
+              </button>
+              <button type="button" id="btnSaveGithubMcp" onclick="saveGithubMcp(this)"
+                class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5">
+                Lưu &amp; Kích hoạt GitHub MCP
+              </button>
+            </div>
+          </div>
+
+          <!-- 3.3 Khung Cấu hình PostgreSQL MCP -->
+          <div id="mcpConfigFrame_postgres" class="hidden bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#244170]/60 pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="text-xs font-bold text-white uppercase tracking-wider">
+                    Cấu hình PostgreSQL Database MCP
+                  </h4>
+                  <span class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-blue-500/20 text-blue-300">Postgres DB Inspector</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">
+                  Cho phép AI Agent kết nối trực tiếp vào cơ sở dữ liệu PostgreSQL để đọc cấu trúc bảng, kiểm tra khóa ngoại, debug SQL queries và tối ưu index.
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="postgresSyncStatusBadge" class="text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400">Chưa cấu hình</span>
+              </div>
+            </div>
+
+            <!-- Form cấu hình Postgres -->
+            <div class="space-y-4">
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                  <span>PostgreSQL Connection String / URL:</span>
+                  <span class="text-[10px] text-slate-400 font-normal">postgresql://user:password@localhost:5432/dbname</span>
+                </label>
+                <input type="text" id="input_postgres_url" placeholder="postgresql://postgres:password@127.0.0.1:5432/easysalon_db"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans font-mono">
+              </div>
+
+              <div id="postgresTestStatusResult" class="hidden text-xs p-3 rounded-lg border font-sans leading-relaxed"></div>
+            </div>
+
+            <!-- Nút hành động Postgres -->
+            <div class="flex items-center justify-end gap-2 pt-1 border-t border-[#244170]/40">
+              <button type="button" id="btnSavePostgresMcp" onclick="savePostgresMcp(this)"
+                class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5">
+                Lưu &amp; Kích hoạt PostgreSQL MCP
+              </button>
+            </div>
+          </div>
+
+          <!-- 3.4 Khung Cấu hình GitLab MCP -->
+          <div id="mcpConfigFrame_gitlab" class="hidden bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#244170]/60 pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="text-xs font-bold text-white uppercase tracking-wider">
+                    Cấu hình GitLab MCP
+                  </h4>
+                  <span class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-orange-500/20 text-orange-300">GitLab Cloud &amp; Self-hosted</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">
+                  Tích hợp sâu với GitLab CI/CD pipelines, đọc và tạo Merge Request và quản lý kho lưu trữ.
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="gitlabSyncStatusBadge" class="text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400">Chưa cấu hình</span>
+              </div>
+            </div>
+
+            <!-- Form cấu hình GitLab -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                  <span>GitLab Host URL:</span>
+                  <span class="text-[10px] text-slate-400 font-normal">https://gitlab.com</span>
+                </label>
+                <input type="text" id="input_gitlab_host" placeholder="https://gitlab.com"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                  <span>Personal Access Token:</span>
+                  <span class="text-[10px] text-slate-400 font-normal">Quyền api / read_api</span>
+                </label>
+                <div class="relative">
+                  <input type="password" id="input_gitlab_token" placeholder="glpat-..."
+                    class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans font-mono">
+                  <button type="button" onclick="togglePasswordVisibility('input_gitlab_token')"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs cursor-pointer select-none">
+                    👁
+                  </button>
+                </div>
+              </div>
+
+              <div id="gitlabTestStatusResult" class="hidden md:col-span-2 text-xs p-3 rounded-lg border font-sans leading-relaxed"></div>
+            </div>
+
+            <!-- Nút hành động GitLab -->
+            <div class="flex items-center justify-end gap-2 pt-1 border-t border-[#244170]/40">
+              <button type="button" id="btnTestGitlabConnection" onclick="testGitlabConnection(this)"
+                class="px-3.5 py-1.5 rounded-lg border border-[#244170] text-xs font-sans text-slate-200 hover:bg-white/5 transition cursor-pointer">
+                Kiểm tra kết nối GitLab
+              </button>
+              <button type="button" id="btnSaveGitlabMcp" onclick="saveGitlabMcp(this)"
+                class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5">
+                Lưu &amp; Kích hoạt GitLab MCP
+              </button>
+            </div>
+          </div>
+
+          <!-- 3.5 Khung Cấu hình MCP Tùy chỉnh (Custom) -->
+          <div id="customMcpSection" class="hidden bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex items-center justify-between border-b border-[#244170]/60 pb-3">
+              <div>
+                <h4 class="text-xs font-bold text-white uppercase tracking-wider">
+                  Cấu hình MCP Server tùy chỉnh
+                </h4>
+                <p class="text-[11px] text-slate-400 mt-0.5">
+                  Thêm bất kỳ server Model Context Protocol nào qua Stdio (npx, python, binary) hoặc Remote HTTP URL.
+                </p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300">Tên Server (Server Name):</label>
+                <input type="text" id="input_custom_mcp_name" placeholder="filesystem, custom-api, brave-search..."
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300">Giao thức (Protocol):</label>
+                <select id="select_custom_mcp_type" onchange="onCustomMcpTypeChange(this.value)"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#199cff] font-sans">
+                  <option value="stdio">Stdio (Local Command / npx / binary)</option>
+                  <option value="http">HTTP (Remote URL / SSE)</option>
+                </select>
+              </div>
+
+              <!-- Trường Stdio Command -->
+              <div id="boxCustomMcpCommand" class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300">Lệnh thực thi (Command):</label>
+                <input type="text" id="input_custom_mcp_command" placeholder="npx, python3, docker..."
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+              </div>
+
+              <!-- Trường Stdio Args -->
+              <div id="boxCustomMcpArgs" class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300">Tham số lệnh (Arguments cách nhau bởi dấu cách):</label>
+                <input type="text" id="input_custom_mcp_args" placeholder="-y @modelcontextprotocol/server-filesystem /path/to/dir"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+              </div>
+
+              <!-- Trường HTTP URL (mặc định ẩn) -->
+              <div id="boxCustomMcpUrl" class="hidden md:col-span-2 space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300">Remote MCP Server URL:</label>
+                <input type="text" id="input_custom_mcp_url" placeholder="https://mcp.example.com/sse"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+              </div>
+
+              <!-- Biến môi trường (Environment Variables) -->
+              <div class="md:col-span-2 space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <label class="text-[11px] font-semibold text-slate-300">Biến môi trường (Mỗi dòng một cặp KEY=VALUE hoặc JSON):</label>
+                  <span class="text-[10px] text-slate-400">Ví dụ: API_KEY=xyz</span>
+                </div>
+                <textarea id="textarea_custom_mcp_env" rows="3" placeholder="API_KEY=xyz&#10;BASE_URL=https://..."
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans font-mono"></textarea>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-1 border-t border-[#244170]/40">
+              <button type="button" id="btnSaveCustomMcp" onclick="saveCustomMcp(this)"
+                class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer">
+                Lưu MCP Server
+              </button>
+            </div>
+          </div>
+
+          <!-- Hidden MCP Reference Containers for DOM state & tests -->
+          <div id="mcpServersContainer" class="hidden"></div>
+          <span id="mcpServerActiveCountTag" class="hidden"></span>
+          <div class="hidden">
+            <button type="button" id="btnToggleJira"></button>
+            <button type="button" id="btnRemoveJira"></button>
+            <button type="button" id="btnToggleGithub"></button>
+            <button type="button" id="btnRemoveGithub"></button>
+            <button type="button" id="btnTogglePostgres"></button>
+            <button type="button" id="btnRemovePostgres"></button>
+            <button type="button" id="btnToggleGitlab"></button>
+            <button type="button" id="btnRemoveGitlab"></button>
+          </div>
+        </div>
+
+        <!-- Retained Account DOM container for compatibility -->
+        <div id="settingsPanel_account" class="hidden">
+          <span id="pageAccountStatusTag"></span>
+          <span id="accountProviderName"></span>
+          <span id="accountCliVersionBadge"></span>
+          <span id="accountSystemUser"></span>
+          <button id="btnCheckAccountAuth"></button>
+          <button id="btnTestCliPing"></button>
+          <div id="accountTestResultMsg"></div>
+          <div id="accountLoginStatus"></div>
+          <div id="accountAuthMethod"></div>
+          <code id="accountScopeId"></code>
+          <code id="accountScopePath"></code>
+          <code id="accountCliPath"></code>
+          <code id="accountInstallationId"></code>
+          <span id="accountActiveModel"></span>
+          <span id="accountEffortBadge"></span>
+          <span id="accountAgentMode"></span>
+          <span id="accountTrustedCount"></span>
+        </div>
         </div>
 
         <!-- PANEL 4: CẤU HÌNH API (CẮM API VÀO ĐỂ XÀI) -->
@@ -2792,24 +3129,38 @@
     </div>
   </div>
 
-  <!-- In-app Full File Editor Modal (Xem toàn bộ mã nguồn & Lưu Ctrl+S) -->
-  <div id="fileEditorModalRoot" class="hidden fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-5 bg-slate-950/80 backdrop-blur-sm">
-    <div id="fileEditorModalCard" class="bg-[#0d1626] border border-[#244170] rounded-xl shadow-2xl w-full max-w-5xl h-[88vh] flex flex-col overflow-hidden text-white">
-      <!-- Editor Header -->
-      <div class="px-4 py-3 bg-[#13223f] border-b border-[#244170] flex items-center justify-between gap-3 shrink-0">
-        <div class="flex items-center gap-2 min-w-0 flex-1">
-          <svg class="w-4 h-4 text-sky-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  <!-- In-app Full File Editor Modal (VS Code Simulator) -->
+  <div id="fileEditorModalRoot" class="hidden fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-5 bg-black/85 backdrop-blur-md">
+    <div id="fileEditorModalCard" class="bg-[#1e1e1e] border border-[#3c3c3c] rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden text-[#cccccc] font-sans">
+      
+      <!-- 1. VS Code Window Titlebar -->
+      <div class="h-[34px] px-3 bg-[#1f1f1f] border-b border-[#2d2d2d] flex items-center justify-between gap-3 shrink-0 select-none">
+        <!-- Window Traffic Light Dots & Title -->
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="flex items-center gap-1.5 shrink-0 pr-1">
+            <span onclick="closeFileEditor()" class="w-3 h-3 rounded-full bg-[#ff5f56] hover:brightness-110 cursor-pointer inline-block" title="Đóng (Esc)"></span>
+            <span class="w-3 h-3 rounded-full bg-[#ffbd2e] inline-block opacity-80"></span>
+            <span class="w-3 h-3 rounded-full bg-[#27c93f] inline-block opacity-80"></span>
+          </div>
+          <!-- VS Code Blue Ribbon Icon -->
+          <svg class="w-4 h-4 text-[#007acc] shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.583 2.167L8.917 9.875 3.5 5.583.5 7.417v9.166l3 1.834 5.417-4.292 8.666 7.708 6-2.833V5zM17.583 17.5L10.5 12l7.083-5.5v11z"/>
           </svg>
-          <span id="fileEditorFilePath" class="font-mono text-xs font-bold text-[#1677ff] truncate" title="Đường dẫn file"></span>
-          <span id="fileEditorRepoBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-400 border border-sky-500/40 shrink-0"></span>
+          <span id="fileEditorWindowTitle" class="font-mono text-xs text-[#999999] truncate font-medium">settings.json - EasySalon VS Code Studio</span>
         </div>
-        <div class="flex items-center gap-3 shrink-0">
-          <span id="fileEditorLineCount" class="hidden sm:inline text-[11px] font-mono text-slate-400"></span>
-          <span id="fileEditorStatus" class="text-[11px] text-slate-300"></span>
+
+        <!-- Window Actions -->
+        <div class="flex items-center gap-2 shrink-0">
+          <button type="button" onclick="openInNativeVSCode()"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#2a2d2e] hover:bg-[#37373d] text-sky-300 hover:text-white border border-[#3c3c3c] text-xs font-sans transition cursor-pointer shadow-sm"
+            title="Mở trực tiếp file này trong phần mềm Visual Studio Code trên máy tính">
+            <svg class="w-3.5 h-3.5 text-[#007acc]" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.583 2.167L8.917 9.875 3.5 5.583.5 7.417v9.166l3 1.834 5.417-4.292 8.666 7.708 6-2.833V5zM17.583 17.5L10.5 12l7.083-5.5v11z"/>
+            </svg>
+            <span>Mở bằng VS Code</span>
+          </button>
           <button id="fileEditorSaveBtn" type="button" onclick="saveActiveFileEditor()"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1677ff] hover:bg-[#4096ff] text-white text-xs font-semibold shadow-sm transition cursor-pointer"
+            class="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#0e639c] hover:bg-[#1177bb] text-white text-xs font-semibold shadow-sm transition cursor-pointer"
             title="Lưu file vào ổ đĩa (Ctrl+S)">
             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
@@ -2817,7 +3168,7 @@
             <span>Lưu (Ctrl+S)</span>
           </button>
           <button id="fileEditorCloseBtn" type="button" onclick="closeFileEditor()"
-            class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+            class="p-1 rounded text-[#858585] hover:text-white hover:bg-white/10 transition cursor-pointer"
             title="Đóng (Esc)">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -2825,27 +3176,125 @@
           </button>
         </div>
       </div>
-      <!-- Editor Code Container: Gutter + Code Editor Area -->
+
+      <!-- 2. VS Code Tab Bar -->
+      <div class="h-[35px] bg-[#181818] border-b border-[#252526] flex items-center justify-between px-2 pt-1 shrink-0 select-none">
+        <div class="flex items-center h-full">
+          <!-- Active Tab -->
+          <div class="h-full bg-[#1e1e1e] border-t-2 border-[#007acc] text-white px-3.5 rounded-t text-xs font-mono flex items-center gap-2 border-r border-[#252526] shadow-inner">
+            <span id="fileEditorTabIcon" class="text-amber-400 font-bold text-xs">{ }</span>
+            <span id="fileEditorTabFileName" class="text-slate-100 font-medium">settings.json</span>
+            <span id="fileEditorTabDirtyDot" class="w-2 h-2 rounded-full bg-amber-400 hidden" title="Có thay đổi chưa lưu"></span>
+            <button type="button" onclick="closeFileEditor()" class="text-slate-400 hover:text-white text-xs ml-1 p-0.5 rounded hover:bg-white/10 transition">✕</button>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 text-slate-400 text-xs px-2">
+          <span id="fileEditorLineCount" class="hidden sm:inline text-[11px] font-mono text-[#858585]"></span>
+          <span id="fileEditorStatus" class="text-[11px]"></span>
+        </div>
+      </div>
+
+      <!-- 3. VS Code Breadcrumbs Navigation Bar -->
+      <div class="h-[26px] bg-[#1e1e1e] border-b border-[#282828] px-3 flex items-center justify-between text-[11px] text-[#969696] font-mono shrink-0 select-none">
+        <div class="flex items-center gap-1.5 min-w-0 flex-1 truncate">
+          <span id="fileEditorRepoBadge" class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#007acc]/20 text-[#38bdf8] border border-[#007acc]/40 shrink-0 font-sans"></span>
+          <span class="text-[#555555]">›</span>
+          <span id="fileEditorBreadcrumbPath" class="text-slate-300 truncate"></span>
+          <span id="fileEditorFilePath" class="hidden"></span>
+        </div>
+        <div id="fileEditorAuthorInfo" class="hidden md:flex items-center gap-2 text-[11px] font-sans text-slate-400 shrink-0 select-none"></div>
+      </div>
+
+      <!-- 4. Editor Code Container: Gutter + Editor Area + Minimap -->
       <div class="flex-1 min-h-0 relative flex flex-row bg-[#1e1e1e] overflow-hidden">
-        <div id="fileEditorLineNumbers" class="py-3 px-2 select-none text-right font-mono text-[12px] leading-[20px] text-[#858585] bg-[#1e1e1e] border-r border-[#333333] overflow-hidden whitespace-pre shrink-0 min-w-[52px] z-20">1</div>
+        <!-- Gutter (Line Numbers) -->
+        <div id="fileEditorLineNumbers" class="py-3 px-2 select-none text-right font-mono text-[12px] leading-[20px] text-[#858585] bg-[#1e1e1e] border-r border-[#2d2d2d] overflow-hidden whitespace-pre shrink-0 min-w-[54px] z-20">1</div>
+        
+        <!-- Code Editing Surface -->
         <div class="flex-1 h-full relative overflow-hidden bg-[#1e1e1e]">
-          <div id="fileEditorActiveLineHighlight" class="file-editor-active-line"></div>
+          <!-- Active Line Highlight -->
+          <div id="fileEditorActiveLineHighlight" class="file-editor-active-line">
+            <div id="fileEditorInlineBlame" class="file-editor-inline-blame" title="Xem chi tiết commit (GitLens)"></div>
+          </div>
+          
+          <!-- Indent Guides Layer -->
           <div id="fileEditorIndentGuides" class="file-editor-indent-layer pointer-events-none absolute inset-0 overflow-hidden font-mono text-[12px] leading-[20px] py-3 px-3.5 select-none whitespace-pre z-[6]"></div>
+          
+          <!-- Syntax Highlighting Layer (VS Code Dark+ tokens) -->
+          <pre id="fileEditorSyntaxPre" class="file-editor-syntax-pre pointer-events-none absolute inset-0 overflow-hidden font-mono text-[12px] leading-[20px] py-3 px-3.5 whitespace-pre m-0 border-0 z-[7] bg-transparent"><code id="fileEditorSyntaxCode" class="file-editor-syntax-code font-mono text-[12px] leading-[20px] whitespace-pre bg-transparent"></code></pre>
+          
+          <!-- Interactive Textarea -->
           <textarea id="fileEditorTextarea"
-            class="w-full h-full py-3 px-3.5 bg-transparent text-[#d4d4d4] font-mono text-[12px] leading-[20px] resize-none focus:outline-none border-0 overflow-auto select-text whitespace-pre relative z-10"
+            class="file-editor-textarea w-full h-full py-3 px-3.5 bg-transparent font-mono text-[12px] leading-[20px] resize-none focus:outline-none border-0 overflow-auto select-text whitespace-pre relative z-10"
             spellcheck="false"
             placeholder="Nội dung mã nguồn..."></textarea>
         </div>
-      </div>
-      <!-- Editor Footer Shortcut Hint -->
-      <div class="px-4 py-1.5 bg-[#0e192c] border-t border-[#1e3458] flex items-center justify-between text-[11px] text-slate-400 shrink-0 select-none">
-        <div class="flex items-center gap-3">
-          <span>Phím tắt: <kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Ctrl + S</kbd> để lưu</span>
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Tab</kbd> thụt lề 2 khoảng trắng</span>
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Esc</kbd> để đóng</span>
+
+        <!-- 5. VS Code Minimap -->
+        <div id="fileEditorMinimap" class="w-[86px] shrink-0 h-full bg-[#1e1e1e] border-l border-[#282828] relative overflow-hidden select-none cursor-pointer hidden md:block" title="VS Code Minimap (nhấn để cuộn nhanh)">
+          <div id="fileEditorMinimapCanvas" class="w-full absolute top-0 left-0 pointer-events-none p-1 font-mono text-[3px] leading-[4px] text-slate-500 overflow-hidden opacity-60"></div>
+          <div id="fileEditorMinimapSlider" class="absolute left-0 right-0 bg-white/10 hover:bg-white/15 border border-white/20 rounded-xs transition-colors cursor-grab pointer-events-auto"></div>
         </div>
-        <span class="text-slate-500">EasySalon File Editor</span>
       </div>
+
+      <!-- GitLens Commit Details Hover Card (VS Code simulation) -->
+      <div id="fileEditorGitLensCard" class="hidden absolute z-50 bg-[#1f1f1f] border border-[#454545] rounded-md shadow-2xl p-3 text-white max-w-lg w-[480px] pointer-events-auto select-text font-sans">
+        <div class="flex items-center justify-between text-[11px] text-[#cccccc] pb-1.5 mb-2 border-b border-[#3c3c3c]">
+          <div class="flex items-center gap-1.5 truncate">
+            <svg class="w-3.5 h-3.5 text-sky-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            <span id="gitLensCardAuthor" class="font-semibold text-white"></span>
+            <span id="gitLensCardTime" class="text-[#999999]"></span>
+            <span id="gitLensCardDate" class="text-[#888888] hidden sm:inline"></span>
+          </div>
+          <div class="flex items-center gap-1 text-[11px] shrink-0 font-mono text-sky-400">
+            <span>•</span>
+            <span id="gitLensCardHash"></span>
+          </div>
+        </div>
+        <div id="gitLensCardTitle" class="font-semibold text-[12px] text-white leading-snug mb-2 font-sans select-text"></div>
+        <div id="gitLensCardBody" class="text-[11.5px] text-[#cccccc] font-sans space-y-1 max-h-[190px] overflow-y-auto leading-relaxed whitespace-pre-wrap select-text"></div>
+        <div class="mt-2.5 pt-1.5 border-t border-[#333333] flex items-center justify-between text-[10.5px] text-[#888888]">
+          <span id="gitLensCardEmail" class="truncate font-mono text-[10px]"></span>
+          <span class="text-slate-400 text-[10px] shrink-0 font-sans">EasySalon GitLens</span>
+        </div>
+      </div>
+
+      <!-- 6. VS Code Status Bar (Bottom Blue Ribbon) -->
+      <div class="h-[24px] px-3 bg-[#007acc] text-white flex items-center justify-between text-[11px] select-none font-sans shrink-0">
+        <div class="flex items-center gap-3">
+          <!-- Remote indicator -->
+          <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/20 font-mono text-[10px] font-bold text-sky-200">
+            <span>&gt;&lt;</span>
+            <span id="fileEditorStatusRepo">Dev</span>
+          </div>
+          <!-- Git Branch -->
+          <div class="flex items-center gap-1 text-white/90">
+            <svg class="w-3 h-3 fill-current opacity-80" viewBox="0 0 24 24"><path d="M19 13a3 3 0 0 0-2.82 2H15a2 2 0 0 1-2-2V9.82A3 3 0 0 0 14 7a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 1 2.82V15a4 4 0 0 0 4 4h3.18A3 3 0 0 0 19 21a3 3 0 0 0 3-3 3 3 0 0 0-3-3zm-10-6a1 1 0 1 1 1 1 1 1 0 0 1-1-1zm0 12a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm10 0a1 1 0 1 1 1-1 1 1 0 0 1-1 1z"/></svg>
+            <span id="fileEditorStatusBranch" class="font-mono text-[11px]">HEAD</span>
+          </div>
+          <!-- Error/Warning diagnostics -->
+          <div class="hidden sm:flex items-center gap-2 text-white/80 text-[10.5px]">
+            <span class="flex items-center gap-0.5"><span class="opacity-75">⨂</span> 0</span>
+            <span class="flex items-center gap-0.5"><span class="opacity-75">⚠</span> 0</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 text-white/90">
+          <div id="fileEditorDirtyStatus" class="hidden text-amber-200 font-semibold flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-300"></span>
+            <span>Có thay đổi chưa lưu</span>
+          </div>
+          <span id="fileEditorCursorPos" class="font-mono">Ln 1, Col 1</span>
+          <span class="hidden sm:inline">Spaces: 2</span>
+          <span class="hidden sm:inline">UTF-8</span>
+          <span class="hidden sm:inline">LF</span>
+          <span id="fileEditorLangBadge" class="font-semibold text-white">JSON</span>
+          <span class="hidden md:inline opacity-80">Prettier ✓</span>
+          <span class="opacity-80 cursor-pointer hover:opacity-100" title="GitLens">GitLens</span>
+        </div>
+      </div>
+
     </div>
   </div>
 

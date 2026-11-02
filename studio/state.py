@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import threading
+import time
 import urllib.request
 import uuid
 
@@ -26,6 +27,9 @@ DEFAULT_SETTINGS = {
     'openai_api_key': '',
     'custom_api_key': '',
     'custom_endpoint': '',
+    'jira_host': '',
+    'jira_email': '',
+    'jira_api_token': '',
     'fe_workspace': '/run/media/thietnv/Data/Project/easysalon-webapp',
     'be_workspace': '/run/media/thietnv/Data/Project/easysalon-api',
     'agy_bin': '',
@@ -56,6 +60,134 @@ def is_nine_router_online(url: str = "http://127.0.0.1:20128/v1/models") -> bool
             return resp.status == 200
     except Exception:
         return False
+
+
+def start_nine_router_background() -> dict:
+    """Khởi động 9router ngầm trên cổng 20128 để OpenCode kết nối không cần mở terminal riêng."""
+    if is_nine_router_online():
+        return {
+            'success': True,
+            'online': True,
+            'message': '9router proxy đã đang chạy ngầm trên cổng 20128'
+        }
+    from config import get_nine_router_bin
+    bin_path = get_nine_router_bin()
+    if not (shutil.which(bin_path) or (os.path.exists(bin_path) and os.access(bin_path, os.X_OK))):
+        return {
+            'success': False,
+            'online': False,
+            'message': f'Không tìm thấy binary 9router tại: {bin_path}'
+        }
+    try:
+        subprocess.Popen(
+            [bin_path, '-n', '--skip-update'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True
+        )
+        for _ in range(15):
+            time.sleep(0.3)
+            if is_nine_router_online():
+                return {
+                    'success': True,
+                    'online': True,
+                    'message': 'Đã khởi động 9router ngầm thành công trên cổng 20128!'
+                }
+        return {
+            'success': False,
+            'online': False,
+            'message': 'Đã phát lệnh chạy 9router nhưng chưa kết nối được cổng 20128'
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'online': False,
+            'message': f'Lỗi khởi động 9router: {str(e)}'
+        }
+
+
+def start_gemini_cli_background() -> dict:
+    """Khởi động Gemini CLI background daemon (agy remote-control start) để chạy ngầm không gián đoạn."""
+    from config import get_agy_bin
+    agy_bin = get_agy_bin()
+    if not (shutil.which(agy_bin) or (os.path.exists(agy_bin) and os.access(agy_bin, os.X_OK))):
+        return {
+            'success': False,
+            'active': False,
+            'message': f'Không tìm thấy binary agy tại: {agy_bin}'
+        }
+    try:
+        res = subprocess.run([agy_bin, 'remote-control', 'start'], capture_output=True, text=True, timeout=8)
+        out = (res.stdout or '') + (res.stderr or '')
+        # Kiểm tra lại trạng thái
+        status = get_gemini_cli_status()
+        is_active = status.get('daemon_active') or status.get('ready')
+        return {
+            'success': True,
+            'active': is_active,
+            'message': 'Gemini CLI daemon đã được kích hoạt chạy ngầm thành công!' if is_active else out.strip()
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'active': False,
+            'message': f'Lỗi khi khởi chạy Gemini CLI ngầm: {str(e)}'
+        }
+
+
+def get_opencode_models() -> list:
+    """Truy vấn danh sách mô hình thực tế hiện tại từ 9router proxy và OpenCode."""
+    models = []
+    seen = set()
+
+    # 1. Truy vấn trực tiếp từ proxy 9router (cổng 20128)
+    if is_nine_router_online():
+        try:
+            req = urllib.request.Request('http://127.0.0.1:20128/v1/models', headers={'User-Agent': 'EasySalon'})
+            with urllib.request.urlopen(req, timeout=1.5) as r:
+                d = json.loads(r.read())
+                for m in d.get('data', []):
+                    mid = m.get('id', '').strip()
+                    if not mid:
+                        continue
+                    full_id = f'9router/{mid}' if not mid.startswith('9router/') else mid
+                    if full_id not in seen:
+                        seen.add(full_id)
+                        is_gemini = ('gemini' in mid.lower())
+                        models.append({
+                            'id': full_id,
+                            'name': mid,
+                            'provider': '9router',
+                            'is_gemini': is_gemini
+                        })
+        except Exception:
+            pass
+
+    # 2. Truy vấn từ opencode CLI models nếu có
+    from config import get_opencode_bin
+    opencode_bin = get_opencode_bin()
+    if shutil.which(opencode_bin) or (os.path.exists(opencode_bin) and os.access(opencode_bin, os.X_OK)):
+        try:
+            res = subprocess.run([opencode_bin, 'models'], capture_output=True, text=True, timeout=2)
+            if res.returncode == 0:
+                for line in res.stdout.strip().splitlines():
+                    mid = line.strip()
+                    if not mid or mid in seen:
+                        continue
+                    seen.add(mid)
+                    is_gemini = ('gemini' in mid.lower())
+                    models.append({
+                        'id': mid,
+                        'name': mid,
+                        'provider': 'opencode',
+                        'is_gemini': is_gemini
+                    })
+        except Exception:
+            pass
+
+    # Phân loại ưu tiên: Mô hình Gemini đưa lên đầu
+    models.sort(key=lambda m: (not m['is_gemini'], m['id']))
+    return models
 
 
 def get_gemini_cli_status() -> dict:
@@ -105,10 +237,24 @@ def get_gemini_cli_status() -> dict:
 
         system_user = os.environ.get('USER') or os.environ.get('USERNAME') or 'system'
 
+        daemon_active = False
+        try:
+            res_d = subprocess.run(['systemctl', '--user', 'is-active', 'antigravity-cli-daemon.service'], capture_output=True, text=True, timeout=1.0)
+            if res_d.returncode == 0 and res_d.stdout.strip() == 'active':
+                daemon_active = True
+            elif installed:
+                res_rc = subprocess.run([agy_bin, 'remote-control', 'status'], capture_output=True, text=True, timeout=1.5)
+                if 'status: active' in (res_rc.stdout or '').lower():
+                    daemon_active = True
+        except Exception:
+            pass
+
         return {
             'installed': installed,
             'logged_in': logged_in,
             'ready': installed and logged_in,
+            'daemon_active': daemon_active,
+            'exec_command': f"{agy_bin} --dangerously-skip-permissions --mode accept-edits --effort high --output-format stream-json",
             'version': version,
             'bin_path': agy_bin,
             'scope_id': scope_id,
@@ -160,6 +306,12 @@ def save_settings(settings_dict: dict):
                 os.environ['OPENAI_BASE_URL'] = curr['custom_endpoint']
             if curr.get('custom_api_key'):
                 os.environ['CUSTOM_API_KEY'] = curr['custom_api_key']
+            if curr.get('jira_host'):
+                os.environ['JIRA_HOST'] = curr['jira_host']
+            if curr.get('jira_email'):
+                os.environ['JIRA_EMAIL'] = curr['jira_email']
+            if curr.get('jira_api_token'):
+                os.environ['JIRA_API_TOKEN'] = curr['jira_api_token']
 
             try:
                 import config

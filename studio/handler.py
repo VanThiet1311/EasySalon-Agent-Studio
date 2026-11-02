@@ -25,6 +25,9 @@ from studio.state import (
     save_settings,
     is_nine_router_online,
     get_gemini_cli_status,
+    start_nine_router_background,
+    start_gemini_cli_background,
+    get_opencode_models,
 )
 from studio.terminals import (
     get_terminal_feed,
@@ -57,6 +60,7 @@ from studio.git_ops import (
     resolve_git_conflict_file,
     abort_git_conflict,
     continue_git_conflict,
+    get_file_blame_and_author_details,
 )
 from studio.diagram import get_custom_skills, get_diagram_data
 from studio.dev_watch import get_dev_watch_state
@@ -136,6 +140,9 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             '/settings/account',
             '/settings/api',
             '/settings/api-keys',
+            '/settings/mcp',
+            '/mcp',
+            '/mcp-servers',
             '/settings/env',
             '/settings/environment',
         }
@@ -156,6 +163,21 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             self.serve_logo()
         elif path in ('/favicon.ico', '/favicon.png', '/images/logo.png', '/images/favicon.png', '/frontend/images/logo.png'):
             self.serve_favicon()
+        elif path.startswith('/node_modules/monaco-editor/'):
+            rel_path = path[len('/node_modules/monaco-editor/'):]
+            safe_path = os.path.normpath(os.path.join(BASE_DIR, 'node_modules', 'monaco-editor', rel_path))
+            if safe_path.startswith(os.path.join(BASE_DIR, 'node_modules', 'monaco-editor')) and os.path.isfile(safe_path):
+                ext = os.path.splitext(safe_path)[1].lower()
+                mime = 'application/javascript' if ext == '.js' else ('text/css' if ext == '.css' else 'application/octet-stream')
+                with open(safe_path, 'rb') as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header('Content-Type', f'{mime}; charset=utf-8')
+                self.send_header('Content-Length', str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            self.send_error(404)
         elif path.startswith('/modules/'):
             mod_name = os.path.basename(path)
             mod_path = os.path.join(BASE_DIR, 'frontend', 'modules', mod_name)
@@ -277,6 +299,20 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'nine_router_online': is_nine_router_online(),
                 'gemini_cli_status': get_gemini_cli_status()
             })
+        elif path == '/api/opencode/models':
+            models = get_opencode_models()
+            self.send_json({
+                'success': True,
+                'nine_router_online': is_nine_router_online(),
+                'models': models
+            })
+        elif path == '/api/mcp/list':
+            import studio.mcp_ops as mcp_ops
+            servers = mcp_ops.get_all_mcp_servers()
+            self.send_json({
+                'success': True,
+                'servers': servers
+            })
         elif path == '/api/account/status':
             with state_lock:
                 st = dict(app_state.get('settings', load_settings()))
@@ -384,7 +420,8 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                     'path': clean_path,
                     'target': target,
                     'mtime': st.st_mtime,
-                    'size': st.st_size
+                    'size': st.st_size,
+                    'abs_path': abs_file
                 }
                 if path == '/api/file/content':
                     with open(abs_file, 'r', encoding='utf-8', errors='replace') as fp:
@@ -392,6 +429,20 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 self.send_json(resp)
             except Exception as e:
                 self.send_json({'success': False, 'message': f'Lỗi khi đọc file: {str(e)}'}, 500)
+        elif path == '/api/file/blame':
+            qs = urllib.parse.parse_qs(parsed.query)
+            target = qs.get('target', ['fe'])[0]
+            file_path = qs.get('path', [''])[0].strip()
+            if not file_path:
+                self.send_json({'success': False, 'message': 'Thiếu đường dẫn file.'}, 400)
+                return
+            ws, target, alt_ws, alt_target = self._resolve_file_workspace(target)
+            data = get_file_blame_and_author_details(ws, file_path)
+            if not data.get('success'):
+                alt_data = get_file_blame_and_author_details(alt_ws, file_path)
+                if alt_data.get('success'):
+                    data = alt_data
+            self.send_json(data)
         elif path in ('/api/git/sync-check', '/api/git/sync-pull/check'):
             qs = urllib.parse.parse_qs(parsed.query)
             do_fetch = qs.get('fetch', ['1'])[0] not in ('0', 'false', 'no')
@@ -726,6 +777,115 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'gemini_cli_status': get_gemini_cli_status(),
                 'message': "Đã lưu cấu hình thành công!"
             })
+
+        elif path in ('/api/9router/start', '/api/engine/start-9router'):
+            res = start_nine_router_background()
+            self.send_json(res)
+
+        elif path in ('/api/gemini/start', '/api/engine/start-gemini'):
+            res = start_gemini_cli_background()
+            self.send_json(res)
+
+        elif path == '/api/mcp/add':
+            import studio.mcp_ops as mcp_ops
+            name = str(body.get('name') or '').strip()
+            config = body.get('config') if isinstance(body.get('config'), dict) else body
+            target = str(body.get('target') or 'both').strip()
+            try:
+                res = mcp_ops.save_mcp_server(name, config, target=target)
+                self.send_json(res)
+            except Exception as e:
+                self.send_json({'success': False, 'message': str(e)}, 400)
+
+        elif path == '/api/mcp/add-jira':
+            import studio.mcp_ops as mcp_ops
+            host = str(body.get('host') or '').strip()
+            email = str(body.get('email') or '').strip()
+            api_token = str(body.get('api_token') or '').strip()
+            name = str(body.get('name') or 'jira').strip()
+            try:
+                res = mcp_ops.save_jira_mcp_preset(host, email, api_token, server_name=name)
+                with state_lock:
+                    saved = save_settings({
+                        'jira_host': host,
+                        'jira_email': email,
+                        'jira_api_token': api_token,
+                    })
+                    app_state['settings'] = saved
+                self.send_json(res)
+            except Exception as e:
+                self.send_json({'success': False, 'message': str(e)}, 400)
+
+        elif path == '/api/mcp/add-github':
+            import studio.mcp_ops as mcp_ops
+            token = str(body.get('token') or body.get('api_token') or '').strip()
+            name = str(body.get('name') or 'github').strip()
+            try:
+                res = mcp_ops.save_github_mcp_preset(token, server_name=name)
+                self.send_json(res)
+            except Exception as e:
+                self.send_json({'success': False, 'message': str(e)}, 400)
+
+        elif path == '/api/mcp/add-postgres':
+            import studio.mcp_ops as mcp_ops
+            conn_url = str(body.get('url') or body.get('conn_url') or '').strip()
+            name = str(body.get('name') or 'postgres').strip()
+            try:
+                res = mcp_ops.save_postgres_mcp_preset(conn_url, server_name=name)
+                self.send_json(res)
+            except Exception as e:
+                self.send_json({'success': False, 'message': str(e)}, 400)
+
+        elif path == '/api/mcp/add-gitlab':
+            import studio.mcp_ops as mcp_ops
+            host = str(body.get('host') or '').strip()
+            token = str(body.get('token') or body.get('api_token') or '').strip()
+            name = str(body.get('name') or 'gitlab').strip()
+            try:
+                res = mcp_ops.save_gitlab_mcp_preset(host, token, server_name=name)
+                self.send_json(res)
+            except Exception as e:
+                self.send_json({'success': False, 'message': str(e)}, 400)
+
+        elif path == '/api/mcp/remove':
+            import studio.mcp_ops as mcp_ops
+            name = str(body.get('name') or '').strip()
+            try:
+                res = mcp_ops.remove_mcp_server(name)
+                self.send_json(res)
+            except Exception as e:
+                self.send_json({'success': False, 'message': str(e)}, 400)
+
+        elif path == '/api/mcp/toggle':
+            import studio.mcp_ops as mcp_ops
+            name = str(body.get('name') or '').strip()
+            enabled = bool(body.get('enabled', True))
+            try:
+                res = mcp_ops.toggle_mcp_server(name, enabled)
+                self.send_json(res)
+            except Exception as e:
+                self.send_json({'success': False, 'message': str(e)}, 400)
+
+        elif path == '/api/mcp/test-jira':
+            import studio.mcp_ops as mcp_ops
+            host = str(body.get('host') or '').strip()
+            email = str(body.get('email') or '').strip()
+            api_token = str(body.get('api_token') or '').strip()
+            res = mcp_ops.test_jira_connection(host, email, api_token)
+            self.send_json(res)
+
+        elif path == '/api/mcp/test-github':
+            import studio.mcp_ops as mcp_ops
+            token = str(body.get('token') or body.get('api_token') or '').strip()
+            res = mcp_ops.test_github_connection(token)
+            self.send_json(res)
+
+        elif path == '/api/mcp/test-gitlab':
+            import studio.mcp_ops as mcp_ops
+            host = str(body.get('host') or '').strip()
+            token = str(body.get('token') or body.get('api_token') or '').strip()
+            res = mcp_ops.test_gitlab_connection(host, token)
+            self.send_json(res)
 
         elif path == '/api/test-api-key':
             provider = str(body.get('provider', 'gemini')).lower().strip()

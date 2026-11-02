@@ -696,32 +696,37 @@ def notify_task_completed(task_id: str, title: str, task_type: str = "TASK", dur
     send_telegram_notification(msg_text, reply_markup=markup)
 
 
-def run_bot_polling():
+def run_bot_polling(verbose: bool = True):
     """Hàm chạy polling liên tục không gián đoạn (với auto-reconnect)."""
     if not bot:
-        print("[Telegram Bot] Bot chưa được kích hoạt do thiếu token.")
+        if verbose:
+            print("[Telegram Bot] Bot chưa được kích hoạt do thiếu token.")
         return
 
-    print(f"\n[Telegram Bot] Khởi chạy dịch vụ bot Telegram ({TELEGRAM_BOT_NAME})...")
+    if verbose:
+        print(f"\n[Telegram Bot] Khởi chạy dịch vụ bot Telegram ({TELEGRAM_BOT_NAME})...")
     while True:
         try:
             bot.infinity_polling(timeout=15, long_polling_timeout=10)
         except Exception as e:
-            print(f"[Telegram Bot] Lỗi polling: {e}. Đang tự động kết nối lại sau 3s...")
+            if verbose:
+                print(f"[Telegram Bot] Lỗi polling: {e}. Đang tự động kết nối lại sau 3s...")
             time.sleep(3)
 
 
-def start_telegram_service():
+def start_telegram_service(verbose: bool = False):
     """Khởi động Telegram Bot service trong background thread an toàn."""
     if not TELEGRAM_ENABLED:
-        print("[Telegram Bot] Tính năng Telegram Bot đang TẮT (TELEGRAM_ENABLED=false).")
+        if verbose:
+            print("[Telegram Bot] Tính năng Telegram Bot đang TẮT (TELEGRAM_ENABLED=false).")
         return None
 
     if not TELEGRAM_BOT_TOKEN:
-        print("[Telegram Bot] Chưa cấu hình TELEGRAM_BOT_TOKEN.")
+        if verbose:
+            print("[Telegram Bot] Chưa cấu hình TELEGRAM_BOT_TOKEN.")
         return None
 
-    t = threading.Thread(target=run_bot_polling, name="TelegramBotWorker", daemon=True)
+    t = threading.Thread(target=run_bot_polling, args=(verbose,), name="TelegramBotWorker", daemon=True)
     t.start()
     return t
 

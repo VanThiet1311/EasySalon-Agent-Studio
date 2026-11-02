@@ -68,10 +68,8 @@ ensure_dependencies
 
 # Nếu không truyền tham số hoặc truyền cờ (--watch, -w, --port...), mặc định mở Web Studio UI kèm Auto-Watch Hot Reload
 if [ $# -eq 0 ]; then
-    echo "🚀 Đang khởi động EasySalon Web Studio (Auto-Watch Hot Reload) tại http://localhost:8765 ..."
     exec python3 "$DIR/bridge.py" web --watch
 elif [[ "$1" == -* ]]; then
-    echo "🚀 Đang khởi động EasySalon Web Studio (Auto-Watch Hot Reload) tại http://localhost:8765 ..."
     exec python3 "$DIR/bridge.py" web --watch "$@"
 else
     exec python3 "$DIR/bridge.py" "$@"

@@ -309,12 +309,90 @@ body.light-mode #fileEditorTextarea::selection {
   background-color: rgba(255, 255, 255, 0.035) !important;
   z-index: 5;
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 18px;
 }
 
 body.light-mode .file-editor-active-line {
   border-top: 1px solid rgba(0, 0, 0, 0.15) !important;
   border-bottom: 1px solid rgba(0, 0, 0, 0.15) !important;
   background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+/* GitLens Inline Blame (at active line) */
+.file-editor-inline-blame {
+  pointer-events: auto !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 58%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', Consolas, monospace !important;
+  font-size: 11px;
+  line-height: 18px;
+  color: rgba(255, 255, 255, 0.38) !important;
+  transition: color 0.15s ease, background-color 0.15s ease;
+  padding: 0 6px;
+  border-radius: 4px;
+  user-select: none;
+}
+
+.file-editor-inline-blame:hover {
+  color: #38bdf8 !important;
+  background-color: rgba(56, 189, 248, 0.12) !important;
+}
+
+body.light-mode .file-editor-inline-blame {
+  color: rgba(0, 0, 0, 0.45) !important;
+}
+
+body.light-mode .file-editor-inline-blame:hover {
+  color: #0284c7 !important;
+  background-color: rgba(2, 132, 199, 0.08) !important;
+}
+
+/* GitLens Commit Details Hover Card (VS Code style) */
+#fileEditorGitLensCard {
+  position: absolute;
+  z-index: 75;
+  background-color: #1f1f1f !important;
+  border: 1px solid #454545 !important;
+  border-radius: 6px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+  width: 520px;
+  max-width: calc(100vw - 40px);
+  padding: 12px 14px;
+  color: #cccccc !important;
+  font-family: 'Be Vietnam Pro', Inter, system-ui, -apple-system, sans-serif !important;
+  font-size: 12px;
+  pointer-events: auto;
+  line-height: 1.5;
+  transition: opacity 0.12s ease;
+}
+
+body.light-mode #fileEditorGitLensCard {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+}
+
+#fileEditorGitLensCard .gitlens-bullet-item {
+  position: relative;
+  padding-left: 14px;
+}
+
+#fileEditorGitLensCard .gitlens-bullet-item::before {
+  content: "•";
+  position: absolute;
+  left: 2px;
+  color: #38bdf8;
+  font-weight: bold;
 }
 
 #fileEditorLineNumbers .line-num {
@@ -356,6 +434,113 @@ body.light-mode #fileEditorLineNumbers .line-num.active-line-num {
 
 body.light-mode .file-editor-indent-layer .indent-guide {
   color: rgba(0, 0, 0, 0.14) !important;
+}
+
+/* ====================================================================
+   VS CODE SIMULATED EDITOR (DARK+ THEME & SYNTAX HIGHLIGHTING)
+   ==================================================================== */
+.file-editor-syntax-pre,
+.file-editor-syntax-code,
+.file-editor-textarea {
+  font-family: 'JetBrains Mono', Consolas, 'Fira Code', 'Courier New', monospace !important;
+  font-size: 12px !important;
+  line-height: 20px !important;
+  tab-size: 2 !important;
+  -moz-tab-size: 2 !important;
+  letter-spacing: normal !important;
+  white-space: pre !important;
+  word-wrap: normal !important;
+  word-break: normal !important;
+  box-sizing: border-box !important;
+}
+
+.file-editor-syntax-pre {
+  margin: 0 !important;
+  padding: 12px 14px !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  inset: 0 !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  border: 0 !important;
+  z-index: 7 !important;
+}
+
+.file-editor-textarea {
+  margin: 0 !important;
+  padding: 12px 14px !important;
+  background: transparent !important;
+  border: 0 !important;
+  outline: none !important;
+  resize: none !important;
+  color: transparent !important;
+  caret-color: #ffffff !important;
+  -webkit-text-fill-color: transparent !important;
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+.file-editor-textarea::selection {
+  background: rgba(38, 79, 120, 0.75) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* VS Code Dark+ Syntax Tokens */
+.token-key { color: #9cdcfe !important; }
+.token-string { color: #ce9178 !important; }
+.token-number { color: #b5cea8 !important; }
+.token-boolean { color: #569cd6 !important; font-weight: 600 !important; }
+.token-keyword { color: #c586c0 !important; font-weight: 600 !important; }
+.token-type { color: #4ec9b0 !important; }
+.token-function { color: #dcdcaa !important; }
+.token-comment { color: #6a9955 !important; font-style: italic !important; }
+.token-bracket-gold { color: #ffd700 !important; }
+.token-bracket-purple { color: #da70d6 !important; }
+.token-bracket-cyan { color: #179fff !important; }
+.token-punc { color: #d4d4d4 !important; }
+
+/* Minimap */
+#fileEditorMinimap {
+  background-color: #1e1e1e !important;
+  border-left: 1px solid #282828 !important;
+}
+#fileEditorMinimapSlider {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 2px;
+  cursor: grab;
+  z-index: 10;
+  transition: background-color 0.1s ease;
+}
+#fileEditorMinimapSlider:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+body.light-mode .file-editor-textarea {
+  caret-color: #0f172a !important;
+}
+body.light-mode .file-editor-textarea::selection {
+  background: rgba(173, 214, 255, 0.8) !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+body.light-mode .token-key { color: #0451a5 !important; }
+body.light-mode .token-string { color: #a31515 !important; }
+body.light-mode .token-number { color: #098658 !important; }
+body.light-mode .token-boolean { color: #0000ff !important; font-weight: 600 !important; }
+body.light-mode .token-keyword { color: #af00db !important; font-weight: 600 !important; }
+body.light-mode .token-type { color: #267f99 !important; }
+body.light-mode .token-function { color: #795e26 !important; }
+body.light-mode .token-comment { color: #008000 !important; font-style: italic !important; }
+body.light-mode .token-bracket-gold { color: #0451a5 !important; }
+body.light-mode .token-bracket-purple { color: #af00db !important; }
+body.light-mode .token-bracket-cyan { color: #0070c1 !important; }
+body.light-mode .token-punc { color: #334155 !important; }
+body.light-mode #fileEditorMinimap {
+  background-color: #f8fafc !important;
+  border-left: 1px solid #e2e8f0 !important;
 }
 
 body.light-mode #fileEditorModalCard {

@@ -58,6 +58,9 @@ pre, code, kbd, samp {
 /* Ensure hidden class always has highest priority */
 .hidden,
 [hidden],
+.ant-btn.hidden,
+#btnPullFe.hidden,
+#btnPullBe.hidden,
 #btnStartTask.hidden,
 #btnStopTask.hidden,
 #btnStopAllParallel.hidden {
@@ -78,7 +81,7 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #2d5699 !important;
 /* ====================================================================
    BUTTONS (ANT DESIGN STYLE UTILITIES)
    ==================================================================== */
-.ant-btn {
+.ant-btn:not(.hidden) {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -102,6 +105,10 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #2d5699 !important;
   color: #334155;
   font-family: inherit;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.ant-btn.hidden {
+  display: none !important;
 }
 
 .ant-btn:hover,
@@ -233,10 +240,15 @@ body.light-mode main .bg-\[\#0e192c\]\/90 {
 }
 
 /* Form inputs & controls in light mode */
+body.light-mode main .bg-\[\#0c1628\],
 body.light-mode main .bg-\[\#0e192c\],
 body.light-mode main .bg-\[\#0a1222\],
 body.light-mode main input[type="text"],
+body.light-mode main input[type="email"],
+body.light-mode main input[type="password"],
+body.light-mode main input[type="url"],
 body.light-mode main input[type="number"],
+body.light-mode main input:not([type]),
 body.light-mode main textarea,
 body.light-mode main select {
   background-color: #ffffff !important;
@@ -302,6 +314,23 @@ body.light-mode main .bg-blue-950\/80 {
   background-color: #eff6ff !important;
   border-color: #bfdbfe !important;
   color: #1d4ed8 !important;
+}
+body.light-mode main .bg-blue-500\/20 {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #1677ff !important;
+}
+body.light-mode main .text-blue-300 {
+  color: #1677ff !important;
+}
+body.light-mode main .bg-slate-800,
+body.light-mode main .bg-slate-800\/80,
+body.light-mode main .bg-slate-800\/70,
+body.light-mode main .bg-slate-900,
+body.light-mode main .bg-slate-900\/80 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
 }
 
 /* ====================================================================

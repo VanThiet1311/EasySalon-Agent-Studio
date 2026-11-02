@@ -260,8 +260,51 @@ function formatCommitAuthor(author, isMe) {
 }
 window.formatCommitAuthor = formatCommitAuthor;
 
-function formatRelativeDate(raw) {
-  if (!raw) return '';
+function formatRelativeDate(raw, timestamp) {
+  if (!raw && !timestamp) return '';
+  let ts = Number(timestamp);
+  if (!ts && raw) {
+    if (typeof raw === 'number') {
+      ts = raw;
+    } else if (typeof raw === 'string') {
+      const sTrim = raw.trim();
+      if (/^\d{10,13}$/.test(sTrim)) {
+        ts = parseInt(sTrim, 10);
+        if (ts < 1e11) ts *= 1000;
+      } else if (sTrim.includes('T') && (sTrim.includes('+') || sTrim.includes('Z') || sTrim.includes('-'))) {
+        const parsed = Date.parse(sTrim);
+        if (!isNaN(parsed)) ts = parsed;
+      }
+    }
+  }
+
+  if (ts && !isNaN(ts) && ts > 0) {
+    const diffSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+    if (diffSec < 45) return 'vừa xong';
+    if (diffSec < 3600) {
+      const m = Math.floor(diffSec / 60);
+      return `${m}p trước`;
+    }
+    if (diffSec < 86400) {
+      const h = Math.floor(diffSec / 3600);
+      const m = Math.floor((diffSec % 3600) / 60);
+      return m > 0 ? `${h}h${m < 10 ? '0' + m : m} trước` : `${h}h trước`;
+    }
+    const days = Math.floor(diffSec / 86400);
+    if (days === 1) return 'hôm qua';
+    if (days < 7) return `${days} ngày trước`;
+    if (days < 30) {
+      const weeks = Math.floor(days / 7);
+      return `${weeks} tuần trước`;
+    }
+    if (days < 365) {
+      const months = Math.floor(days / 30);
+      return `${months} tháng trước`;
+    }
+    const years = Math.floor(days / 365);
+    return `${years} năm trước`;
+  }
+
   const s = String(raw).trim();
   if (!s) return '';
 
@@ -556,6 +599,19 @@ function updateGeminiCliUI(status) {
     }
   }
 
+  const btnGemini = document.getElementById('btnPageStartGeminiCli');
+  if (btnGemini) {
+    if (geminiCliStatus && (geminiCliStatus.ready || geminiCliStatus.daemon_active)) {
+      btnGemini.innerHTML = '<span>● Đang chạy</span>';
+      btnGemini.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-700/80 text-white shadow-sm transition flex items-center gap-1 cursor-pointer';
+      btnGemini.title = 'Antigravity CLI native daemon đang chạy ngầm';
+    } else {
+      btnGemini.innerHTML = '<span>▶ Chạy ngầm</span>';
+      btnGemini.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center gap-1 cursor-pointer';
+      btnGemini.title = 'Antigravity CLI native daemon chạy ngầm (agy remote-control start)';
+    }
+  }
+
   const accTag = document.getElementById('pageAccountStatusTag');
   if (accTag) {
     if (geminiCliStatus.ready) {
@@ -737,6 +793,7 @@ function updateEngineUI(engine, isOnline) {
     nineRouterOnline = isOnline;
   }
 
+  // 1. Tag in Panel 2 (AI Execution Engine tab)
   const tag = document.getElementById('pageCurrentEngineTag');
   if (tag) {
     if (eng === 'opencode') {
@@ -748,15 +805,28 @@ function updateEngineUI(engine, isOnline) {
     }
   }
 
+  // 2. Tag in Panel 1 (Effort tab)
+  const quickTag = document.getElementById('quickEngineTag');
+  if (quickTag) {
+    if (eng === 'opencode') {
+      quickTag.textContent = 'OPENCODE (9ROUTER)';
+      quickTag.className = 'text-[10px] font-sans px-2.5 py-1 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 uppercase font-semibold tracking-wider';
+    } else {
+      quickTag.textContent = 'GEMINI CLI';
+      quickTag.className = 'text-[10px] font-sans px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 uppercase font-semibold tracking-wider';
+    }
+  }
+
+  // 3. Status pills and texts for 9router
   const pill = document.getElementById('pageNineRouterStatusPill');
   const statusTxt = document.getElementById('pageNineRouterStatusText');
   if (pill) {
     if (nineRouterOnline) {
       pill.textContent = '9router: Online';
-      pill.className = 'text-[10px] text-emerald-400 font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 uppercase';
+      pill.className = 'engine-card-badge text-[10px] text-emerald-400 font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 uppercase';
     } else {
       pill.textContent = '9router: Offline';
-      pill.className = 'text-[10px] text-rose-400 font-sans font-medium px-2 py-0.5 rounded bg-rose-950 border border-rose-800 uppercase';
+      pill.className = 'engine-card-badge text-[10px] text-rose-400 font-sans font-medium px-2 py-0.5 rounded bg-rose-950 border border-rose-800 uppercase';
     }
   }
   if (statusTxt) {
@@ -769,20 +839,47 @@ function updateEngineUI(engine, isOnline) {
     }
   }
 
+  const quickPill = document.getElementById('quickNineRouterPill');
+  if (quickPill) {
+    if (nineRouterOnline) {
+      quickPill.textContent = '9router: Online';
+      quickPill.className = 'engine-card-badge text-[10px] font-sans font-medium px-2 py-0.5 rounded text-emerald-300';
+    } else {
+      quickPill.textContent = '9router: Offline';
+      quickPill.className = 'engine-card-badge text-[10px] font-sans font-medium px-2 py-0.5 rounded text-rose-300';
+    }
+  }
+
+  // 4. Synchronize BOTH Panel 2 Engine Cards AND Panel 1 (Effort) Quick Engine Cards
   ['gemini_cli', 'opencode'].forEach(eid => {
-    const card = document.getElementById('page_card_engine_' + eid);
-    const radio = document.querySelector(`input[name="page_engine"][value="${eid}"]`);
-    if (card && radio) {
+    // Panel 2 Engine Cards
+    const pageCard = document.getElementById('page_card_engine_' + eid);
+    const pageRadio = document.querySelector(`input[name="page_engine"][value="${eid}"]`);
+    if (pageCard) {
       if (eid === eng) {
-        radio.checked = true;
-        card.classList.add('is-active');
+        if (pageRadio) pageRadio.checked = true;
+        pageCard.classList.add('is-active');
       } else {
-        radio.checked = false;
-        card.classList.remove('is-active');
+        if (pageRadio) pageRadio.checked = false;
+        pageCard.classList.remove('is-active');
+      }
+    }
+
+    // Panel 1 Quick Engine Cards (Effort tab)
+    const quickCard = document.getElementById('quick_card_engine_' + eid);
+    const quickRadio = document.querySelector(`input[name="quick_engine"][value="${eid}"]`);
+    if (quickCard) {
+      if (eid === eng) {
+        if (quickRadio) quickRadio.checked = true;
+        quickCard.classList.add('is-active');
+      } else {
+        if (quickRadio) quickRadio.checked = false;
+        quickCard.classList.remove('is-active');
       }
     }
   });
 
+  // 5. Sections visibility
   const geminiSection = document.getElementById('page_section_gemini_cli');
   const opencodeSection = document.getElementById('page_section_opencode');
   if (geminiSection && opencodeSection) {
@@ -794,6 +891,46 @@ function updateEngineUI(engine, isOnline) {
       opencodeSection.classList.add('hidden');
     }
   }
+
+  const quickOpencodeSec = document.getElementById('quickOpencodeSection');
+  if (quickOpencodeSec) {
+    if (eng === 'opencode') {
+      quickOpencodeSec.classList.remove('hidden');
+    } else {
+      quickOpencodeSec.classList.add('hidden');
+    }
+  }
+
+  // 6. Dynamic background run buttons in Panel 2
+  const btnGemini = document.getElementById('btnPageStartGeminiCli');
+  if (btnGemini) {
+    if (geminiCliStatus && (geminiCliStatus.ready || geminiCliStatus.daemon_active)) {
+      btnGemini.innerHTML = '<span>● Đang chạy</span>';
+      btnGemini.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-700/80 text-white shadow-sm transition flex items-center gap-1 cursor-pointer';
+      btnGemini.title = 'Antigravity CLI native daemon đang chạy ngầm';
+    } else {
+      btnGemini.innerHTML = '<span>▶ Chạy ngầm</span>';
+      btnGemini.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center gap-1 cursor-pointer';
+      btnGemini.title = 'Antigravity CLI native daemon chạy ngầm (agy remote-control start)';
+    }
+  }
+
+  const btnNineRouter = document.getElementById('btnPageStartNineRouter');
+  if (btnNineRouter) {
+    if (nineRouterOnline) {
+      btnNineRouter.innerHTML = '<span>● Đang chạy</span>';
+      btnNineRouter.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-700/80 text-white shadow-sm transition flex items-center gap-1 cursor-pointer';
+      btnNineRouter.title = '9router proxy đang chạy ngầm trên cổng 20128';
+    } else {
+      btnNineRouter.innerHTML = '<span>▶ Chạy ngầm</span>';
+      btnNineRouter.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center gap-1 cursor-pointer';
+      btnNineRouter.title = 'Khởi động 9router proxy chạy ngầm trên cổng 20128';
+    }
+  }
+
+  if (eng === 'opencode') {
+    fetchOpenCodeModels(false);
+  }
 }
 
 function onPageEngineChange(newEngine) {
@@ -801,6 +938,151 @@ function onPageEngineChange(newEngine) {
   updateEngineUI(newEngine, nineRouterOnline);
   markSettingsDirty(true);
 }
+
+let _loadedOpenCodeModels = false;
+async function fetchOpenCodeModels(forceRefresh = false) {
+  if (_loadedOpenCodeModels && !forceRefresh) return;
+  const quickSelect = document.getElementById('quickOpencodeModelSelect');
+  const pageSelect = document.getElementById('pageSettingsOpencodeModelSelect');
+
+  if (quickSelect && (!quickSelect.options.length || quickSelect.options[0].value === '')) {
+    quickSelect.innerHTML = '<option value="">Đang tải danh sách mô hình từ 9router...</option>';
+  }
+  if (pageSelect && (!pageSelect.options.length || pageSelect.options[0].value === '')) {
+    pageSelect.innerHTML = '<option value="">Đang tải danh sách mô hình từ 9router...</option>';
+  }
+
+  try {
+    const res = await fetch('/api/opencode/models');
+    const data = await res.json();
+    if (data && Array.isArray(data.models)) {
+      _loadedOpenCodeModels = true;
+      if (data.nine_router_online !== undefined) {
+        nineRouterOnline = !!data.nine_router_online;
+        updateEngineUI(currentStudioSettings.engine, nineRouterOnline);
+      }
+      populateOpenCodeModelSelects(data.models);
+    }
+  } catch (err) {
+    console.error('Lỗi khi tải danh sách mô hình OpenCode:', err);
+  }
+}
+
+function populateOpenCodeModelSelects(models) {
+  const quickSelect = document.getElementById('quickOpencodeModelSelect');
+  const pageSelect = document.getElementById('pageSettingsOpencodeModelSelect');
+  if (!quickSelect && !pageSelect) return;
+
+  const currentVal = currentStudioSettings.opencode_model || '9router/ag/gemini-3.8-flash-high';
+
+  const geminiModels = [];
+  const otherModels = [];
+
+  (models || []).forEach(m => {
+    if (m.is_gemini || (m.id && m.id.toLowerCase().includes('gemini'))) {
+      geminiModels.push(m);
+    } else {
+      otherModels.push(m);
+    }
+  });
+
+  let html = '';
+  if (geminiModels.length > 0) {
+    html += '<optgroup label="Mô hình Google Gemini (Khuyên dùng)">';
+    geminiModels.forEach(m => {
+      const isSel = (m.id === currentVal) ? 'selected' : '';
+      html += `<option value="${escapeHtml(m.id)}" ${isSel}>${escapeHtml(m.id)} (${escapeHtml(m.name || m.id)})</option>`;
+    });
+    html += '</optgroup>';
+  }
+  if (otherModels.length > 0) {
+    html += '<optgroup label="Các mô hình khác qua 9router">';
+    otherModels.forEach(m => {
+      const isSel = (m.id === currentVal) ? 'selected' : '';
+      html += `<option value="${escapeHtml(m.id)}" ${isSel}>${escapeHtml(m.id)} (${escapeHtml(m.name || m.id)})</option>`;
+    });
+    html += '</optgroup>';
+  }
+
+  if (quickSelect) {
+    quickSelect.innerHTML = html;
+    quickSelect.value = currentVal;
+  }
+  if (pageSelect) {
+    pageSelect.innerHTML = html;
+    pageSelect.value = currentVal;
+  }
+}
+
+function onOpenCodeModelChange(newModel) {
+  if (!newModel) return;
+  currentStudioSettings.opencode_model = newModel;
+  const quickSelect = document.getElementById('quickOpencodeModelSelect');
+  const pageSelect = document.getElementById('pageSettingsOpencodeModelSelect');
+  if (quickSelect && quickSelect.value !== newModel) quickSelect.value = newModel;
+  if (pageSelect && pageSelect.value !== newModel) pageSelect.value = newModel;
+  markSettingsDirty(true);
+}
+
+async function startGeminiCliBackground(btn) {
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> <span>Đang khởi động...</span>';
+  }
+  try {
+    const res = await fetch('/api/gemini/start', { method: 'POST' });
+    const data = await res.json();
+    if (data && data.success) {
+      showToast(data.message || 'Gemini CLI đã được kích hoạt chạy ngầm thành công!');
+      if (geminiCliStatus) {
+        geminiCliStatus.daemon_active = true;
+        geminiCliStatus.ready = true;
+      }
+    } else {
+      showToast((data && data.message) || 'Không thể khởi chạy Gemini CLI ngầm', 'error');
+    }
+    if (typeof checkGeminiCliAuthStatus === 'function') {
+      await checkGeminiCliAuthStatus(false);
+    } else {
+      updateEngineUI(currentStudioSettings.engine, nineRouterOnline);
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối khi khởi động Gemini CLI ngầm: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function startNineRouterBackground(btn) {
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> <span>Đang khởi động...</span>';
+  }
+  try {
+    const res = await fetch('/api/9router/start', { method: 'POST' });
+    const data = await res.json();
+    if (data && data.success) {
+      nineRouterOnline = true;
+      showToast(data.message || '9router proxy đã khởi động ngầm thành công trên cổng 20128!');
+      updateEngineUI(currentStudioSettings.engine, true);
+      fetchOpenCodeModels(true);
+    } else {
+      showToast((data && data.message) || 'Không thể khởi động 9router proxy ngầm', 'error');
+      updateEngineUI(currentStudioSettings.engine, false);
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối khi khởi động 9router ngầm: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+window.updateEngineUI = updateEngineUI;
+window.onPageEngineChange = onPageEngineChange;
+window.fetchOpenCodeModels = fetchOpenCodeModels;
+window.onOpenCodeModelChange = onOpenCodeModelChange;
+window.startGeminiCliBackground = startGeminiCliBackground;
+window.startNineRouterBackground = startNineRouterBackground;
 
 let currentModelFamily = 'gemini';
 
@@ -1018,7 +1300,7 @@ window.onSettingsOptionChanged = onSettingsOptionChanged;
 let activeSettingsSubTab = 'effort';
 
 function switchSettingsSidebarTab(tab, updateHistory = true) {
-  if (!['effort', 'engine', 'account', 'api', 'env'].includes(tab)) tab = 'effort';
+  if (!['effort', 'engine', 'mcp', 'api', 'env'].includes(tab)) tab = 'effort';
   activeSettingsSubTab = tab;
   window.initSettingsSubTab = tab;
   try {
@@ -1031,7 +1313,7 @@ function switchSettingsSidebarTab(tab, updateHistory = true) {
   const subRoutes = window.SETTINGS_SUBTAB_ROUTES || {
     'effort': '/settings/effort',
     'engine': '/settings/engine',
-    'account': '/settings/account',
+    'mcp': '/settings/mcp',
     'api': '/settings/api',
     'env': '/settings/env'
   };
@@ -1042,7 +1324,7 @@ function switchSettingsSidebarTab(tab, updateHistory = true) {
     } catch (e) { }
   }
 
-  const tabs = ['effort', 'engine', 'account', 'api', 'env'];
+  const tabs = ['effort', 'engine', 'mcp', 'api', 'env'];
   tabs.forEach(t => {
     const navBtn = document.getElementById('settingsNav_' + t);
     const panel = document.getElementById('settingsPanel_' + t);
@@ -1063,8 +1345,987 @@ function switchSettingsSidebarTab(tab, updateHistory = true) {
       }
     }
   });
+
+  if (tab === 'mcp') {
+    fetchMcpServers(false);
+  }
 }
 window.switchSettingsSidebarTab = switchSettingsSidebarTab;
+
+/* ============================================================
+   MCP (MODEL CONTEXT PROTOCOL) MANAGEMENT
+   ============================================================ */
+let _cachedMcpServers = [];
+let _isFetchingMcpServers = false;
+
+async function fetchMcpServers(forceRefresh = false) {
+  if (_isFetchingMcpServers) return;
+  _isFetchingMcpServers = true;
+  try {
+    const res = await fetch('/api/mcp/list');
+    const data = await res.json();
+    if (data && Array.isArray(data.servers)) {
+      _cachedMcpServers = data.servers;
+      renderMcpServers(data.servers);
+    }
+  } catch (err) {
+    console.error('Lỗi khi tải danh sách MCP servers:', err);
+    const container = document.getElementById('mcpServersContainer');
+    if (container) {
+      container.innerHTML = `<div class="p-4 text-center text-xs text-rose-400 font-sans">Lỗi tải MCP servers: ${escapeHtml(err.message)}</div>`;
+    }
+  } finally {
+    _isFetchingMcpServers = false;
+  }
+}
+
+function renderMcpServers(servers) {
+  const container = document.getElementById('mcpServersContainer');
+  const countBadge = document.getElementById('mcpServerCountBadge');
+  const activeCountTag = document.getElementById('mcpServerActiveCountTag');
+  const jiraBadge = document.getElementById('jiraSyncStatusBadge');
+
+  const count = servers ? servers.length : 0;
+  const activeCount = servers ? servers.filter(s => !s.disabled).length : 0;
+
+  if (countBadge) countBadge.textContent = String(count);
+  if (activeCountTag) activeCountTag.textContent = `${activeCount} đang hoạt động`;
+
+  // 1. Jira
+  const jiraServer = (servers || []).find(s => s.name === 'jira' || s.preset === 'jira');
+  const badgePresetJira = document.getElementById('badgePreset_jira');
+  const btnToggle = document.getElementById('btnToggleJira');
+  const btnRemove = document.getElementById('btnRemoveJira');
+  const btnToggleFooter = document.getElementById('btnToggleJiraFooter');
+  const btnRemoveFooter = document.getElementById('btnRemoveJiraFooter');
+
+  if (jiraServer) {
+    const isStopped = !!jiraServer.disabled;
+    const toggleLabel = isStopped ? 'Bật' : 'Tắt';
+    const toggleFooterLabel = isStopped ? 'Bật Jira MCP' : 'Tắt MCP';
+
+    if (btnToggle) {
+      btnToggle.textContent = toggleLabel;
+      btnToggle.classList.remove('hidden');
+    }
+    if (btnRemove) {
+      btnRemove.classList.remove('hidden');
+    }
+    if (btnToggleFooter) {
+      btnToggleFooter.textContent = toggleFooterLabel;
+      btnToggleFooter.classList.remove('hidden');
+    }
+    if (btnRemoveFooter) {
+      btnRemoveFooter.classList.remove('hidden');
+    }
+
+    if (jiraBadge) {
+      if (isStopped) {
+        jiraBadge.textContent = 'Đã dừng';
+        jiraBadge.title = '';
+        jiraBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped';
+      } else if (jiraServer.live_status === 'failed') {
+        jiraBadge.textContent = 'Lỗi kết nối';
+        jiraBadge.title = jiraServer.live_detail || 'MCP kết nối thất bại';
+        jiraBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped';
+      } else {
+        jiraBadge.textContent = 'Đã kết nối';
+        jiraBadge.title = '';
+        jiraBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800';
+      }
+    }
+    if (badgePresetJira) {
+      if (isStopped) {
+        badgePresetJira.textContent = 'Đã dừng';
+        badgePresetJira.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped';
+      } else {
+        badgePresetJira.textContent = 'Đã kết nối';
+        badgePresetJira.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+      }
+    }
+    const hostInput = document.getElementById('input_jira_host');
+    const emailInput = document.getElementById('input_jira_email');
+    const tokenInput = document.getElementById('input_jira_token');
+    if (hostInput && !hostInput.value && jiraServer.env && (jiraServer.env.JIRA_HOST || jiraServer.env.JIRA_BASE_URL)) {
+      hostInput.value = jiraServer.env.JIRA_HOST || jiraServer.env.JIRA_BASE_URL;
+    }
+    if (emailInput && !emailInput.value && jiraServer.env && (jiraServer.env.JIRA_EMAIL || jiraServer.env.JIRA_USER_EMAIL)) {
+      emailInput.value = jiraServer.env.JIRA_EMAIL || jiraServer.env.JIRA_USER_EMAIL;
+    }
+    if (tokenInput && !tokenInput.value && jiraServer.env && jiraServer.env.JIRA_API_TOKEN) {
+      tokenInput.value = jiraServer.env.JIRA_API_TOKEN;
+    }
+  } else {
+    if (btnToggle) btnToggle.classList.add('hidden');
+    if (btnRemove) btnRemove.classList.add('hidden');
+    if (btnToggleFooter) btnToggleFooter.classList.add('hidden');
+    if (btnRemoveFooter) btnRemoveFooter.classList.add('hidden');
+
+    if (jiraBadge) {
+      jiraBadge.textContent = 'Chưa kết nối';
+      jiraBadge.title = '';
+      jiraBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700';
+    }
+    if (badgePresetJira) {
+      badgePresetJira.textContent = 'Chưa kết nối';
+      badgePresetJira.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+    }
+  }
+
+  // 2. GitHub
+  const githubServer = (servers || []).find(s => s.name === 'github' || s.preset === 'github');
+  const githubBadge = document.getElementById('githubSyncStatusBadge');
+  const badgePresetGithub = document.getElementById('badgePreset_github');
+  if (githubServer) {
+    const isStopped = !!githubServer.disabled;
+    if (githubBadge) {
+      githubBadge.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      githubBadge.className = isStopped
+        ? 'text-[10px] font-sans font-medium px-2.5 py-1 rounded mcp-status-stopped'
+        : 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800';
+    }
+    if (badgePresetGithub) {
+      badgePresetGithub.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      badgePresetGithub.className = isStopped
+        ? 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped'
+        : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+    }
+    const tokenInput = document.getElementById('input_github_token');
+    if (tokenInput && !tokenInput.value && githubServer.env && githubServer.env.GITHUB_PERSONAL_ACCESS_TOKEN) {
+      tokenInput.value = githubServer.env.GITHUB_PERSONAL_ACCESS_TOKEN;
+    }
+  } else {
+    if (githubBadge) {
+      githubBadge.textContent = 'Chưa cấu hình';
+      githubBadge.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400';
+    }
+    if (badgePresetGithub) {
+      badgePresetGithub.textContent = 'Chưa cấu hình';
+      badgePresetGithub.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+    }
+  }
+
+  // 3. PostgreSQL
+  const postgresServer = (servers || []).find(s => s.name === 'postgres' || s.preset === 'postgres');
+  const postgresBadge = document.getElementById('postgresSyncStatusBadge');
+  const badgePresetPostgres = document.getElementById('badgePreset_postgres');
+  if (postgresServer) {
+    const isStopped = !!postgresServer.disabled;
+    if (postgresBadge) {
+      postgresBadge.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      postgresBadge.className = isStopped
+        ? 'text-[10px] font-sans font-medium px-2.5 py-1 rounded mcp-status-stopped'
+        : 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800';
+    }
+    if (badgePresetPostgres) {
+      badgePresetPostgres.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      badgePresetPostgres.className = isStopped
+        ? 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped'
+        : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+    }
+    const urlInput = document.getElementById('input_postgres_url');
+    if (urlInput && !urlInput.value && Array.isArray(postgresServer.args) && postgresServer.args.length > 0) {
+      const connStr = postgresServer.args.find(a => typeof a === 'string' && a.startsWith('postgres'));
+      if (connStr) urlInput.value = connStr;
+    }
+  } else {
+    if (postgresBadge) {
+      postgresBadge.textContent = 'Chưa cấu hình';
+      postgresBadge.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400';
+    }
+    if (badgePresetPostgres) {
+      badgePresetPostgres.textContent = 'Chưa cấu hình';
+      badgePresetPostgres.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+    }
+  }
+
+  // 4. GitLab
+  const gitlabServer = (servers || []).find(s => s.name === 'gitlab' || s.preset === 'gitlab');
+  const gitlabBadge = document.getElementById('gitlabSyncStatusBadge');
+  const badgePresetGitlab = document.getElementById('badgePreset_gitlab');
+  if (gitlabServer) {
+    const isStopped = !!gitlabServer.disabled;
+    if (gitlabBadge) {
+      gitlabBadge.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      gitlabBadge.className = isStopped
+        ? 'text-[10px] font-sans font-medium px-2.5 py-1 rounded mcp-status-stopped'
+        : 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800';
+    }
+    if (badgePresetGitlab) {
+      badgePresetGitlab.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      badgePresetGitlab.className = isStopped
+        ? 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped'
+        : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+    }
+    const hostInput = document.getElementById('input_gitlab_host');
+    const tokenInput = document.getElementById('input_gitlab_token');
+    if (hostInput && !hostInput.value && gitlabServer.env && gitlabServer.env.GITLAB_API_URL) {
+      hostInput.value = gitlabServer.env.GITLAB_API_URL.replace(/\/api\/v4\/?$/, '');
+    }
+    if (tokenInput && !tokenInput.value && gitlabServer.env && gitlabServer.env.GITLAB_PERSONAL_ACCESS_TOKEN) {
+      tokenInput.value = gitlabServer.env.GITLAB_PERSONAL_ACCESS_TOKEN;
+    }
+  } else {
+    if (gitlabBadge) {
+      gitlabBadge.textContent = 'Chưa cấu hình';
+      gitlabBadge.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400';
+    }
+    if (badgePresetGitlab) {
+      badgePresetGitlab.textContent = 'Chưa cấu hình';
+      badgePresetGitlab.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+    }
+  }
+
+  // 5. Custom
+  const customBadge = document.getElementById('badgePreset_custom');
+  if (customBadge) {
+    const customServers = (servers || []).filter(s => !['jira', 'github', 'postgres', 'gitlab'].includes(s.name) && s.preset !== 'jira');
+    if (customServers.length > 0) {
+      customBadge.textContent = `${customServers.length} server`;
+      customBadge.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+    } else {
+      customBadge.textContent = 'Tùy biến';
+      customBadge.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+    }
+  }
+
+  if (!container) return;
+
+  if (!servers || servers.length === 0) {
+    container.innerHTML = `
+      <div class="p-6 text-center rounded-lg border border-dashed border-[#244170]/80 bg-[#0c1628]/40 space-y-2">
+        <p class="text-xs text-slate-300 font-sans font-medium">Chưa có MCP server nào được đăng ký</p>
+        <p class="text-[11px] text-slate-400 font-sans max-w-md mx-auto">
+          Điền thông tin Jira ở form trên và bấm <strong>"Lưu &amp; Kích hoạt Jira MCP"</strong> hoặc bấm <strong>"+ Thêm MCP tùy chỉnh"</strong> để kết nối thêm các công cụ bên ngoài.
+        </p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = servers.map(s => {
+    const isJira = s.preset === 'jira' || s.name === 'jira';
+    const isHttp = s.type === 'http';
+    const isEnabled = !s.disabled;
+
+    let statusLabel = isEnabled ? 'Hoạt động' : 'Đã dừng';
+    let statusClass = isEnabled ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'mcp-status-stopped';
+    let statusTitle = '';
+    if (s.disabled) {
+      statusLabel = 'Đã dừng';
+      statusClass = 'mcp-status-stopped';
+    } else if (s.live_status === 'failed') {
+      statusLabel = 'Lỗi kết nối';
+      statusClass = 'mcp-status-stopped';
+      statusTitle = s.live_detail || 'MCP kết nối thất bại';
+    } else if (s.live_status === 'connected') {
+      statusLabel = 'Đã kết nối';
+      statusClass = 'bg-emerald-950 text-emerald-400 border border-emerald-800';
+    }
+
+    const envKeys = s.env ? Object.keys(s.env) : [];
+    const envPreview = envKeys.length > 0
+      ? `<div class="flex flex-wrap items-center gap-1.5 mt-2">
+           <span class="text-[10px] text-slate-400">Biến môi trường:</span>
+           ${envKeys.map(k => `<span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#081222] border border-[#244170]/70 text-slate-300">${escapeHtml(k)}</span>`).join('')}
+         </div>`
+      : '';
+
+    return `
+      <div class="mcp-server-card p-3.5 rounded-lg border border-[#244170] bg-[#0c1628] hover:border-slate-500 transition space-y-2.5">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-xs font-bold text-white">${escapeHtml(s.name)}</span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded uppercase font-semibold ${isHttp ? 'bg-purple-950 text-purple-300 border border-purple-800' : 'bg-cyan-950 text-cyan-300 border border-cyan-800'}">
+              ${escapeHtml(s.type)}
+            </span>
+            ${isJira ? '<span class="text-[10px] font-sans px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 font-medium">Jira Cloud</span>' : ''}
+            <span class="text-[10px] font-sans px-2 py-0.5 rounded font-medium ${statusClass}" title="${escapeHtml(statusTitle)}">
+              ${statusLabel}
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-slate-400 font-sans hidden sm:inline">Đồng bộ:</span>
+            <span class="text-[10px] font-sans px-1.5 py-0.5 rounded bg-emerald-950/70 text-emerald-400 border border-emerald-800/80">Gemini CLI</span>
+            <span class="text-[10px] font-sans px-1.5 py-0.5 rounded bg-cyan-950/70 text-cyan-400 border border-cyan-800/80">OpenCode</span>
+            <button type="button" onclick="toggleMcpServer('${escapeHtml(s.name)}', ${!isEnabled})"
+              class="text-xs px-2.5 py-1 rounded border border-[#244170] text-slate-300 hover:text-white hover:bg-white/5 transition cursor-pointer">
+              ${isEnabled ? 'Tắt' : 'Bật'}
+            </button>
+            <button type="button" onclick="removeMcpServer('${escapeHtml(s.name)}')"
+              class="text-xs px-2.5 py-1 rounded border border-rose-900/60 text-rose-400 hover:bg-rose-950/50 transition cursor-pointer">
+              Xóa
+            </button>
+          </div>
+        </div>
+
+        <div class="mcp-code-preview p-2 rounded bg-[#081222] border border-[#244170]/50 text-xs font-mono text-slate-300 break-all select-all">
+          ${escapeHtml(s.command_str || s.url || '(không có lệnh)')}
+        </div>
+
+        ${envPreview}
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleJiraTokenMask() {
+  const tokenInput = document.getElementById('input_jira_token');
+  const btn = document.getElementById('btnToggleJiraTokenMask');
+  if (!tokenInput || !btn) return;
+  if (tokenInput.type === 'password') {
+    tokenInput.type = 'text';
+    btn.textContent = 'Ẩn';
+  } else {
+    tokenInput.type = 'password';
+    btn.textContent = 'Hiện';
+  }
+}
+
+async function testJiraConnection(btn) {
+  const host = document.getElementById('input_jira_host')?.value?.trim() || '';
+  const email = document.getElementById('input_jira_email')?.value?.trim() || '';
+  const api_token = document.getElementById('input_jira_token')?.value?.trim() || '';
+  const resultBox = document.getElementById('jiraTestStatusResult');
+
+  if (!host) {
+    showToast('Vui lòng nhập Jira Host / URL.', 'warning');
+    return;
+  }
+  if (!email) {
+    showToast('Vui lòng nhập Email tài khoản Jira.', 'warning');
+    return;
+  }
+  if (!api_token) {
+    showToast('Vui lòng nhập Jira API Token.', 'warning');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang kết nối...';
+  }
+  if (resultBox) {
+    resultBox.classList.remove('hidden');
+    resultBox.className = 'jira-alert-box is-loading';
+    resultBox.innerHTML = `
+      <div class="jira-alert-icon">↻</div>
+      <div class="jira-alert-content">
+        <div class="jira-alert-title">Đang kiểm tra kết nối Jira...</div>
+        <div class="jira-alert-desc">Đang gửi yêu cầu xác thực tới Jira Cloud API tại ${escapeHtml(host)}...</div>
+      </div>
+    `;
+  }
+
+  try {
+    const res = await fetch('/api/mcp/test-jira', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host, email, api_token })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-success';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">✓</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Kết nối Jira thành công</div>
+            <div class="jira-alert-desc">${escapeHtml(d.message)}<br><span class="opacity-80 text-[11px]">Xác thực tài khoản thành công với Jira Cloud REST API.</span></div>
+          </div>
+        `;
+      }
+      showToast('Kết nối Jira thành công!');
+    } else {
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-error';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">!</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Lỗi kết nối Jira</div>
+            <div class="jira-alert-desc">${escapeHtml((d && d.message) || 'Không thể xác thực với Jira Host.')}</div>
+          </div>
+        `;
+      }
+      showToast((d && d.message) || 'Kiểm tra Jira thất bại', 'error');
+    }
+  } catch (err) {
+    if (resultBox) {
+      resultBox.className = 'jira-alert-box is-error';
+      resultBox.innerHTML = `
+        <div class="jira-alert-icon">!</div>
+        <div class="jira-alert-content">
+          <div class="jira-alert-title">Lỗi kết nối mạng</div>
+          <div class="jira-alert-desc">${escapeHtml(err.message)}</div>
+        </div>
+      `;
+    }
+    showToast('Lỗi kết nối: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Kiểm tra kết nối Jira';
+    }
+  }
+}
+
+async function saveJiraMcp(btn) {
+  const host = document.getElementById('input_jira_host')?.value?.trim() || '';
+  const email = document.getElementById('input_jira_email')?.value?.trim() || '';
+  const api_token = document.getElementById('input_jira_token')?.value?.trim() || '';
+
+  if (!host) {
+    showToast('Vui lòng nhập Jira Host / Domain URL.', 'warning');
+    return;
+  }
+  if (!email) {
+    showToast('Vui lòng nhập Email tài khoản Jira.', 'warning');
+    return;
+  }
+  if (!api_token) {
+    showToast('Vui lòng nhập Jira API Token.', 'warning');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang lưu...';
+  }
+
+  try {
+    const res = await fetch('/api/mcp/add-jira', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host, email, api_token, name: 'jira' })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast('Đã lưu & kích hoạt Atlassian Jira MCP thành công!');
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Không thể lưu Jira MCP', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi khi lưu Jira MCP: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Lưu & Kích hoạt Jira MCP';
+    }
+  }
+}
+
+function toggleCustomMcpSection(open) {
+  const sec = document.getElementById('customMcpSection');
+  if (!sec) return;
+  if (typeof open === 'boolean') {
+    if (open) sec.classList.remove('hidden');
+    else sec.classList.add('hidden');
+  } else {
+    sec.classList.toggle('hidden');
+  }
+  if (!sec.classList.contains('hidden')) {
+    const nameInput = document.getElementById('input_custom_mcp_name');
+    if (nameInput) nameInput.focus();
+  }
+}
+
+function onCustomMcpTypeChange(val) {
+  const boxCmd = document.getElementById('boxCustomMcpCommand');
+  const boxArgs = document.getElementById('boxCustomMcpArgs');
+  const boxUrl = document.getElementById('boxCustomMcpUrl');
+  if (val === 'http') {
+    if (boxCmd) boxCmd.classList.add('hidden');
+    if (boxArgs) boxArgs.classList.add('hidden');
+    if (boxUrl) boxUrl.classList.remove('hidden');
+  } else {
+    if (boxCmd) boxCmd.classList.remove('hidden');
+    if (boxArgs) boxArgs.classList.remove('hidden');
+    if (boxUrl) boxUrl.classList.add('hidden');
+  }
+}
+
+async function saveCustomMcp(btn) {
+  const name = document.getElementById('input_custom_mcp_name')?.value?.trim() || '';
+  const type = document.getElementById('select_custom_mcp_type')?.value || 'stdio';
+  const command = document.getElementById('input_custom_mcp_command')?.value?.trim() || '';
+  const argsStr = document.getElementById('input_custom_mcp_args')?.value?.trim() || '';
+  const url = document.getElementById('input_custom_mcp_url')?.value?.trim() || '';
+  const envRaw = document.getElementById('textarea_custom_mcp_env')?.value?.trim() || '';
+
+  if (!name) {
+    showToast('Vui lòng nhập tên Server.', 'warning');
+    return;
+  }
+  if (type === 'stdio' && !command) {
+    showToast('Vui lòng nhập lệnh thực thi (Command).', 'warning');
+    return;
+  }
+  if (type === 'http' && !url) {
+    showToast('Vui lòng nhập Remote URL.', 'warning');
+    return;
+  }
+
+  const env = {};
+  if (envRaw) {
+    if (envRaw.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(envRaw);
+        if (typeof parsed === 'object') Object.assign(env, parsed);
+      } catch (e) { }
+    }
+    if (Object.keys(env).length === 0) {
+      envRaw.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+          const idx = trimmed.indexOf('=');
+          const k = trimmed.substring(0, idx).trim();
+          const v = trimmed.substring(idx + 1).trim();
+          if (k) env[k] = v;
+        }
+      });
+    }
+  }
+
+  const args = argsStr ? argsStr.split(/\s+/).filter(Boolean) : [];
+
+  const payload = {
+    name,
+    type,
+    command,
+    args,
+    url,
+    env,
+    disabled: false
+  };
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Đang lưu...';
+  }
+
+  try {
+    const res = await fetch('/api/mcp/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || `Đã thêm MCP server '${name}' thành công!`);
+      toggleCustomMcpSection(false);
+      const nameInput = document.getElementById('input_custom_mcp_name');
+      if (nameInput) nameInput.value = '';
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Lỗi khi lưu MCP server', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi khi lưu MCP server: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Lưu MCP Server';
+    }
+  }
+}
+
+async function removeMcpServer(name) {
+  if (!name) return;
+  if (!confirm(`Bạn có chắc chắn muốn xóa MCP server '${name}' khỏi hệ thống?`)) return;
+
+  try {
+    const res = await fetch('/api/mcp/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || `Đã xóa MCP server '${name}'.`);
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Lỗi khi xóa MCP server', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối khi xóa: ' + err.message, 'error');
+  }
+}
+
+async function toggleMcpServer(name, enabled) {
+  if (!name) return;
+  try {
+    const res = await fetch('/api/mcp/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, enabled })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || `Đã cập nhật trạng thái MCP server '${name}'.`);
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Lỗi cập nhật', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối: ' + err.message, 'error');
+  }
+}
+
+async function toggleJiraServer() {
+  const jira = (_cachedMcpServers || []).find(s => s.name === 'jira' || s.preset === 'jira');
+  const name = jira ? jira.name : 'jira';
+  const newEnabled = jira ? !!jira.disabled : false;
+  await toggleMcpServer(name, newEnabled);
+}
+
+async function removeJiraServer() {
+  const jira = (_cachedMcpServers || []).find(s => s.name === 'jira' || s.preset === 'jira');
+  const name = jira ? jira.name : 'jira';
+  if (!confirm(`Bạn có chắc chắn muốn xóa cấu hình Atlassian Jira MCP?`)) return;
+
+  try {
+    const res = await fetch('/api/mcp/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || `Đã xóa cấu hình Jira MCP.`);
+      const hostInput = document.getElementById('input_jira_host');
+      const emailInput = document.getElementById('input_jira_email');
+      const tokenInput = document.getElementById('input_jira_token');
+      if (hostInput) hostInput.value = '';
+      if (emailInput) emailInput.value = '';
+      if (tokenInput) tokenInput.value = '';
+      const resultBox = document.getElementById('jiraTestStatusResult');
+      if (resultBox) resultBox.classList.add('hidden');
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Lỗi khi xóa Jira MCP', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối khi xóa: ' + err.message, 'error');
+  }
+}
+
+function selectMcpPreset(preset) {
+  const presets = ['jira', 'github', 'postgres', 'gitlab', 'custom'];
+  const target = presets.includes(preset) ? preset : 'jira';
+
+  presets.forEach(p => {
+    const card = document.getElementById(`cardPreset_${p}`);
+    if (card) {
+      if (p === target) {
+        card.classList.add('is-selected');
+        card.classList.remove('is-unconfigured');
+      } else {
+        card.classList.remove('is-selected');
+      }
+    }
+
+    const frameId = p === 'custom' ? 'customMcpSection' : `mcpConfigFrame_${p}`;
+    const frame = document.getElementById(frameId);
+    if (frame) {
+      if (p === target) {
+        frame.classList.remove('hidden');
+      } else {
+        frame.classList.add('hidden');
+      }
+    }
+  });
+
+  if (target === 'custom') {
+    const nameInput = document.getElementById('input_custom_mcp_name');
+    if (nameInput) setTimeout(() => nameInput.focus(), 50);
+  } else if (target === 'github') {
+    const tokenInput = document.getElementById('input_github_token');
+    if (tokenInput && !tokenInput.value) setTimeout(() => tokenInput.focus(), 50);
+  } else if (target === 'postgres') {
+    const urlInput = document.getElementById('input_postgres_url');
+    if (urlInput && !urlInput.value) setTimeout(() => urlInput.focus(), 50);
+  } else if (target === 'gitlab') {
+    const hostInput = document.getElementById('input_gitlab_host');
+    if (hostInput && !hostInput.value) setTimeout(() => hostInput.focus(), 50);
+  }
+}
+
+async function testGithubConnection(btn) {
+  const token = document.getElementById('input_github_token')?.value?.trim() || '';
+  const resultBox = document.getElementById('githubTestStatusResult');
+
+  if (!token) {
+    showToast('Vui lòng nhập GitHub Personal Access Token.', 'warning');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang kết nối...';
+  }
+  if (resultBox) {
+    resultBox.classList.remove('hidden');
+    resultBox.className = 'jira-alert-box is-loading';
+    resultBox.innerHTML = `
+      <div class="jira-alert-icon">↻</div>
+      <div class="jira-alert-content">
+        <div class="jira-alert-title">Đang xác thực với GitHub API...</div>
+        <div class="jira-alert-desc">Hệ thống đang kiểm tra token và quyền hạn với https://api.github.com/user</div>
+      </div>
+    `;
+  }
+
+  try {
+    const res = await fetch('/api/mcp/test-github', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-success';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">✓</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Kết nối GitHub thành công!</div>
+            <div class="jira-alert-desc">${escapeHtml(d.message || '')}</div>
+          </div>
+        `;
+      }
+      showToast(d.message || 'Kết nối GitHub thành công!', 'success');
+    } else {
+      const errMsg = (d && d.message) || 'Kiểm tra kết nối thất bại.';
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-error';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">!</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Lỗi kết nối GitHub</div>
+            <div class="jira-alert-desc">${escapeHtml(errMsg)}</div>
+          </div>
+        `;
+      }
+      showToast(errMsg, 'error');
+    }
+  } catch (err) {
+    if (resultBox) {
+      resultBox.className = 'jira-alert-box is-error';
+      resultBox.innerHTML = `
+        <div class="jira-alert-icon">!</div>
+        <div class="jira-alert-content">
+          <div class="jira-alert-title">Lỗi kết nối mạng</div>
+          <div class="jira-alert-desc">${escapeHtml(err.message)}</div>
+        </div>
+      `;
+    }
+    showToast('Lỗi kết nối: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Kiểm tra kết nối GitHub';
+    }
+  }
+}
+
+async function saveGithubMcp(btn) {
+  const token = document.getElementById('input_github_token')?.value?.trim() || '';
+  if (!token) {
+    showToast('Vui lòng nhập GitHub Personal Access Token.', 'warning');
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang lưu...';
+  }
+  try {
+    const res = await fetch('/api/mcp/add-github', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, name: 'github' })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || 'Đã lưu & kích hoạt GitHub MCP thành công!', 'success');
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Không thể lưu GitHub MCP', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi khi lưu GitHub MCP: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Lưu & Kích hoạt GitHub MCP';
+    }
+  }
+}
+
+async function savePostgresMcp(btn) {
+  const url = document.getElementById('input_postgres_url')?.value?.trim() || '';
+  if (!url) {
+    showToast('Vui lòng nhập PostgreSQL Connection String URL.', 'warning');
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang lưu...';
+  }
+  try {
+    const res = await fetch('/api/mcp/add-postgres', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, name: 'postgres' })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || 'Đã lưu & kích hoạt PostgreSQL MCP thành công!', 'success');
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Không thể lưu PostgreSQL MCP', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi khi lưu PostgreSQL MCP: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Lưu & Kích hoạt PostgreSQL MCP';
+    }
+  }
+}
+
+async function testGitlabConnection(btn) {
+  const host = document.getElementById('input_gitlab_host')?.value?.trim() || 'https://gitlab.com';
+  const token = document.getElementById('input_gitlab_token')?.value?.trim() || '';
+  const resultBox = document.getElementById('gitlabTestStatusResult');
+
+  if (!token) {
+    showToast('Vui lòng nhập GitLab Personal Access Token.', 'warning');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang kết nối...';
+  }
+  if (resultBox) {
+    resultBox.classList.remove('hidden');
+    resultBox.className = 'jira-alert-box is-loading';
+    resultBox.innerHTML = `
+      <div class="jira-alert-icon">↻</div>
+      <div class="jira-alert-content">
+        <div class="jira-alert-title">Đang xác thực với GitLab API...</div>
+        <div class="jira-alert-desc">Hệ thống đang kiểm tra token với ${escapeHtml(host)}/api/v4/user</div>
+      </div>
+    `;
+  }
+
+  try {
+    const res = await fetch('/api/mcp/test-gitlab', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host, token })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-success';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">✓</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Kết nối GitLab thành công!</div>
+            <div class="jira-alert-desc">${escapeHtml(d.message || '')}</div>
+          </div>
+        `;
+      }
+      showToast(d.message || 'Kết nối GitLab thành công!', 'success');
+    } else {
+      const errMsg = (d && d.message) || 'Kiểm tra kết nối thất bại.';
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-error';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">!</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Lỗi kết nối GitLab</div>
+            <div class="jira-alert-desc">${escapeHtml(errMsg)}</div>
+          </div>
+        `;
+      }
+      showToast(errMsg, 'error');
+    }
+  } catch (err) {
+    if (resultBox) {
+      resultBox.className = 'jira-alert-box is-error';
+      resultBox.innerHTML = `
+        <div class="jira-alert-icon">!</div>
+        <div class="jira-alert-content">
+          <div class="jira-alert-title">Lỗi kết nối mạng</div>
+          <div class="jira-alert-desc">${escapeHtml(err.message)}</div>
+        </div>
+      `;
+    }
+    showToast('Lỗi kết nối: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Kiểm tra kết nối GitLab';
+    }
+  }
+}
+
+async function saveGitlabMcp(btn) {
+  const host = document.getElementById('input_gitlab_host')?.value?.trim() || 'https://gitlab.com';
+  const token = document.getElementById('input_gitlab_token')?.value?.trim() || '';
+  if (!token) {
+    showToast('Vui lòng nhập GitLab Personal Access Token.', 'warning');
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang lưu...';
+  }
+  try {
+    const res = await fetch('/api/mcp/add-gitlab', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host, token, name: 'gitlab' })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || 'Đã lưu & kích hoạt GitLab MCP thành công!', 'success');
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Không thể lưu GitLab MCP', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi khi lưu GitLab MCP: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Lưu & Kích hoạt GitLab MCP';
+    }
+  }
+}
+
+window.fetchMcpServers = fetchMcpServers;
+window.renderMcpServers = renderMcpServers;
+window.selectMcpPreset = selectMcpPreset;
+window.testGithubConnection = testGithubConnection;
+window.saveGithubMcp = saveGithubMcp;
+window.savePostgresMcp = savePostgresMcp;
+window.testGitlabConnection = testGitlabConnection;
+window.saveGitlabMcp = saveGitlabMcp;
+window.toggleJiraTokenMask = toggleJiraTokenMask;
+window.testJiraConnection = testJiraConnection;
+window.saveJiraMcp = saveJiraMcp;
+window.toggleJiraServer = toggleJiraServer;
+window.removeJiraServer = removeJiraServer;
+window.toggleCustomMcpSection = toggleCustomMcpSection;
+window.onCustomMcpTypeChange = onCustomMcpTypeChange;
+window.saveCustomMcp = saveCustomMcp;
+window.removeMcpServer = removeMcpServer;
+window.toggleMcpServer = toggleMcpServer;
 
 function selectActiveApiProvider(provider) {
   if (!['gemini', 'claude', 'openai', 'custom'].includes(provider)) provider = 'gemini';
@@ -1240,6 +2501,10 @@ async function saveSettingsFromPage() {
   const agy_bin = document.getElementById('input_agy_bin')?.value?.trim() ?? (currentStudioSettings.agy_bin || '');
   const opencode_bin = document.getElementById('input_opencode_bin')?.value?.trim() ?? (currentStudioSettings.opencode_bin || '');
 
+  const jira_host = document.getElementById('input_jira_host')?.value?.trim() ?? (currentStudioSettings.jira_host || '');
+  const jira_email = document.getElementById('input_jira_email')?.value?.trim() ?? (currentStudioSettings.jira_email || '');
+  const jira_api_token = document.getElementById('input_jira_token')?.value?.trim() ?? (currentStudioSettings.jira_api_token || '');
+
   currentStudioSettings = Object.assign({}, currentStudioSettings, {
     engine,
     effort,
@@ -1254,7 +2519,10 @@ async function saveSettingsFromPage() {
     fe_workspace,
     be_workspace,
     agy_bin,
-    opencode_bin
+    opencode_bin,
+    jira_host,
+    jira_email,
+    jira_api_token
   });
 
   updateEngineUI(engine, nineRouterOnline);
@@ -1285,7 +2553,10 @@ async function saveSettingsFromPage() {
           fe_workspace,
           be_workspace,
           agy_bin,
-          opencode_bin
+          opencode_bin,
+          jira_host,
+          jira_email,
+          jira_api_token
         }
       })
     });
@@ -1481,6 +2752,19 @@ function switchTab(tab, updateHistory = true) {
           updateEffortUI(currentStudioSettings.effort);
           updateApiUI(currentStudioSettings);
           updateEnvUI(currentStudioSettings, d.env_info);
+          if (currentStudioSettings.jira_host) {
+            const jiHost = document.getElementById('input_jira_host');
+            if (jiHost && !jiHost.value) jiHost.value = currentStudioSettings.jira_host;
+          }
+          if (currentStudioSettings.jira_email) {
+            const jiEmail = document.getElementById('input_jira_email');
+            if (jiEmail && !jiEmail.value) jiEmail.value = currentStudioSettings.jira_email;
+          }
+          if (currentStudioSettings.jira_api_token) {
+            const jiToken = document.getElementById('input_jira_token');
+            if (jiToken && !jiToken.value) jiToken.value = currentStudioSettings.jira_api_token;
+          }
+          fetchMcpServers(false);
           markSettingsDirty(false);
         })
         .catch(() => {});
@@ -4426,18 +5710,6 @@ function renderFeedFilterTabs() {
   const container = document.getElementById('feedTaskFilterTabs');
   if (!container) return;
 
-  const btnClear = document.getElementById('btnClearCompletedFeed');
-  const hasFinished = parallelTasks.some(t => t.status === 'completed' || t.status === 'done' || t.status === 'stopped');
-  if (btnClear) {
-    if (hasFinished) {
-      btnClear.classList.remove('hidden');
-      btnClear.classList.add('flex');
-    } else {
-      btnClear.classList.add('hidden');
-      btnClear.classList.remove('flex');
-    }
-  }
-
   const tabs = [
     { id: 'all', label: `Tất cả (${parallelTasks.length})` },
     ...parallelTasks.map((t, idx) => ({ id: t.id, name: t.name, status: t.status, type: t.type, idx: idx + 1 }))
@@ -4707,19 +5979,48 @@ function renderFeedView(data) {
       runningCard.remove();
     }
 
-    const isSessRunning = Boolean(sess._isRunning) && sess.status !== 'COMPLETED' && sess.status !== 'STOPPED';
+    const isSessRunning = isRunning || Boolean(sess._isRunning) || sess.status === 'RUNNING' || sess.status === 'STARTING' || sess.status === 'IN_PROGRESS';
     turns.forEach((t, i) => {
       const cardId = 'turnCard_' + (sess._taskId || sess.id) + '_' + i;
       let card = document.getElementById(cardId);
       const isFe = t.speaker === 'fe';
       const isLatestTurn = (i === turns.length - 1);
-      const isStreaming = Boolean(t.is_streaming) && isSessRunning && isLatestTurn;
+      const isStreaming = Boolean(t.is_streaming) || (isSessRunning && isLatestTurn);
       const streamingIndicator = isStreaming ? '<span class="inline-flex items-center gap-1.5 text-[11px] text-cyan-400 font-mono"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>Đang xử lý trên AI Terminal...</span>' : '';
       const turnFiles = (t.changed_files && t.changed_files.length > 0) ? t.changed_files : (sess.changed_files || []);
       const bodyContent = t.content ? safeMarkdown(t.content, turnFiles) : '';
       const streamingPreviewText = t.content ? (t.content.slice(-70).trim().replace(/\n+/g, ' ')) : (sess._statusText || t.status_text || 'Đang thực thi lệnh trên AI Terminal...');
       const stepLogsHtml = renderStepLogsHtml(t.step_logs, sess._taskId || sess.id, i, isStreaming, streamingPreviewText);
       const changedFilesHtml = renderChangedFilesHtml(t.changed_files, sess._taskId || sess.id, i);
+
+      const hasStepLogs = Boolean(t.step_logs && t.step_logs.length > 0);
+      const hasContent = Boolean(t.content && t.content.trim().length > 0);
+      let loadingPlaceholderHtml = '';
+      if (isSessRunning && isLatestTurn && !hasContent && !hasStepLogs) {
+        loadingPlaceholderHtml = `
+          <div class="tool-step-box my-2.5 rounded-lg border border-[#244170] bg-[#070d18] overflow-hidden shadow-inner p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="wave-dots">
+                  <span class="wave-dot"></span>
+                  <span class="wave-dot"></span>
+                  <span class="wave-dot"></span>
+                </div>
+                <span class="text-xs font-semibold text-cyan-300 font-sans">AI Agent đang suy nghĩ &amp; chuẩn bị tiến trình ngầm...</span>
+              </div>
+              <span class="text-[10.5px] font-mono text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800 animate-pulse">Đang xử lý</span>
+            </div>
+            <div class="p-2.5 rounded bg-[#040810] border border-[#1e3458] text-[11px] font-mono text-slate-300 flex items-center gap-2">
+              <span class="text-cyan-400 select-none font-bold">$</span>
+              <span class="truncate text-slate-200">${escapeHtml(sess._statusText || t.status_text || 'Đang chuẩn bị workspace và chạy lệnh trên AI Terminal...')}</span>
+            </div>
+            <div class="space-y-1.5 pt-1">
+              <div class="h-1.5 bg-gradient-to-r from-cyan-500/30 via-cyan-400/10 to-transparent rounded animate-pulse w-4/5"></div>
+              <div class="h-1.5 bg-gradient-to-r from-cyan-500/20 via-cyan-400/5 to-transparent rounded animate-pulse w-1/2"></div>
+            </div>
+          </div>
+        `;
+      }
 
       if (!card) {
         card = document.createElement('div');
@@ -4747,7 +6048,7 @@ function renderFeedView(data) {
       const isDiffCollapsed = _collapsedDiffBoxes.has(diffBoxId);
 
       const changesSig = (t.changed_files || []).map(cf => `${cf.path}:${cf.status}:${cf.additions}:${cf.deletions}`).join('|');
-      const currentSig = `${(t.content || '').length}_${(t.step_logs || []).length}_${t.elapsed_sec}_${isStreaming}_${(t.step_logs || []).map(s => s.state + (s.output ? s.output.length : 0)).join(',')}_${changesSig}_${isCollapsed}_${isStepCollapsed}_${isDiffCollapsed}`;
+      const currentSig = `${(t.content || '').length}_${(t.step_logs || []).length}_${t.elapsed_sec}_${isStreaming}_${Boolean(loadingPlaceholderHtml)}_${(t.step_logs || []).map(s => s.state + (s.output ? s.output.length : 0)).join(',')}_${changesSig}_${isCollapsed}_${isStepCollapsed}_${isDiffCollapsed}`;
       if (card.dataset.sig !== currentSig) {
         card.dataset.sig = currentSig;
         card.innerHTML = `
@@ -4769,7 +6070,8 @@ function renderFeedView(data) {
               <div id="turnBody_${cardId}" class="turn-body-content mt-2.5 ${isCollapsed ? 'hidden' : ''}">
                 ${stepLogsHtml}
                 ${changedFilesHtml}
-                <div class="markdown-body text-[13px] text-slate-200 leading-[1.82] tracking-wide overflow-x-auto">${bodyContent}</div>
+                ${loadingPlaceholderHtml}
+                ${bodyContent ? `<div class="markdown-body text-[13px] text-slate-200 leading-[1.82] tracking-wide overflow-x-auto">${bodyContent}</div>` : ''}
               </div>
             `;
       }
@@ -5046,9 +6348,265 @@ let _currentEditorFile = null;
 let _currentEditorRepo = 'fe';
 let _currentEditorMtime = 0;
 let _currentEditorContent = '';
+let _currentEditorBlame = null;
+let _gitLensHideTimer = null;
+let _currentActiveLineNumber = 1;
 let _fileEditorSyncTimer = null;
 let _isCheckingFileStat = false;
 let _editorCharWidth = 7.22;
+let _currentEditorAbsPath = '';
+let _minimapClickListenerSetup = false;
+
+function formatGitLensRelativeTime(timestamp) {
+  if (!timestamp) return '';
+  const now = Math.floor(Date.now() / 1000);
+  const diff = Math.max(0, now - timestamp);
+  if (diff < 60) return 'vừa xong';
+  const mins = Math.floor(diff / 60);
+  if (mins < 60) return `${mins} phút trước`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} ngày trước`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} tháng trước`;
+  const years = Math.floor(months / 12);
+  return `${years} năm trước`;
+}
+
+function formatGitLensFullDate(timestamp) {
+  if (!timestamp) return '';
+  const d = new Date(timestamp * 1000);
+  const pad = (n) => String(n).padStart(2, '0');
+  const day = pad(d.getDate());
+  const month = pad(d.getMonth() + 1);
+  const year = d.getFullYear();
+  const hours = pad(d.getHours());
+  const mins = pad(d.getMinutes());
+  const secs = pad(d.getSeconds());
+  return `${day}/${month}/${year}, ${hours}:${mins}:${secs}`;
+}
+
+async function loadFileBlameData(filePath, repo) {
+  _currentEditorBlame = null;
+  const authorInfoEl = document.getElementById('fileEditorAuthorInfo');
+  const inlineBlameEl = document.getElementById('fileEditorInlineBlame');
+  if (authorInfoEl) authorInfoEl.innerHTML = '<span class="text-slate-400 font-sans">Đang đọc tác giả...</span>';
+  if (inlineBlameEl) inlineBlameEl.textContent = '';
+
+  try {
+    const res = await fetch(`/api/file/blame?path=${encodeURIComponent(filePath)}&target=${encodeURIComponent(repo)}`);
+    const data = await res.json();
+    if (data && data.success) {
+      _currentEditorBlame = data;
+      renderEditorAuthorInfo();
+      updateActiveLineBlame(_currentActiveLineNumber);
+    } else {
+      if (authorInfoEl) authorInfoEl.innerHTML = '';
+    }
+  } catch (e) {
+    if (authorInfoEl) authorInfoEl.innerHTML = '';
+  }
+}
+
+function renderEditorAuthorInfo() {
+  const authorInfoEl = document.getElementById('fileEditorAuthorInfo');
+  if (!authorInfoEl) return;
+  if (!_currentEditorBlame) {
+    authorInfoEl.innerHTML = '';
+    return;
+  }
+
+  const { creator, last_modifier } = _currentEditorBlame;
+  if (!creator && !last_modifier) {
+    authorInfoEl.innerHTML = '<span class="text-slate-400 font-sans">Chưa có lịch sử Git</span>';
+    return;
+  }
+
+  let html = '';
+  if (creator) {
+    const cTime = formatGitLensRelativeTime(creator.time);
+    const cAuthor = escapeHtml(creator.author || 'Tác giả');
+    html += `
+      <span class="inline-flex items-center gap-1 cursor-pointer hover:text-sky-300 transition" onclick="showGitLensCommitCard('creator', event)" title="Nhấn xem commit tạo file">
+        <svg class="w-3.5 h-3.5 text-sky-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+        </svg>
+        <span>Tạo bởi: <strong class="text-white font-medium">${cAuthor}</strong> <span class="text-slate-400 font-sans">(${cTime})</span></span>
+      </span>
+    `;
+  }
+
+  if (last_modifier) {
+    if (creator) {
+      html += '<span class="text-slate-500 font-sans">•</span>';
+    }
+    const mTime = formatGitLensRelativeTime(last_modifier.time);
+    const mAuthor = escapeHtml(last_modifier.author || 'Người sửa');
+    html += `
+      <span class="inline-flex items-center gap-1 cursor-pointer hover:text-sky-300 transition" onclick="showGitLensCommitCard('last_mod', event)" title="Nhấn xem commit sửa gần nhất">
+        <span class="text-slate-400 font-sans">Sửa gần nhất:</span>
+        <strong class="text-emerald-400 font-medium">${mAuthor}</strong> <span class="text-slate-400 font-sans">(${mTime})</span>
+      </span>
+    `;
+  }
+
+  authorInfoEl.innerHTML = html;
+}
+
+function updateActiveLineBlame(lineIndex) {
+  const inlineBlameEl = document.getElementById('fileEditorInlineBlame');
+  if (!inlineBlameEl) return;
+
+  _currentActiveLineNumber = lineIndex;
+
+  if (!_currentEditorBlame || !_currentEditorBlame.lines || !_currentEditorBlame.lines[lineIndex]) {
+    inlineBlameEl.textContent = '';
+    return;
+  }
+
+  const blame = _currentEditorBlame.lines[lineIndex];
+  const author = blame.author || 'You';
+  const relTime = formatGitLensRelativeTime(blame.time);
+  const summary = blame.summary || 'Uncommitted changes';
+
+  const timePart = relTime ? `, ${relTime}` : '';
+  inlineBlameEl.innerHTML = `
+    <svg class="w-3 h-3 text-sky-400 shrink-0 inline mr-0.5 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+    <span>${escapeHtml(author)}${escapeHtml(timePart)} • ${escapeHtml(summary)}</span>
+  `;
+}
+
+function showGitLensCommitCard(commitKey, event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  cancelHideGitLensCard();
+
+  if (!_currentEditorBlame) return;
+
+  let commit = null;
+  if (commitKey === 'creator') {
+    commit = _currentEditorBlame.creator;
+  } else if (commitKey === 'last_mod') {
+    commit = _currentEditorBlame.last_modifier;
+  } else if (_currentEditorBlame.commits && _currentEditorBlame.commits[commitKey]) {
+    commit = _currentEditorBlame.commits[commitKey];
+  } else if (_currentEditorBlame.lines && _currentEditorBlame.lines[commitKey]) {
+    const lineObj = _currentEditorBlame.lines[commitKey];
+    if (lineObj && lineObj.hash && _currentEditorBlame.commits && _currentEditorBlame.commits[lineObj.hash]) {
+      commit = _currentEditorBlame.commits[lineObj.hash];
+    } else {
+      commit = lineObj;
+    }
+  }
+
+  if (!commit) return;
+
+  const card = document.getElementById('fileEditorGitLensCard');
+  const authorEl = document.getElementById('gitLensCardAuthor');
+  const timeEl = document.getElementById('gitLensCardTime');
+  const dateEl = document.getElementById('gitLensCardDate');
+  const hashEl = document.getElementById('gitLensCardHash');
+  const titleEl = document.getElementById('gitLensCardTitle');
+  const bodyEl = document.getElementById('gitLensCardBody');
+  const emailEl = document.getElementById('gitLensCardEmail');
+
+  if (!card) return;
+
+  const authorName = commit.author || commit.raw_author || 'You';
+  const relTime = formatGitLensRelativeTime(commit.time);
+  const fullDate = formatGitLensFullDate(commit.time);
+  const shortHash = (commit.hash || '').substring(0, 8);
+
+  if (authorEl) authorEl.textContent = authorName;
+  if (timeEl) timeEl.textContent = relTime ? `, ${relTime}` : '';
+  if (dateEl) dateEl.textContent = fullDate ? ` (${fullDate})` : '';
+  if (hashEl) hashEl.textContent = shortHash;
+  if (titleEl) titleEl.textContent = commit.summary || commit.title || 'No commit title';
+  if (emailEl) emailEl.textContent = commit.email ? `Tác giả: ${commit.email}` : '';
+
+  if (bodyEl) {
+    const bodyText = (commit.body || '').trim();
+    if (!bodyText) {
+      bodyEl.innerHTML = '';
+      bodyEl.classList.add('hidden');
+    } else {
+      bodyEl.classList.remove('hidden');
+      const lines = bodyText.split('\n');
+      let bodyHtml = '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('• ')) {
+          const content = trimmed.replace(/^[-*•]\s*/, '');
+          bodyHtml += `<div class="gitlens-bullet-item leading-snug">${escapeHtml(content)}</div>`;
+        } else {
+          bodyHtml += `<div class="leading-snug">${escapeHtml(trimmed)}</div>`;
+        }
+      }
+      bodyEl.innerHTML = bodyHtml;
+    }
+  }
+
+  const modalCard = document.getElementById('fileEditorModalCard');
+  if (modalCard) {
+    const modalRect = modalCard.getBoundingClientRect();
+    let left = 20;
+    let top = 60;
+
+    if (event && event.currentTarget) {
+      const targetRect = event.currentTarget.getBoundingClientRect();
+      left = Math.max(10, Math.min(targetRect.left - modalRect.left - 20, modalRect.width - 540));
+      top = targetRect.bottom - modalRect.top + 8;
+      if (top + 250 > modalRect.height) {
+        top = Math.max(10, targetRect.top - modalRect.top - 240);
+      }
+    } else {
+      const activeLine = document.getElementById('fileEditorActiveLineHighlight');
+      if (activeLine) {
+        const lineRect = activeLine.getBoundingClientRect();
+        left = Math.max(10, Math.min(lineRect.right - modalRect.left - 530, modalRect.width - 540));
+        top = lineRect.bottom - modalRect.top + 6;
+        if (top + 250 > modalRect.height) {
+          top = Math.max(10, lineRect.top - modalRect.top - 240);
+        }
+      }
+    }
+
+    card.style.left = `${left}px`;
+    card.style.top = `${top}px`;
+  }
+
+  card.classList.remove('hidden');
+}
+
+function showGitLensForActiveLine(event) {
+  showGitLensCommitCard(_currentActiveLineNumber, event);
+}
+
+function hideGitLensCard() {
+  const card = document.getElementById('fileEditorGitLensCard');
+  if (card) card.classList.add('hidden');
+}
+
+function scheduleHideGitLensCard() {
+  clearTimeout(_gitLensHideTimer);
+  _gitLensHideTimer = setTimeout(() => {
+    hideGitLensCard();
+  }, 300);
+}
+
+function cancelHideGitLensCard() {
+  clearTimeout(_gitLensHideTimer);
+}
+
+window.showGitLensCommitCard = showGitLensCommitCard;
+window.showGitLensForActiveLine = showGitLensForActiveLine;
+window.hideGitLensCard = hideGitLensCard;
 
 function normalizeRepoRole(r) {
   if (!r) return 'fe';
@@ -5103,6 +6661,8 @@ function updateActiveLineHighlight() {
     const curLineEl = lineNumbers.children[lineIndex];
     if (curLineEl) curLineEl.classList.add('active-line-num');
   }
+
+  updateActiveLineBlame(lineIndex + 1);
 }
 
 function updateIndentGuides() {
@@ -5161,6 +6721,281 @@ function updateIndentGuides() {
   indentLayer.scrollLeft = textarea.scrollLeft;
 }
 
+function detectFileLanguage(filePath) {
+  if (!filePath) return 'text';
+  const ext = (filePath.split('.').pop() || '').toLowerCase();
+  if (['json', 'jsonc'].includes(ext)) return 'json';
+  if (['ts', 'tsx'].includes(ext)) return 'typescript';
+  if (['js', 'jsx', 'mjs', 'cjs'].includes(ext)) return 'javascript';
+  if (['py'].includes(ext)) return 'python';
+  if (['css', 'scss', 'less'].includes(ext)) return 'css';
+  if (['html', 'htm', 'vue', 'xml', 'svg'].includes(ext)) return 'html';
+  if (['md', 'markdown'].includes(ext)) return 'markdown';
+  if (['sh', 'bash', 'env'].includes(ext)) return 'shell';
+  if (['sql'].includes(ext)) return 'sql';
+  return 'text';
+}
+
+function getLanguageDisplayName(filePath) {
+  const lang = detectFileLanguage(filePath);
+  const map = {
+    json: '{ } JSON',
+    typescript: 'TypeScript',
+    javascript: 'JavaScript',
+    python: 'Python',
+    css: 'CSS',
+    html: 'HTML',
+    markdown: 'Markdown',
+    shell: 'Shell Script',
+    sql: 'SQL',
+    text: 'Plain Text'
+  };
+  return map[lang] || 'Plain Text';
+}
+
+function getFileTabIconHtml(filePath) {
+  const lang = detectFileLanguage(filePath);
+  if (lang === 'json') return '<span class="text-[#e5a00d] font-bold text-xs">{ }</span>';
+  if (lang === 'typescript') return '<span class="text-[#3178c6] font-bold text-[11px]">TS</span>';
+  if (lang === 'javascript') return '<span class="text-[#f7df1e] font-bold text-[11px]">JS</span>';
+  if (lang === 'python') return '<span class="text-[#3572A5] font-bold text-[11px]">Py</span>';
+  if (lang === 'css') return '<span class="text-[#38bdf8] font-bold text-xs">#</span>';
+  if (lang === 'html') return '<span class="text-[#e34c26] font-bold text-xs">&lt;&gt;</span>';
+  if (lang === 'markdown') return '<span class="text-[#38bdf8] font-bold text-xs">M↓</span>';
+  return '<span class="text-slate-400 font-bold text-xs">📄</span>';
+}
+
+function highlightCode(code, lang) {
+  if (!code) return '';
+  const lines = code.split('\n');
+  return lines.map(line => highlightLine(line, lang)).join('\n');
+}
+
+function highlightLine(line, lang) {
+  if (!line) return '';
+  if (lang === 'json') {
+    const regex = /(\/\/[^\n]*)|("(?:\\.|[^"\\])*"(?=\s*:))|("(?:\\.|[^"\\])*")|(\b(?:true|false|null)\b)|(-?\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|([{}[\],:])|([^"/\b{}\[\],:\s]+)/g;
+    return line.replace(regex, (m, comment, key, str, bool, num, punc) => {
+      if (comment) return `<span class="token-comment">${escapeHtml(comment)}</span>`;
+      if (key) return `<span class="token-key">${escapeHtml(key)}</span>`;
+      if (str) return `<span class="token-string">${escapeHtml(str)}</span>`;
+      if (bool) return `<span class="token-boolean">${escapeHtml(bool)}</span>`;
+      if (num) return `<span class="token-number">${escapeHtml(num)}</span>`;
+      if (punc) {
+        if (punc === '{' || punc === '}') return `<span class="token-bracket-gold">${escapeHtml(punc)}</span>`;
+        if (punc === '[' || punc === ']') return `<span class="token-bracket-purple">${escapeHtml(punc)}</span>`;
+        return `<span class="token-punc">${escapeHtml(punc)}</span>`;
+      }
+      return escapeHtml(m);
+    });
+  }
+
+  if (lang === 'typescript' || lang === 'javascript') {
+    const regex = /(\/\/[^\n]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|(\b(?:import|export|from|as|default|const|let|var|function|return|if|else|switch|case|default|break|continue|for|while|do|try|catch|finally|throw|class|extends|implements|interface|type|enum|new|typeof|instanceof|void|async|await|yield|this|super|public|private|protected|readonly|static)\b)|(\b(?:string|number|boolean|any|unknown|never|symbol|bigint|object|Array|Record|Promise|Map|Set|HTMLElement)\b)|(\b(?:true|false|null|undefined|NaN)\b)|(-?\b\d+(?:\.\d+)?\b)|(\b[a-zA-Z_$][a-zA-Z0-9_$]*(?=\s*\())|([{}()[\]])|([.,;:])|([^"'`/\b{}()[\].,;:\s]+)/g;
+    return line.replace(regex, (m, comment, str, kw, type, bool, num, fn, bracket, punc) => {
+      if (comment) return `<span class="token-comment">${escapeHtml(comment)}</span>`;
+      if (str) return `<span class="token-string">${escapeHtml(str)}</span>`;
+      if (kw) return `<span class="token-keyword">${escapeHtml(kw)}</span>`;
+      if (type) return `<span class="token-type">${escapeHtml(type)}</span>`;
+      if (bool) return `<span class="token-boolean">${escapeHtml(bool)}</span>`;
+      if (num) return `<span class="token-number">${escapeHtml(num)}</span>`;
+      if (fn) return `<span class="token-function">${escapeHtml(fn)}</span>`;
+      if (bracket) {
+        if (bracket === '{' || bracket === '}') return `<span class="token-bracket-gold">${escapeHtml(bracket)}</span>`;
+        if (bracket === '[' || bracket === ']') return `<span class="token-bracket-purple">${escapeHtml(bracket)}</span>`;
+        if (bracket === '(' || bracket === ')') return `<span class="token-bracket-cyan">${escapeHtml(bracket)}</span>`;
+      }
+      if (punc) return `<span class="token-punc">${escapeHtml(punc)}</span>`;
+      return escapeHtml(m);
+    });
+  }
+
+  if (lang === 'python') {
+    const regex = /(#[^\n]*)|("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(\b(?:def|class|return|if|elif|else|while|for|in|is|not|and|or|import|from|as|try|except|finally|raise|with|lambda|pass|yield|global|nonlocal|assert|async|await)\b)|(\b(?:True|False|None|self|cls)\b)|(@[a-zA-Z0-9_.]+)|(-?\b\d+(?:\.\d+)?\b)|(\b[a-zA-Z_][a-zA-Z0-9_]*(?=\s*\())|([{}()[\]])|([.,;:])|([^"'#\b{}()[\].,;:\s]+)/g;
+    return line.replace(regex, (m, comment, str, kw, bool, deco, num, fn, bracket, punc) => {
+      if (comment) return `<span class="token-comment">${escapeHtml(comment)}</span>`;
+      if (str) return `<span class="token-string">${escapeHtml(str)}</span>`;
+      if (kw) return `<span class="token-keyword">${escapeHtml(kw)}</span>`;
+      if (bool) return `<span class="token-boolean">${escapeHtml(bool)}</span>`;
+      if (deco) return `<span class="token-function">${escapeHtml(deco)}</span>`;
+      if (num) return `<span class="token-number">${escapeHtml(num)}</span>`;
+      if (fn) return `<span class="token-function">${escapeHtml(fn)}</span>`;
+      if (bracket) {
+        if (bracket === '{' || bracket === '}') return `<span class="token-bracket-gold">${escapeHtml(bracket)}</span>`;
+        if (bracket === '[' || bracket === ']') return `<span class="token-bracket-purple">${escapeHtml(bracket)}</span>`;
+        if (bracket === '(' || bracket === ')') return `<span class="token-bracket-cyan">${escapeHtml(bracket)}</span>`;
+      }
+      if (punc) return `<span class="token-punc">${escapeHtml(punc)}</span>`;
+      return escapeHtml(m);
+    });
+  }
+
+  if (lang === 'css') {
+    const regex = /(\/\*[\s\S]*?\*\/)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(!important|\binherit\b|\binitial\b|\bnone\b|\bblock\b|\bflex\b|\bgrid\b)|(-?\b\d+(?:\.\d+)?(?:px|em|rem|%|vh|vw|ms|s|fr|deg)?\b)|([.#]?[a-zA-Z0-9_-]+(?=\s*[{,]))|([a-zA-Z0-9_-]+(?=\s*:))|([{}()[\];,:])/g;
+    return line.replace(regex, (m, comment, str, kw, num, sel, prop, punc) => {
+      if (comment) return `<span class="token-comment">${escapeHtml(comment)}</span>`;
+      if (str) return `<span class="token-string">${escapeHtml(str)}</span>`;
+      if (kw) return `<span class="token-keyword">${escapeHtml(kw)}</span>`;
+      if (num) return `<span class="token-number">${escapeHtml(num)}</span>`;
+      if (sel) return `<span class="token-function">${escapeHtml(sel)}</span>`;
+      if (prop) return `<span class="token-key">${escapeHtml(prop)}</span>`;
+      if (punc) return `<span class="token-punc">${escapeHtml(punc)}</span>`;
+      return escapeHtml(m);
+    });
+  }
+
+  if (lang === 'html') {
+    const regex = /(<!--[\s\S]*?-->)|(<\/?[a-zA-Z0-9_-]+)|(\s+[a-zA-Z0-9_-]+(?=\s*=))|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|([<>/=])/g;
+    return line.replace(regex, (m, comment, tag, attr, str, punc) => {
+      if (comment) return `<span class="token-comment">${escapeHtml(comment)}</span>`;
+      if (tag) return `<span class="token-keyword">${escapeHtml(tag)}</span>`;
+      if (attr) return `<span class="token-key">${escapeHtml(attr)}</span>`;
+      if (str) return `<span class="token-string">${escapeHtml(str)}</span>`;
+      if (punc) return `<span class="token-punc">${escapeHtml(punc)}</span>`;
+      return escapeHtml(m);
+    });
+  }
+
+  const genericRegex = /(\/\/[^\n]*|#[^\n]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(\b(?:true|false|null)\b)|(-?\b\d+(?:\.\d+)?\b)|([{}()[\].,;:])|([^"'#\b{}()[\].,;:\s]+)/g;
+  return line.replace(genericRegex, (m, comment, str, bool, num, punc) => {
+    if (comment) return `<span class="token-comment">${escapeHtml(comment)}</span>`;
+    if (str) return `<span class="token-string">${escapeHtml(str)}</span>`;
+    if (bool) return `<span class="token-boolean">${escapeHtml(bool)}</span>`;
+    if (num) return `<span class="token-number">${escapeHtml(num)}</span>`;
+    if (punc) return `<span class="token-punc">${escapeHtml(punc)}</span>`;
+    return escapeHtml(m);
+  });
+}
+
+function renderSyntaxHighlighting() {
+  const textarea = document.getElementById('fileEditorTextarea');
+  const codeEl = document.getElementById('fileEditorSyntaxCode');
+  const preEl = document.getElementById('fileEditorSyntaxPre');
+  if (!textarea || !codeEl) return;
+
+  const code = textarea.value;
+  const lang = detectFileLanguage(_currentEditorFile || '');
+  codeEl.innerHTML = highlightCode(code, lang) + '\n';
+  if (preEl) {
+    preEl.scrollTop = textarea.scrollTop;
+    preEl.scrollLeft = textarea.scrollLeft;
+  }
+}
+
+function renderMinimap() {
+  const minimapCanvas = document.getElementById('fileEditorMinimapCanvas');
+  const textarea = document.getElementById('fileEditorTextarea');
+  if (!minimapCanvas || !textarea) return;
+
+  const lines = textarea.value.split('\n');
+  const total = Math.min(lines.length, 600);
+  let html = '';
+  for (let i = 0; i < total; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed) {
+      html += '<div class="minimap-line h-[3px]"></div>';
+      continue;
+    }
+    const indent = line.length - line.trimStart().length;
+    const width = Math.min(Math.max(trimmed.length * 1.6, 6), 72);
+    let barColor = '#64748b';
+    if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('/*')) {
+      barColor = '#6a9955';
+    } else if (trimmed.includes(':') && trimmed.startsWith('"')) {
+      barColor = '#9cdcfe';
+    } else if (trimmed.includes('import') || trimmed.includes('export') || trimmed.includes('function') || trimmed.includes('def ')) {
+      barColor = '#c586c0';
+    } else if (trimmed.includes('"') || trimmed.includes("'")) {
+      barColor = '#ce9178';
+    }
+    html += `<div class="minimap-line h-[3px] flex items-center" style="padding-left: ${Math.min(indent * 1.2, 26)}px;">
+      <div style="width: ${width}px; background-color: ${barColor};" class="h-[2px] rounded-xs opacity-75"></div>
+    </div>`;
+  }
+  minimapCanvas.innerHTML = html;
+  updateMinimapSlider();
+}
+
+function updateMinimapSlider() {
+  const textarea = document.getElementById('fileEditorTextarea');
+  const slider = document.getElementById('fileEditorMinimapSlider');
+  const minimap = document.getElementById('fileEditorMinimap');
+  if (!textarea || !slider || !minimap) return;
+
+  const scrollHeight = textarea.scrollHeight;
+  const clientHeight = textarea.clientHeight;
+  if (scrollHeight <= clientHeight) {
+    slider.style.display = 'none';
+    return;
+  }
+  slider.style.display = 'block';
+  const minimapHeight = minimap.clientHeight;
+  const sliderHeight = Math.max((clientHeight / scrollHeight) * minimapHeight, 18);
+  const sliderTop = (textarea.scrollTop / (scrollHeight - clientHeight)) * (minimapHeight - sliderHeight);
+  slider.style.height = `${sliderHeight}px`;
+  slider.style.top = `${sliderTop}px`;
+}
+
+function updateCursorPosition() {
+  const textarea = document.getElementById('fileEditorTextarea');
+  const posEl = document.getElementById('fileEditorCursorPos');
+  if (!textarea || !posEl) return;
+
+  const selStart = textarea.selectionStart || 0;
+  const textBefore = textarea.value.substring(0, selStart);
+  const lines = textBefore.split('\n');
+  const lineNum = lines.length;
+  const colNum = lines[lines.length - 1].length + 1;
+  posEl.textContent = `Ln ${lineNum}, Col ${colNum}`;
+}
+
+function setEditorDirty(dirty) {
+  _isEditorDirty = Boolean(dirty);
+  const statusEl = document.getElementById('fileEditorStatus');
+  const statusDirtyEl = document.getElementById('fileEditorDirtyStatus');
+  const tabDot = document.getElementById('fileEditorTabDirtyDot');
+  const saveBtn = document.getElementById('fileEditorSaveBtn');
+
+  if (dirty) {
+    if (statusEl) {
+      statusEl.innerHTML = '<span class="text-amber-400 font-semibold font-sans flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>Có thay đổi chưa lưu</span>';
+    }
+    if (statusDirtyEl) statusDirtyEl.classList.remove('hidden');
+    if (tabDot) tabDot.classList.remove('hidden');
+    if (saveBtn) {
+      saveBtn.classList.remove('bg-[#0e639c]', 'hover:bg-[#1177bb]');
+      saveBtn.classList.add('bg-[#1677ff]', 'hover:bg-[#4096ff]', 'ring-2', 'ring-sky-400/50');
+    }
+  } else {
+    if (statusEl) {
+      statusEl.innerHTML = '';
+    }
+    if (statusDirtyEl) statusDirtyEl.classList.add('hidden');
+    if (tabDot) tabDot.classList.add('hidden');
+    if (saveBtn) {
+      saveBtn.classList.add('bg-[#0e639c]', 'hover:bg-[#1177bb]');
+      saveBtn.classList.remove('bg-[#1677ff]', 'hover:bg-[#4096ff]', 'ring-2', 'ring-sky-400/50');
+    }
+  }
+}
+
+function checkEditorDirtyState() {
+  const textarea = document.getElementById('fileEditorTextarea');
+  if (!textarea) return;
+  const isChanged = textarea.value !== _currentEditorContent;
+  setEditorDirty(isChanged);
+}
+
+function openInNativeVSCode() {
+  if (_currentEditorAbsPath) {
+    window.location.href = `vscode://file/${encodeURI(_currentEditorAbsPath)}`;
+  } else if (_currentEditorFile) {
+    showToast(`Đường dẫn file: ${_currentEditorFile}`);
+  }
+}
+window.openInNativeVSCode = openInNativeVSCode;
+
 function updateEditorLineNumbers() {
   const textarea = document.getElementById('fileEditorTextarea');
   const lineNumbers = document.getElementById('fileEditorLineNumbers');
@@ -5179,6 +7014,8 @@ function updateEditorLineNumbers() {
   lineNumbers.scrollTop = textarea.scrollTop;
   updateIndentGuides();
   updateActiveLineHighlight();
+  renderSyntaxHighlighting();
+  renderMinimap();
 }
 
 function startFileEditorWatch() {
@@ -5224,6 +7061,7 @@ async function checkFileExternalChanges() {
             _isEditorDirty = false;
 
             updateEditorLineNumbers();
+            loadFileBlameData(_currentEditorFile, _currentEditorRepo);
 
             textarea.scrollTop = curScrollTop;
             textarea.selectionStart = Math.min(curSelStart, textarea.value.length);
@@ -5271,6 +7109,7 @@ async function reloadFileFromDisk() {
         textarea.value = _currentEditorContent;
         _isEditorDirty = false;
         updateEditorLineNumbers();
+        loadFileBlameData(_currentEditorFile, _currentEditorRepo);
         if (statusEl) {
           statusEl.innerHTML = '<span class="text-emerald-400 font-semibold font-sans">✓ Đã tải lại nội dung mới nhất từ đĩa</span>';
           setTimeout(() => {
@@ -5308,27 +7147,36 @@ function setupFileEditorListeners() {
         indentLayer.scrollTop = textarea.scrollTop;
         indentLayer.scrollLeft = textarea.scrollLeft;
       }
+      const syntaxPre = document.getElementById('fileEditorSyntaxPre');
+      if (syntaxPre) {
+        syntaxPre.scrollTop = textarea.scrollTop;
+        syntaxPre.scrollLeft = textarea.scrollLeft;
+      }
+      hideGitLensCard();
       updateActiveLineHighlight();
+      updateMinimapSlider();
     });
 
     textarea.addEventListener('click', () => {
+      hideGitLensCard();
       updateActiveLineHighlight();
+      updateCursorPosition();
     });
 
     textarea.addEventListener('keyup', (e) => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) {
         updateActiveLineHighlight();
       }
+      updateCursorPosition();
     });
 
     textarea.addEventListener('input', () => {
       updateEditorLineNumbers();
-      _isEditorDirty = true;
-      const statusEl = document.getElementById('fileEditorStatus');
-      if (statusEl) {
-        statusEl.innerHTML = '<span class="text-amber-400 font-semibold font-sans">● Có thay đổi chưa lưu</span>';
-      }
+      checkEditorDirtyState();
+      renderSyntaxHighlighting();
+      renderMinimap();
       updateActiveLineHighlight();
+      updateCursorPosition();
     });
 
     textarea.addEventListener('keydown', (e) => {
@@ -5359,13 +7207,47 @@ function setupFileEditorListeners() {
           }
         }
         updateEditorLineNumbers();
-        _isEditorDirty = true;
-        const statusEl = document.getElementById('fileEditorStatus');
-        if (statusEl) {
-          statusEl.innerHTML = '<span class="text-amber-400 font-semibold font-sans">● Có thay đổi chưa lưu</span>';
-        }
+        checkEditorDirtyState();
+        renderSyntaxHighlighting();
+        renderMinimap();
+        updateActiveLineHighlight();
+        updateCursorPosition();
       }
     });
+
+    const minimap = document.getElementById('fileEditorMinimap');
+    if (minimap && !_minimapClickListenerSetup) {
+      _minimapClickListenerSetup = true;
+      minimap.addEventListener('click', (e) => {
+        const rect = minimap.getBoundingClientRect();
+        const clickY = e.clientY - rect.top;
+        const ratio = Math.max(0, Math.min(1, clickY / rect.height));
+        textarea.scrollTop = ratio * (textarea.scrollHeight - textarea.clientHeight);
+      });
+    }
+
+    const inlineBlameEl = document.getElementById('fileEditorInlineBlame');
+    if (inlineBlameEl) {
+      inlineBlameEl.addEventListener('mouseenter', (e) => {
+        showGitLensForActiveLine(e);
+      });
+      inlineBlameEl.addEventListener('mouseleave', () => {
+        scheduleHideGitLensCard();
+      });
+      inlineBlameEl.addEventListener('click', (e) => {
+        showGitLensForActiveLine(e);
+      });
+    }
+
+    const gitLensCard = document.getElementById('fileEditorGitLensCard');
+    if (gitLensCard) {
+      gitLensCard.addEventListener('mouseenter', () => {
+        cancelHideGitLensCard();
+      });
+      gitLensCard.addEventListener('mouseleave', () => {
+        scheduleHideGitLensCard();
+      });
+    }
   }
 
   if (modalRoot) {
@@ -5430,6 +7312,7 @@ async function openFileEditor(filePath, repo = 'fe') {
   _currentEditorFile = filePath;
   _currentEditorRepo = normalizeRepoRole(repo);
   _isEditorDirty = false;
+  _currentEditorAbsPath = '';
 
   const modal = document.getElementById('fileEditorModalRoot');
   const pathEl = document.getElementById('fileEditorFilePath');
@@ -5437,8 +7320,45 @@ async function openFileEditor(filePath, repo = 'fe') {
   const lineCountEl = document.getElementById('fileEditorLineCount');
   const statusEl = document.getElementById('fileEditorStatus');
   const textarea = document.getElementById('fileEditorTextarea');
+  const windowTitleEl = document.getElementById('fileEditorWindowTitle');
+  const tabIconEl = document.getElementById('fileEditorTabIcon');
+  const tabFileNameEl = document.getElementById('fileEditorTabFileName');
+  const breadcrumbEl = document.getElementById('fileEditorBreadcrumbPath');
+  const statusRepoEl = document.getElementById('fileEditorStatusRepo');
+  const statusBranchEl = document.getElementById('fileEditorStatusBranch');
+  const langBadgeEl = document.getElementById('fileEditorLangBadge');
 
   if (!modal || !textarea) return;
+
+  const fileName = filePath.split('/').pop() || filePath;
+  if (windowTitleEl) {
+    windowTitleEl.textContent = `${fileName} - ${getRepoDisplayName(_currentEditorRepo)} - EasySalon Studio`;
+  }
+  if (tabIconEl) {
+    tabIconEl.innerHTML = getFileTabIconHtml(filePath);
+  }
+  if (tabFileNameEl) {
+    tabFileNameEl.textContent = fileName;
+  }
+  if (breadcrumbEl) {
+    const parts = filePath.split('/');
+    breadcrumbEl.innerHTML = parts.map((p, idx) => {
+      const isLast = idx === parts.length - 1;
+      return `<span class="${isLast ? 'text-slate-100 font-medium' : 'text-slate-400'}">${escapeHtml(p)}</span>`;
+    }).join(' <span class="text-[#555555] mx-0.5">›</span> ');
+  }
+  if (statusRepoEl) {
+    statusRepoEl.textContent = getRepoDisplayName(_currentEditorRepo);
+  }
+  if (statusBranchEl) {
+    const branch = (_currentEditorRepo === 'fe' ? (window.gitFeStatus?.branch || 'HEAD') : (window.gitBeStatus?.branch || 'HEAD'));
+    statusBranchEl.textContent = branch;
+  }
+  if (langBadgeEl) {
+    langBadgeEl.textContent = getLanguageDisplayName(filePath);
+  }
+
+  setEditorDirty(false);
 
   measureEditorCharWidth();
   textarea.style.setProperty('--char-w', `${_editorCharWidth}px`);
@@ -5465,7 +7385,8 @@ async function openFileEditor(filePath, repo = 'fe') {
       return;
     }
 
-    const content = data.content != null ? data.content : '';
+    const content = (data.content != null ? data.content : '').replace(/\r\n/g, '\n');
+    _currentEditorAbsPath = data.abs_path || '';
     textarea.value = content;
     textarea.disabled = false;
     _isEditorDirty = false;
@@ -5475,10 +7396,14 @@ async function openFileEditor(filePath, repo = 'fe') {
     if (data.target) {
       _currentEditorRepo = normalizeRepoRole(data.target);
       if (badgeEl) badgeEl.textContent = getRepoDisplayName(_currentEditorRepo);
+      if (statusRepoEl) statusRepoEl.textContent = getRepoDisplayName(_currentEditorRepo);
     }
+    setEditorDirty(false);
     updateEditorLineNumbers();
-    if (statusEl) statusEl.innerHTML = '<span class="text-slate-300 font-sans">Sẵn sàng sửa code (Ctrl+S để lưu)</span>';
+    updateCursorPosition();
+    if (statusEl) statusEl.innerHTML = '';
 
+    loadFileBlameData(filePath, _currentEditorRepo);
     startFileEditorWatch();
 
     setTimeout(() => {
@@ -5527,11 +7452,13 @@ async function saveActiveFileEditor() {
       if (data.mtime) {
         _currentEditorMtime = data.mtime;
       }
+      setEditorDirty(false);
+      loadFileBlameData(_currentEditorFile, _currentEditorRepo);
       if (statusEl) statusEl.innerHTML = '<span class="text-emerald-400 font-semibold font-sans">✓ Đã lưu thành công</span>';
       showToast(`Đã lưu file ${_currentEditorFile}`, 'success');
       setTimeout(() => {
         if (!_isEditorDirty && statusEl) {
-          statusEl.innerHTML = '<span class="text-slate-300 font-sans">Sẵn sàng (Ctrl+S để lưu)</span>';
+          statusEl.innerHTML = '';
         }
       }, 2500);
     } else {
@@ -5560,13 +7487,16 @@ async function closeFileEditor() {
     });
     if (!conf) return;
   }
+  hideGitLensCard();
   stopFileEditorWatch();
   const modal = document.getElementById('fileEditorModalRoot');
   if (modal) modal.classList.add('hidden');
   _currentEditorFile = null;
   _currentEditorContent = '';
   _currentEditorMtime = 0;
-  _isEditorDirty = false;
+  _currentEditorBlame = null;
+  _currentEditorAbsPath = '';
+  setEditorDirty(false);
 }
 
 window.openFileEditor = openFileEditor;
@@ -6233,14 +8163,18 @@ function populateBaseBranchSelect(feBranches = [], beBranches = []) {
     sel.value = currentVal;
   } else if (orderedList.includes('staging')) {
     sel.value = 'staging';
+  } else if (orderedList.includes('beta')) {
+    sel.value = 'beta';
   }
 }
 
 async function doCreateNewBranchBoth() {
   const branchInp = document.getElementById('bothBranchInput');
   const baseSel = document.getElementById('bothBaseBranchSelect');
+  const targetSel = document.getElementById('bothTargetWorkspaceSelect');
   const newBranch = (branchInp?.value || '').trim();
   const baseBranch = (baseSel?.value || 'staging').trim();
+  const targetWorkspace = (targetSel?.value || 'both').trim();
 
   if (!newBranch) {
     await antdAlert({
@@ -6251,9 +8185,13 @@ async function doCreateNewBranchBoth() {
     return;
   }
 
+  const targetLabel = targetWorkspace === 'fe'
+    ? 'Frontend (easysalon-webapp)'
+    : (targetWorkspace === 'be' ? 'Backend (easysalon-api)' : 'cả Frontend & Backend');
+
   const confirmed = await antdConfirm({
     title: 'Xác nhận tạo nhánh',
-    content: `Bạn có chắc muốn tạo nhánh mới ${newBranch} từ nhánh ${baseBranch}`
+    content: `Bạn có chắc muốn tạo nhánh mới ${newBranch} từ nhánh ${baseBranch} cho ${targetLabel}?`
   });
   if (!confirmed) return;
 
@@ -6275,7 +8213,7 @@ async function doCreateNewBranchBoth() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        target: 'both',
+        target: targetWorkspace,
         branch: newBranch,
         create_new: true,
         base_branch: baseBranch
@@ -6346,25 +8284,30 @@ function renderGitBranchCard(role, info) {
     }
   }
 
+  const needsPull = Boolean(info.needs_pull || (info.behind_count && info.behind_count > 0));
   if (syncBadge) {
-    if (info.needs_pull || (info.behind_count && info.behind_count > 0)) {
+    if (needsPull) {
       syncBadge.innerHTML = `<span class="text-amber-400 font-semibold bg-amber-950/70 px-2 py-0.5 rounded border border-amber-800">Chậm hơn remote ${info.behind_count} commit (Cần Pull)</span>`;
-      if (btnPull) {
-        btnPull.classList.remove('hidden');
-        btnPull.className = 'ant-btn text-xs h-[28px] px-3 flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold border-amber-500 shadow-sm';
-      }
+    } else if (info.ahead_count && info.ahead_count > 0) {
+      syncBadge.innerHTML = `<span class="text-cyan-400 font-mono bg-cyan-950/70 px-2 py-0.5 rounded border border-cyan-800">Nhanh hơn remote ${info.ahead_count} commit</span>`;
+    } else if (info.upstream) {
+      syncBadge.innerHTML = `<span class="text-emerald-400 font-mono bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-800">Đã đồng bộ mới nhất</span>`;
+    } else {
+      syncBadge.innerHTML = `<span class="text-slate-400 font-mono text-[11px]">Chưa gắn remote upstream</span>`;
+    }
+  }
+
+  if (btnPull) {
+    if (needsPull) {
+      btnPull.classList.remove('hidden');
+      btnPull.style.display = 'inline-flex';
+      btnPull.className = 'ant-btn text-xs h-[28px] px-3 inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold border-amber-500 shadow-sm';
       if (pullBtnText) {
         pullBtnText.textContent = `Pull ngay (${info.behind_count} commit)`;
       }
-    } else if (info.ahead_count && info.ahead_count > 0) {
-      syncBadge.innerHTML = `<span class="text-cyan-400 font-mono bg-cyan-950/70 px-2 py-0.5 rounded border border-cyan-800">Nhanh hơn remote ${info.ahead_count} commit</span>`;
-      if (btnPull) btnPull.classList.add('hidden');
-    } else if (info.upstream) {
-      syncBadge.innerHTML = `<span class="text-emerald-400 font-mono bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-800">Đã đồng bộ mới nhất</span>`;
-      if (btnPull) btnPull.classList.add('hidden');
     } else {
-      syncBadge.innerHTML = `<span class="text-slate-400 font-mono text-[11px]">Chưa gắn remote upstream</span>`;
-      if (btnPull) btnPull.classList.add('hidden');
+      btnPull.classList.add('hidden');
+      btnPull.style.display = 'none';
     }
   }
 
@@ -7133,9 +9076,9 @@ function renderNotificationList() {
         <p class="text-[11.5px] text-slate-700 leading-relaxed truncate" title="${escapeHtml(item.desc)}">
           ${item.hash ? `<span class="font-mono text-blue-600 font-bold">${escapeHtml(item.hash)}: </span>` : ''}${escapeHtml(item.desc)}
         </p>
-        ${(item.author || item.date) ? `
+        ${(item.author || item.date || item.timestamp) ? `
           <div class="text-[10px] text-slate-500 font-medium">
-            ${item.author ? `Bởi ${escapeHtml(item.author)}${isAuthorMe(item.author, item.is_me) ? ' <span class="font-semibold text-[#1677ff] font-sans">(Tôi)</span>' : ''}` : ''} ${item.date ? `• ${escapeHtml(formatRelativeDate(item.date))}` : ''}
+            ${item.author ? `Bởi ${escapeHtml(item.author)}${isAuthorMe(item.author, item.is_me) ? ' <span class="font-semibold text-[#1677ff] font-sans">(Tôi)</span>' : ''}` : ''} ${(item.date || item.timestamp) ? `• ${escapeHtml(formatRelativeDate(item.date, item.timestamp))}` : ''}
           </div>
         ` : ''}
       </div>
@@ -7245,7 +9188,8 @@ function updateGitNotifications(notifs) {
       desc: item.latest ? (item.latest.subject || '') : 'Có bản cập nhật remote cần pull về local.',
       author: authorVal,
       is_me: isMeVal,
-      date: item.latest ? item.latest.date : (new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })),
+      date: item.latest ? (item.latest.iso_date || item.latest.date) : (new Date().toISOString()),
+      timestamp: item.latest ? (item.latest.timestamp || null) : (item.commits && item.commits[0] ? item.commits[0].timestamp : Date.now()),
       hash: commitHash,
       role: item.role,
       branch: item.branch,
@@ -8405,6 +10349,22 @@ async function checkSyncPullUpdates(doFetch = true) {
               diff_stat: info.diff_stat || '',
               latest: info.latest_commit || (info.commits && info.commits[0]) || null,
               commits: info.commits || []
+            });
+          }
+        });
+      });
+
+      ['fe', 'be'].forEach(r => {
+        ['staging', 'master', 'beta'].forEach(b => {
+          const info = data[r] && data[r][b];
+          if (info && !info.needs_pull) {
+            _savedNotifications.forEach(n => {
+              if (n.tag === 'git' && n.role === r && n.branch === b && n.status === 'pending') {
+                n.status = 'completed';
+                n.title = `${r.toUpperCase()} ${b}: Đã đồng bộ với remote`;
+                n.desc = 'Nhánh đã đồng bộ phiên bản mới nhất từ remote.';
+                _readNotifIds.add(n.id);
+              }
             });
           }
         });
@@ -9900,6 +11860,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const subRoutes = window.SETTINGS_SUBTAB_ROUTES || {
       'effort': '/settings/effort',
       'engine': '/settings/engine',
+      'mcp': '/settings/mcp',
       'account': '/settings/account',
       'api': '/settings/api',
       'env': '/settings/env'
