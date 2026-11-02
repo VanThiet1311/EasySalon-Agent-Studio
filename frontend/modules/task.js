@@ -572,6 +572,7 @@ async function startSingleTaskById(taskId) {
           task_id: task.id,
           title: task.name,
           mode: 'fixbug',
+          engine: currentStudioSettings.engine || 'gemini_cli',
           effort: task.effort || currentStudioSettings.effort || 'high',
           skills: task.skills,
           skill: task.skills.join(', '),
@@ -597,6 +598,7 @@ async function startSingleTaskById(taskId) {
           task_id: task.id,
           title: task.name,
           mode: mode,
+          engine: currentStudioSettings.engine || 'gemini_cli',
           effort: task.effort || currentStudioSettings.effort || 'high',
           prompt: formattedPrompt,
           original_prompt: task.original_prompt || task.prompt || '',
@@ -1591,6 +1593,11 @@ function renderFeedView(data) {
     const isStopped = sess.status === 'STOPPED';
     const convertedCmd = sess.converted_prompt || '';
 
+    const sessEngine = sess.engine || (currentStudioSettings && currentStudioSettings.engine) || 'gemini_cli';
+    const isOpenCode = (sessEngine === 'opencode');
+    const engineBadgeLabel = sess.engine_label || (isOpenCode ? 'OpenCode CLI' : 'Gemini CLI');
+    const sessModel = sess.model || (isOpenCode ? (currentStudioSettings.opencode_model || '') : (currentStudioSettings.model || '')) || '';
+
     let statusHtml = '<span class="text-white flex items-center gap-1 font-sans bg-white/15 px-1.5 py-0.5 rounded border border-white/25"><span class="w-1.5 h-1.5 rounded-full bg-cyan-300 animate-ping"></span>Đang chạy</span>';
     if (isCompleted) {
       statusHtml = '<span class="text-emerald-200 font-bold font-sans bg-emerald-500/20 px-1.5 py-0.5 rounded border border-emerald-400/30">✓ Hoàn tất</span>';
@@ -1607,6 +1614,8 @@ function renderFeedView(data) {
               <span class="text-xs font-bold text-white">${escapeHtml(titleBadge)}</span>
             </div>
             <div class="flex items-center gap-2 text-[10px] font-sans text-white/90">
+              <span class="px-1.5 py-0.5 rounded border text-[10px] font-sans ${isOpenCode ? 'bg-white/20 border-white/30 text-white' : 'bg-emerald-500/30 border-emerald-300/40 text-white'} font-semibold" title="Bộ máy thực thi">${escapeHtml(engineBadgeLabel)}</span>
+              ${sessModel ? `<span class="px-1.5 py-0.5 rounded bg-black/20 border border-white/20 text-white font-mono text-[9.5px]" title="Mô hình: ${escapeHtml(sessModel)}">${escapeHtml(sessModel.replace(/^9router\//, ''))}</span>` : ''}
               <span class="px-1.5 py-0.5 rounded bg-white/15 border border-white/25 text-white">Phạm vi: ${scopeBadge}</span>
               <span class="px-1.5 py-0.5 rounded bg-white/15 border border-white/25 text-white">Skill: ${escapeHtml(skillBadge)}</span>
               ${statusHtml}
@@ -1637,7 +1646,7 @@ function renderFeedView(data) {
         <div class="flex items-center justify-between text-xs font-semibold text-cyan-400">
           <span class="flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-            <span class="font-bold">AI Terminal đang thực thi ngầm...</span>
+            <span class="font-bold">${isOpenCode ? 'OpenCode CLI đang thực thi ngầm...' : 'AI Terminal đang thực thi ngầm...'}</span>
           </span>
           <span class="text-slate-400 text-[10px] font-sans">Đang xử lý</span>
         </div>
@@ -1647,7 +1656,7 @@ function renderFeedView(data) {
           </div>
           <div class="font-mono text-cyan-300 flex items-center gap-1.5">
             <span class="text-cyan-400 select-none">$</span>
-            <span class="break-all">${escapeHtml(sess._statusText || 'Đang chuẩn bị workspace và chạy lệnh trên AI Terminal...')}</span>
+            <span class="break-all">${escapeHtml(sess._statusText || (isOpenCode ? 'Đang gọi OpenCode CLI và chạy lệnh trên workspace...' : 'Đang chuẩn bị workspace và chạy lệnh trên AI Terminal...'))}</span>
           </div>
         </div>
       `;
@@ -1723,8 +1732,12 @@ function renderFeedView(data) {
       const isStepCollapsed = _collapsedStepBoxes.has(stepBoxId);
       const isDiffCollapsed = _collapsedDiffBoxes.has(diffBoxId);
 
+      const turnEngine = t.engine || sessEngine;
+      const isTurnOpenCode = (turnEngine === 'opencode');
+      const turnEngineLabel = t.engine_label || (isTurnOpenCode ? 'OpenCode CLI' : 'Gemini CLI');
+
       const changesSig = (t.changed_files || []).map(cf => `${cf.path}:${cf.status}:${cf.additions}:${cf.deletions}`).join('|');
-      const currentSig = `${(t.content || '').length}_${(t.step_logs || []).length}_${t.elapsed_sec}_${isStreaming}_${Boolean(loadingPlaceholderHtml)}_${(t.step_logs || []).map(s => s.state + (s.output ? s.output.length : 0)).join(',')}_${changesSig}_${isCollapsed}_${isStepCollapsed}_${isDiffCollapsed}`;
+      const currentSig = `${(t.content || '').length}_${(t.step_logs || []).length}_${t.elapsed_sec}_${isStreaming}_${Boolean(loadingPlaceholderHtml)}_${(t.step_logs || []).map(s => s.state + (s.output ? s.output.length : 0)).join(',')}_${changesSig}_${isCollapsed}_${isStepCollapsed}_${isDiffCollapsed}_${turnEngine}`;
       if (card.dataset.sig !== currentSig) {
         card.dataset.sig = currentSig;
         card.innerHTML = `
@@ -1739,6 +1752,7 @@ function renderFeedView(data) {
                     </svg>
                   </button>
                   <span class="font-bold truncate">${escapeHtml(t.label || (isFe ? 'Frontend Agent' : 'Backend Agent'))} • Lượt ${t.round}/${sess.total_rounds || 1}</span>
+                  <span class="turn-engine-badge px-1.5 py-0.5 rounded text-[9.5px] font-sans border ${isTurnOpenCode ? 'bg-blue-500/15 text-blue-300 border-blue-500/30' : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'}">${escapeHtml(turnEngineLabel)}</span>
                   ${streamingIndicator}
                 </span>
                 <span class="text-slate-400 text-[10px] font-mono shrink-0 ml-2">${t.timestamp || ''} (${formatDuration(t.elapsed_sec || 0)})</span>

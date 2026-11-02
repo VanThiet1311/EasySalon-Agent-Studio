@@ -946,13 +946,13 @@ function renderNotificationList() {
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2 flex-wrap min-w-0 flex-1">
             ${tagBadge}
-            <span class="font-bold text-xs ${titleClass} transition truncate" style="${titleStyle}">
+            <span class="font-bold text-xs ${titleClass} transition truncate" style="${isUnread ? 'color: #1677ff;' : 'color: #94a3b8;'}">
               ${escapeHtml(item.title)}
             </span>
           </div>
           ${isUnread ? '<span class="w-2 h-2 rounded-full bg-[#199cff] shrink-0" title="Chưa đọc"></span>' : ''}
         </div>
-        <p class="text-[11.5px] text-slate-700 leading-relaxed truncate" title="${escapeHtml(item.desc)}">
+        <p class="text-[11.5px] ${isUnread ? 'text-slate-700' : 'text-slate-400'} leading-relaxed truncate" title="${escapeHtml(item.desc)}">
           ${item.hash ? `<span class="font-mono text-blue-600 font-bold">${escapeHtml(item.hash)}: </span>` : ''}${escapeHtml(item.desc)}
         </p>
         ${(item.author || item.date || item.timestamp) ? `
@@ -1025,7 +1025,7 @@ async function clearAllNotifications() {
   const confirmed = await antdConfirm({
     title: 'Xóa toàn bộ lịch sử thông báo?',
     content: 'Tất cả các thông báo Git và Tác vụ Agent đã lưu sẽ bị xóa vĩnh viễn. Bạn có chắc chắn muốn xóa?',
-    okText: 'Xóa lịch sử',
+    okText: 'Xóa tất cả lịch sử',
     cancelText: 'Hủy',
     danger: true
   });

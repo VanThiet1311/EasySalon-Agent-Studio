@@ -6,7 +6,7 @@ import glob
 import os
 import re
 
-from config import FE_WORKSPACE, BE_WORKSPACE
+from config import FE_WORKSPACE, BE_WORKSPACE, get_fe_workspace, get_be_workspace
 from studio.state import app_state, state_lock
 from studio.git_ops import get_git_info
 
@@ -45,8 +45,8 @@ def get_custom_skills():
                     })
         return results
 
-    fe_skills = scan_skills_dir(FE_WORKSPACE, 'fe')
-    be_skills = scan_skills_dir(BE_WORKSPACE, 'be')
+    fe_skills = scan_skills_dir(get_fe_workspace(), 'fe')
+    be_skills = scan_skills_dir(get_be_workspace(), 'be')
     return {
         'fe': fe_skills,
         'be': be_skills
@@ -1599,8 +1599,10 @@ def merge_module_endpoints(fe_endpoints, be_endpoints, base_route='', primary_co
 
 def get_diagram_data(force=False):
     global _GLOBAL_FE_CALLER_MAP
-    fe_branch, fe_commit = get_git_info(FE_WORKSPACE)
-    be_branch, be_commit = get_git_info(BE_WORKSPACE)
+    fe_ws = get_fe_workspace()
+    be_ws = get_be_workspace()
+    fe_branch, fe_commit = get_git_info(fe_ws)
+    be_branch, be_commit = get_git_info(be_ws)
     cache_key = f"{fe_branch}@{fe_commit}|{be_branch}@{be_commit}"
 
     with state_lock:
@@ -1613,8 +1615,8 @@ def get_diagram_data(force=False):
         mid = cfg['id']
         vdata = MODULE_VERIFIED_DATA.get(mid, {})
 
-        fe_info = scan_fe_directory(FE_WORKSPACE, cfg)
-        be_info = scan_be_controllers(BE_WORKSPACE, cfg['be_controllers'])
+        fe_info = scan_fe_directory(fe_ws, cfg)
+        be_info = scan_be_controllers(be_ws, cfg['be_controllers'])
 
         # Controllers & services
         primary_c = be_info.get('primary_controller') or (cfg['be_controllers'][0] if cfg.get('be_controllers') else vdata.get('controller', f"{mid.capitalize()}Controller"))

@@ -2,7 +2,7 @@ let currentStudioSettings = {
   engine: 'gemini_cli',
   effort: 'high',
   model: 'gemini-3.8-flash-high',
-  opencode_model: '9router/ag/gemini-3.8-flash-high'
+  opencode_model: '9router/ag/gemini-3.8-flash'
 };
 let nineRouterOnline = false;
 let geminiCliStatus = {
@@ -26,6 +26,18 @@ function updateGeminiCliUI(status) {
     geminiCliStatus = Object.assign({}, geminiCliStatus, status);
   }
   const pill = document.getElementById('pageGeminiCliStatusPill');
+  if (pill) {
+    if (geminiCliStatus.ready) {
+      pill.textContent = 'Gemini CLI: Sẵn sàng';
+      pill.className = 'engine-card-badge text-[10px] text-emerald-400 font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 uppercase';
+    } else if (geminiCliStatus.installed) {
+      pill.textContent = 'Gemini CLI: Chưa đăng nhập';
+      pill.className = 'engine-card-badge text-[10px] text-amber-400 font-sans font-medium px-2 py-0.5 rounded bg-amber-950 border border-amber-800 uppercase';
+    } else {
+      pill.textContent = 'Gemini CLI: Chưa cài đặt';
+      pill.className = 'engine-card-badge text-[10px] text-rose-400 font-sans font-medium px-2 py-0.5 rounded bg-rose-950 border border-rose-800 uppercase';
+    }
+  }
   const statusTxt = document.getElementById('pageGeminiCliStatusText');
   if (statusTxt) {
     if (geminiCliStatus.ready) {
@@ -258,7 +270,21 @@ function updateEngineUI(engine, isOnline) {
     }
   }
 
-  // 3. Status pills and texts for 9router
+  // 2b. Feed Header Engine Badge (Diễn biến thực thi)
+  const feedEngineBadge = document.getElementById('taskFeedEngineBadge');
+  if (feedEngineBadge) {
+    if (eng === 'opencode') {
+      feedEngineBadge.textContent = 'OpenCode CLI';
+      feedEngineBadge.className = 'text-[10px] px-2 py-0.5 rounded font-sans font-medium border bg-[#1677ff]/20 text-[#69b1ff] border-[#1677ff]/40';
+      feedEngineBadge.title = 'Bộ máy thực thi hiện tại: OpenCode CLI (9router)';
+    } else {
+      feedEngineBadge.textContent = 'Gemini CLI';
+      feedEngineBadge.className = 'text-[10px] px-2 py-0.5 rounded font-sans font-medium border bg-[#52c41a]/20 text-[#95de64] border-[#52c41a]/40';
+      feedEngineBadge.title = 'Bộ máy thực thi hiện tại: Google Gemini CLI (Antigravity Native)';
+    }
+  }
+
+  // 3. Status pills and texts for 9router & Gemini CLI
   const pill = document.getElementById('pageNineRouterStatusPill');
   const statusTxt = document.getElementById('pageNineRouterStatusText');
   if (pill) {
@@ -280,14 +306,17 @@ function updateEngineUI(engine, isOnline) {
     }
   }
 
-  const quickPill = document.getElementById('quickNineRouterPill');
-  if (quickPill) {
-    if (nineRouterOnline) {
-      quickPill.textContent = '9router: Online';
-      quickPill.className = 'engine-card-badge text-[10px] font-sans font-medium px-2 py-0.5 rounded text-emerald-300';
+  const geminiPill = document.getElementById('pageGeminiCliStatusPill');
+  if (geminiPill) {
+    if (geminiCliStatus.ready) {
+      geminiPill.textContent = 'Gemini CLI: Sẵn sàng';
+      geminiPill.className = 'engine-card-badge text-[10px] text-emerald-400 font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 uppercase';
+    } else if (geminiCliStatus.installed) {
+      geminiPill.textContent = 'Gemini CLI: Chưa đăng nhập';
+      geminiPill.className = 'engine-card-badge text-[10px] text-amber-400 font-sans font-medium px-2 py-0.5 rounded bg-amber-950 border border-amber-800 uppercase';
     } else {
-      quickPill.textContent = '9router: Offline';
-      quickPill.className = 'engine-card-badge text-[10px] font-sans font-medium px-2 py-0.5 rounded text-rose-300';
+      geminiPill.textContent = 'Gemini CLI: Chưa cài đặt';
+      geminiPill.className = 'engine-card-badge text-[10px] text-rose-400 font-sans font-medium px-2 py-0.5 rounded bg-rose-950 border border-rose-800 uppercase';
     }
   }
 
@@ -414,16 +443,41 @@ function populateOpenCodeModelSelects(models) {
   const pageSelect = document.getElementById('pageSettingsOpencodeModelSelect');
   if (!quickSelect && !pageSelect) return;
 
-  const currentVal = currentStudioSettings.opencode_model || '9router/ag/gemini-3.8-flash-high';
+  let currentVal = (currentStudioSettings.opencode_model || '9router/ag/gemini-3.8-flash').replace(/-(low|medium|high)$/i, '');
+  currentStudioSettings.opencode_model = currentVal;
 
   const geminiModels = [];
   const otherModels = [];
+  const seenIds = new Set();
+  const variantMap = {};
 
   (models || []).forEach(m => {
-    if (m.is_gemini || (m.id && m.id.toLowerCase().includes('gemini'))) {
-      geminiModels.push(m);
+    const rawId = m.id || '';
+    const cleanId = rawId.replace(/-(low|medium|high|xhigh|max)$/i, '');
+    if (!cleanId) return;
+    if (Array.isArray(m.raw_variants) && m.raw_variants.length) {
+      variantMap[cleanId] = m.raw_variants;
+    }
+  });
+  window._openCodeVariantMap = variantMap;
+
+  (models || []).forEach(m => {
+    const rawId = m.id || '';
+    const cleanId = rawId.replace(/-(low|medium|high|xhigh|max)$/i, '');
+    const cleanName = (m.name || cleanId).replace(/-(low|medium|high|xhigh|max)$/i, '');
+    if (!cleanId || seenIds.has(cleanId)) return;
+    seenIds.add(cleanId);
+
+    const normModel = {
+      id: cleanId,
+      name: cleanName,
+      is_gemini: Boolean(m.is_gemini || cleanId.toLowerCase().includes('gemini'))
+    };
+
+    if (normModel.is_gemini) {
+      geminiModels.push(normModel);
     } else {
-      otherModels.push(m);
+      otherModels.push(normModel);
     }
   });
 
@@ -453,15 +507,94 @@ function populateOpenCodeModelSelects(models) {
     pageSelect.innerHTML = html;
     pageSelect.value = currentVal;
   }
+  updateQuickOpencodeDisplay(currentStudioSettings.effort);
 }
+
+function resolveEffectiveOpenCodeModel(baseModel, effort) {
+  const raw = String(baseModel || currentStudioSettings.opencode_model || '9router/ag/gemini-3.8-flash').trim();
+  const eff = String(effort || currentStudioSettings.effort || 'high').trim().toLowerCase();
+
+  const prefixMatch = raw.match(/^(9router\/|opencode\/)/);
+  const prefix = prefixMatch ? prefixMatch[1] : '';
+  const rawId = prefix ? raw.slice(prefix.length) : raw;
+
+  if (/-agent$/i.test(rawId)) {
+    return { effective: raw, supportsEffort: false, baseModel: raw };
+  }
+
+  const baseId = rawId.replace(/-(low|medium|high|xhigh|max)$/i, '');
+  const lower = baseId.toLowerCase();
+  const heuristics = lower.includes('gemini') || lower.includes('argon') || lower.includes('claude');
+
+  // Đối chiếu với danh sách biến thể thật do /api/opencode/models trả về (raw_variants)
+  const variantMap = window._openCodeVariantMap || {};
+  const variants = variantMap[prefix + baseId] || variantMap[baseId] || null;
+
+  let effectiveId = `${baseId}-${eff}`;
+  let supportsEffort = heuristics;
+
+  if (Array.isArray(variants) && variants.length) {
+    supportsEffort = variants.some(v => v !== baseId);
+    if (variants.includes(`${baseId}-${eff}`)) {
+      effectiveId = `${baseId}-${eff}`;
+    } else if (variants.includes(baseId)) {
+      effectiveId = baseId;
+    } else {
+      effectiveId = ['high', 'medium', 'low', 'xhigh', 'max']
+        .map(e => `${baseId}-${e}`)
+        .find(v => variants.includes(v)) || baseId;
+    }
+  } else if (!heuristics) {
+    effectiveId = baseId;
+  }
+
+  return { effective: prefix + effectiveId, supportsEffort, baseModel: prefix + baseId };
+}
+window.resolveEffectiveOpenCodeModel = resolveEffectiveOpenCodeModel;
+
+function updateQuickOpencodeDisplay(effort) {
+  const eff = String(effort || currentStudioSettings.effort || 'high').trim().toLowerCase();
+  const res = resolveEffectiveOpenCodeModel(currentStudioSettings.opencode_model, eff);
+
+  const activeModelEl = document.getElementById('quickOpencodeActiveModel');
+  if (activeModelEl) {
+    activeModelEl.textContent = res.effective;
+  }
+
+  const badgeEl = document.getElementById('quickOpencodeEffortBadge');
+  if (badgeEl) {
+    if (res.supportsEffort) {
+      const effLabels = {
+        'low': 'Suy luận: Low (Tốc độ cao)',
+        'medium': 'Suy luận: Medium (Cân bằng)',
+        'high': 'Suy luận: High (Sâu)',
+        'xhigh': 'Suy luận: Extra High',
+        'max': 'Suy luận: Maximum'
+      };
+      badgeEl.textContent = effLabels[eff] || `Suy luận: ${eff.toUpperCase()}`;
+      badgeEl.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-blue-900/60 text-blue-200 border border-blue-700/60';
+    } else {
+      badgeEl.textContent = 'Mô hình cố định (Không phân mức suy luận)';
+      badgeEl.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700';
+    }
+  }
+
+  const quickSelect = document.getElementById('quickOpencodeModelSelect');
+  if (quickSelect && res.baseModel) {
+    quickSelect.value = res.baseModel;
+  }
+}
+window.updateQuickOpencodeDisplay = updateQuickOpencodeDisplay;
 
 function onOpenCodeModelChange(newModel) {
   if (!newModel) return;
-  currentStudioSettings.opencode_model = newModel;
+  const cleanModel = newModel.replace(/-(low|medium|high)$/i, '');
+  currentStudioSettings.opencode_model = cleanModel;
   const quickSelect = document.getElementById('quickOpencodeModelSelect');
   const pageSelect = document.getElementById('pageSettingsOpencodeModelSelect');
-  if (quickSelect && quickSelect.value !== newModel) quickSelect.value = newModel;
-  if (pageSelect && pageSelect.value !== newModel) pageSelect.value = newModel;
+  if (quickSelect && quickSelect.value !== cleanModel) quickSelect.value = cleanModel;
+  if (pageSelect && pageSelect.value !== cleanModel) pageSelect.value = cleanModel;
+  updateQuickOpencodeDisplay(currentStudioSettings.effort);
   markSettingsDirty(true);
 }
 
@@ -652,9 +785,15 @@ function updateEffortUI(effort) {
     modelSelect.value = currentStudioSettings.model;
   }
   const opencodeModelSelect = document.getElementById('pageSettingsOpencodeModelSelect');
-  if (opencodeModelSelect && currentStudioSettings.opencode_model) {
-    opencodeModelSelect.value = currentStudioSettings.opencode_model;
+  const cleanOpencodeModel = (currentStudioSettings.opencode_model || '').replace(/-(low|medium|high)$/i, '');
+  if (opencodeModelSelect && cleanOpencodeModel) {
+    opencodeModelSelect.value = cleanOpencodeModel;
   }
+  const quickOpencodeSelect = document.getElementById('quickOpencodeModelSelect');
+  if (quickOpencodeSelect && cleanOpencodeModel) {
+    quickOpencodeSelect.value = cleanOpencodeModel;
+  }
+  updateQuickOpencodeDisplay(eff);
 }
 window.updateEffortUI = updateEffortUI;
 
@@ -821,6 +960,7 @@ async function fetchMcpServers(forceRefresh = false) {
 }
 
 function renderMcpServers(servers) {
+  window.currentMcpServers = servers || [];
   const container = document.getElementById('mcpServersContainer');
   const countBadge = document.getElementById('mcpServerCountBadge');
   const activeCountTag = document.getElementById('mcpServerActiveCountTag');
@@ -834,6 +974,7 @@ function renderMcpServers(servers) {
 
   // 1. Jira
   const jiraServer = (servers || []).find(s => s.name === 'jira' || s.preset === 'jira');
+  const cardPresetJira = document.getElementById('cardPreset_jira');
   const badgePresetJira = document.getElementById('badgePreset_jira');
   const btnToggle = document.getElementById('btnToggleJira');
   const btnRemove = document.getElementById('btnRemoveJira');
@@ -881,9 +1022,10 @@ function renderMcpServers(servers) {
         badgePresetJira.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped';
       } else {
         badgePresetJira.textContent = 'Đã kết nối';
-        badgePresetJira.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+        badgePresetJira.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded is-connected';
       }
     }
+    if (cardPresetJira) cardPresetJira.classList.remove('is-unconfigured');
     const hostInput = document.getElementById('input_jira_host');
     const emailInput = document.getElementById('input_jira_email');
     const tokenInput = document.getElementById('input_jira_token');
@@ -911,14 +1053,26 @@ function renderMcpServers(servers) {
       badgePresetJira.textContent = 'Chưa kết nối';
       badgePresetJira.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
     }
+    if (cardPresetJira) cardPresetJira.classList.add('is-unconfigured');
   }
 
   // 2. GitHub
   const githubServer = (servers || []).find(s => s.name === 'github' || s.preset === 'github');
+  const cardPresetGithub = document.getElementById('cardPreset_github');
   const githubBadge = document.getElementById('githubSyncStatusBadge');
   const badgePresetGithub = document.getElementById('badgePreset_github');
+  const btnToggleGithubFooter = document.getElementById('btnToggleGithubFooter');
+  const btnRemoveGithubFooter = document.getElementById('btnRemoveGithubFooter');
+
   if (githubServer) {
     const isStopped = !!githubServer.disabled;
+    if (btnToggleGithubFooter) {
+      btnToggleGithubFooter.textContent = isStopped ? 'Bật MCP' : 'Tắt MCP';
+      btnToggleGithubFooter.classList.remove('hidden');
+    }
+    if (btnRemoveGithubFooter) {
+      btnRemoveGithubFooter.classList.remove('hidden');
+    }
     if (githubBadge) {
       githubBadge.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
       githubBadge.className = isStopped
@@ -929,13 +1083,16 @@ function renderMcpServers(servers) {
       badgePresetGithub.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
       badgePresetGithub.className = isStopped
         ? 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped'
-        : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+        : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded is-connected';
     }
+    if (cardPresetGithub) cardPresetGithub.classList.remove('is-unconfigured');
     const tokenInput = document.getElementById('input_github_token');
     if (tokenInput && !tokenInput.value && githubServer.env && githubServer.env.GITHUB_PERSONAL_ACCESS_TOKEN) {
       tokenInput.value = githubServer.env.GITHUB_PERSONAL_ACCESS_TOKEN;
     }
   } else {
+    if (btnToggleGithubFooter) btnToggleGithubFooter.classList.add('hidden');
+    if (btnRemoveGithubFooter) btnRemoveGithubFooter.classList.add('hidden');
     if (githubBadge) {
       githubBadge.textContent = 'Chưa cấu hình';
       githubBadge.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400';
@@ -944,14 +1101,26 @@ function renderMcpServers(servers) {
       badgePresetGithub.textContent = 'Chưa cấu hình';
       badgePresetGithub.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
     }
+    if (cardPresetGithub) cardPresetGithub.classList.add('is-unconfigured');
   }
 
   // 3. PostgreSQL
   const postgresServer = (servers || []).find(s => s.name === 'postgres' || s.preset === 'postgres');
+  const cardPresetPostgres = document.getElementById('cardPreset_postgres');
   const postgresBadge = document.getElementById('postgresSyncStatusBadge');
   const badgePresetPostgres = document.getElementById('badgePreset_postgres');
+  const btnTogglePostgresFooter = document.getElementById('btnTogglePostgresFooter');
+  const btnRemovePostgresFooter = document.getElementById('btnRemovePostgresFooter');
+
   if (postgresServer) {
     const isStopped = !!postgresServer.disabled;
+    if (btnTogglePostgresFooter) {
+      btnTogglePostgresFooter.textContent = isStopped ? 'Bật MCP' : 'Tắt MCP';
+      btnTogglePostgresFooter.classList.remove('hidden');
+    }
+    if (btnRemovePostgresFooter) {
+      btnRemovePostgresFooter.classList.remove('hidden');
+    }
     if (postgresBadge) {
       postgresBadge.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
       postgresBadge.className = isStopped
@@ -962,14 +1131,17 @@ function renderMcpServers(servers) {
       badgePresetPostgres.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
       badgePresetPostgres.className = isStopped
         ? 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped'
-        : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+        : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded is-connected';
     }
+    if (cardPresetPostgres) cardPresetPostgres.classList.remove('is-unconfigured');
     const urlInput = document.getElementById('input_postgres_url');
     if (urlInput && !urlInput.value && Array.isArray(postgresServer.args) && postgresServer.args.length > 0) {
       const connStr = postgresServer.args.find(a => typeof a === 'string' && a.startsWith('postgres'));
       if (connStr) urlInput.value = connStr;
     }
   } else {
+    if (btnTogglePostgresFooter) btnTogglePostgresFooter.classList.add('hidden');
+    if (btnRemovePostgresFooter) btnRemovePostgresFooter.classList.add('hidden');
     if (postgresBadge) {
       postgresBadge.textContent = 'Chưa cấu hình';
       postgresBadge.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400';
@@ -978,14 +1150,75 @@ function renderMcpServers(servers) {
       badgePresetPostgres.textContent = 'Chưa cấu hình';
       badgePresetPostgres.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
     }
+    if (cardPresetPostgres) cardPresetPostgres.classList.add('is-unconfigured');
   }
 
-  // 4. GitLab
+  // 4. MySQL
+  const mysqlServer = (servers || []).find(s => s.name === 'mysql' || s.preset === 'mysql');
+  const cardPresetMysql = document.getElementById('cardPreset_mysql');
+  const mysqlBadge = document.getElementById('mysqlSyncStatusBadge');
+  const badgePresetMysql = document.getElementById('badgePreset_mysql');
+  const btnToggleMysqlFooter = document.getElementById('btnToggleMysqlFooter');
+  const btnRemoveMysqlFooter = document.getElementById('btnRemoveMysqlFooter');
+
+  if (mysqlServer) {
+    const isStopped = !!mysqlServer.disabled;
+    if (btnToggleMysqlFooter) {
+      btnToggleMysqlFooter.textContent = isStopped ? 'Bật MCP' : 'Tắt MCP';
+      btnToggleMysqlFooter.classList.remove('hidden');
+    }
+    if (btnRemoveMysqlFooter) {
+      btnRemoveMysqlFooter.classList.remove('hidden');
+    }
+    if (mysqlBadge) {
+      mysqlBadge.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      mysqlBadge.className = isStopped
+        ? 'text-[10px] font-sans font-medium px-2.5 py-1 rounded mcp-status-stopped'
+        : 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800';
+    }
+    if (badgePresetMysql) {
+      badgePresetMysql.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      badgePresetMysql.className = isStopped
+        ? 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped'
+        : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded is-connected';
+    }
+    if (cardPresetMysql) cardPresetMysql.classList.remove('is-unconfigured');
+    const urlInput = document.getElementById('input_mysql_url');
+    if (urlInput && !urlInput.value && Array.isArray(mysqlServer.args) && mysqlServer.args.length > 0) {
+      const connStr = mysqlServer.args.find(a => typeof a === 'string' && a.startsWith('mysql'));
+      if (connStr) urlInput.value = connStr;
+    }
+  } else {
+    if (btnToggleMysqlFooter) btnToggleMysqlFooter.classList.add('hidden');
+    if (btnRemoveMysqlFooter) btnRemoveMysqlFooter.classList.add('hidden');
+    if (mysqlBadge) {
+      mysqlBadge.textContent = 'Chưa cấu hình';
+      mysqlBadge.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400';
+    }
+    if (badgePresetMysql) {
+      badgePresetMysql.textContent = 'Chưa cấu hình';
+      badgePresetMysql.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+    }
+    if (cardPresetMysql) cardPresetMysql.classList.add('is-unconfigured');
+  }
+
+  // 5. GitLab
   const gitlabServer = (servers || []).find(s => s.name === 'gitlab' || s.preset === 'gitlab');
+  const cardPresetGitlab = document.getElementById('cardPreset_gitlab');
   const gitlabBadge = document.getElementById('gitlabSyncStatusBadge');
   const badgePresetGitlab = document.getElementById('badgePreset_gitlab');
+  const btnToggleGitlabFooter = document.getElementById('btnToggleGitlabFooter');
+  const btnRemoveGitlabFooter = document.getElementById('btnRemoveGitlabFooter');
+
   if (gitlabServer) {
     const isStopped = !!gitlabServer.disabled;
+    if (btnToggleGitlabFooter) {
+      btnToggleGitlabFooter.textContent = isStopped ? 'Bật MCP' : 'Tắt MCP';
+      btnToggleGitlabFooter.classList.remove('hidden');
+    }
+    if (btnRemoveGitlabFooter) {
+      btnRemoveGitlabFooter.classList.remove('hidden');
+    }
     if (gitlabBadge) {
       gitlabBadge.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
       gitlabBadge.className = isStopped
@@ -996,8 +1229,9 @@ function renderMcpServers(servers) {
       badgePresetGitlab.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
       badgePresetGitlab.className = isStopped
         ? 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped'
-        : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+        : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded is-connected';
     }
+    if (cardPresetGitlab) cardPresetGitlab.classList.remove('is-unconfigured');
     const hostInput = document.getElementById('input_gitlab_host');
     const tokenInput = document.getElementById('input_gitlab_token');
     if (hostInput && !hostInput.value && gitlabServer.env && gitlabServer.env.GITLAB_API_URL) {
@@ -1007,6 +1241,8 @@ function renderMcpServers(servers) {
       tokenInput.value = gitlabServer.env.GITLAB_PERSONAL_ACCESS_TOKEN;
     }
   } else {
+    if (btnToggleGitlabFooter) btnToggleGitlabFooter.classList.add('hidden');
+    if (btnRemoveGitlabFooter) btnRemoveGitlabFooter.classList.add('hidden');
     if (gitlabBadge) {
       gitlabBadge.textContent = 'Chưa cấu hình';
       gitlabBadge.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400';
@@ -1015,15 +1251,68 @@ function renderMcpServers(servers) {
       badgePresetGitlab.textContent = 'Chưa cấu hình';
       badgePresetGitlab.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
     }
+    if (cardPresetGitlab) cardPresetGitlab.classList.add('is-unconfigured');
   }
 
-  // 5. Custom
+  // 6. Slack
+  const slackServer = (servers || []).find(s => s.name === 'slack' || s.preset === 'slack');
+  const cardPresetSlack = document.getElementById('cardPreset_slack');
+  const slackBadge = document.getElementById('slackSyncStatusBadge');
+  const badgePresetSlack = document.getElementById('badgePreset_slack');
+  const btnToggleSlackFooter = document.getElementById('btnToggleSlackFooter');
+  const btnRemoveSlackFooter = document.getElementById('btnRemoveSlackFooter');
+
+  if (slackServer) {
+    const isStopped = !!slackServer.disabled;
+    if (btnToggleSlackFooter) {
+      btnToggleSlackFooter.textContent = isStopped ? 'Bật MCP' : 'Tắt MCP';
+      btnToggleSlackFooter.classList.remove('hidden');
+    }
+    if (btnRemoveSlackFooter) {
+      btnRemoveSlackFooter.classList.remove('hidden');
+    }
+    if (slackBadge) {
+      slackBadge.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      slackBadge.className = isStopped
+        ? 'text-[10px] font-sans font-medium px-2.5 py-1 rounded mcp-status-stopped'
+        : 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800';
+    }
+    if (badgePresetSlack) {
+      badgePresetSlack.textContent = isStopped ? 'Đã dừng' : 'Đã kết nối';
+      badgePresetSlack.className = isStopped
+        ? 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded mcp-status-stopped'
+        : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded is-connected';
+    }
+    if (cardPresetSlack) cardPresetSlack.classList.remove('is-unconfigured');
+    const tokenInput = document.getElementById('input_slack_bot_token');
+    const teamInput = document.getElementById('input_slack_team_id');
+    if (tokenInput && !tokenInput.value && slackServer.env && slackServer.env.SLACK_BOT_TOKEN) {
+      tokenInput.value = slackServer.env.SLACK_BOT_TOKEN;
+    }
+    if (teamInput && !teamInput.value && slackServer.env && slackServer.env.SLACK_TEAM_ID) {
+      teamInput.value = slackServer.env.SLACK_TEAM_ID;
+    }
+  } else {
+    if (btnToggleSlackFooter) btnToggleSlackFooter.classList.add('hidden');
+    if (btnRemoveSlackFooter) btnRemoveSlackFooter.classList.add('hidden');
+    if (slackBadge) {
+      slackBadge.textContent = 'Chưa cấu hình';
+      slackBadge.className = 'text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400';
+    }
+    if (badgePresetSlack) {
+      badgePresetSlack.textContent = 'Chưa cấu hình';
+      badgePresetSlack.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+    }
+    if (cardPresetSlack) cardPresetSlack.classList.add('is-unconfigured');
+  }
+
+  // 7. Custom
   const customBadge = document.getElementById('badgePreset_custom');
   if (customBadge) {
-    const customServers = (servers || []).filter(s => !['jira', 'github', 'postgres', 'gitlab'].includes(s.name) && s.preset !== 'jira');
+    const customServers = (servers || []).filter(s => !['jira', 'github', 'postgres', 'mysql', 'gitlab', 'slack'].includes(s.name) && s.preset !== 'jira');
     if (customServers.length > 0) {
       customBadge.textContent = `${customServers.length} server`;
-      customBadge.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-400';
+      customBadge.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded is-connected';
     } else {
       customBadge.textContent = 'Tùy biến';
       customBadge.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
@@ -1373,7 +1662,13 @@ async function saveCustomMcp(btn) {
 
 async function removeMcpServer(name) {
   if (!name) return;
-  if (!confirm(`Bạn có chắc chắn muốn xóa MCP server '${name}' khỏi hệ thống?`)) return;
+  const conf = await antdConfirm({
+    title: 'Xóa MCP Server',
+    content: `Bạn có chắc chắn muốn xóa MCP server '${name}' khỏi hệ thống?`,
+    okText: 'Xóa server',
+    danger: true
+  });
+  if (!conf) return;
 
   try {
     const res = await fetch('/api/mcp/remove', {
@@ -1383,7 +1678,7 @@ async function removeMcpServer(name) {
     });
     const d = await res.json();
     if (d && d.success) {
-      showToast(d.message || `Đã xóa MCP server '${name}'.`);
+      showToast(d.message || `Đã xóa MCP server '${name}'.`, 'success');
       fetchMcpServers(true);
     } else {
       showToast((d && d.message) || 'Lỗi khi xóa MCP server', 'error');
@@ -1403,13 +1698,58 @@ async function toggleMcpServer(name, enabled) {
     });
     const d = await res.json();
     if (d && d.success) {
-      showToast(d.message || `Đã cập nhật trạng thái MCP server '${name}'.`);
+      showToast(d.message || `Đã cập nhật trạng thái MCP server '${name}'.`, 'success');
       fetchMcpServers(true);
     } else {
       showToast((d && d.message) || 'Lỗi cập nhật', 'error');
     }
   } catch (err) {
     showToast('Lỗi kết nối: ' + err.message, 'error');
+  }
+}
+
+async function togglePresetMcp(preset) {
+  if (!preset) return;
+  const servers = window.currentMcpServers || [];
+  const s = servers.find(item => item.name === preset || item.preset === preset);
+  const isStopped = s ? !!s.disabled : false;
+  if (!isStopped) {
+    const conf = await antdConfirm({
+      title: 'Tắt MCP Server',
+      content: `Bạn có chắc chắn muốn tạm dừng hoạt động của MCP server '${preset}'?`,
+      okText: 'Tắt MCP',
+      danger: true
+    });
+    if (!conf) return;
+  }
+  await toggleMcpServer(preset, isStopped);
+}
+
+async function removePresetMcp(preset) {
+  if (!preset) return;
+  const conf = await antdConfirm({
+    title: 'Xóa cấu hình MCP',
+    content: `Bạn có chắc chắn muốn xóa vĩnh viễn cấu hình MCP server '${preset}' khỏi hệ thống?`,
+    okText: 'Xóa cấu hình',
+    danger: true
+  });
+  if (!conf) return;
+
+  try {
+    const res = await fetch('/api/mcp/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: preset })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || `Đã xóa cấu hình MCP '${preset}'.`, 'success');
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Lỗi khi xóa MCP server', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối khi xóa: ' + err.message, 'error');
   }
 }
 
@@ -1423,7 +1763,13 @@ async function toggleJiraServer() {
 async function removeJiraServer() {
   const jira = (_cachedMcpServers || []).find(s => s.name === 'jira' || s.preset === 'jira');
   const name = jira ? jira.name : 'jira';
-  if (!confirm(`Bạn có chắc chắn muốn xóa cấu hình Atlassian Jira MCP?`)) return;
+  const conf = await antdConfirm({
+    title: 'Xóa cấu hình Jira MCP',
+    content: 'Bạn có chắc chắn muốn xóa cấu hình Atlassian Jira MCP khỏi hệ thống?',
+    okText: 'Xóa Jira MCP',
+    danger: true
+  });
+  if (!conf) return;
 
   try {
     const res = await fetch('/api/mcp/remove', {
@@ -1433,7 +1779,7 @@ async function removeJiraServer() {
     });
     const d = await res.json();
     if (d && d.success) {
-      showToast(d.message || `Đã xóa cấu hình Jira MCP.`);
+      showToast(d.message || `Đã xóa cấu hình Jira MCP.`, 'success');
       const hostInput = document.getElementById('input_jira_host');
       const emailInput = document.getElementById('input_jira_email');
       const tokenInput = document.getElementById('input_jira_token');
@@ -1452,7 +1798,7 @@ async function removeJiraServer() {
 }
 
 function selectMcpPreset(preset) {
-  const presets = ['jira', 'github', 'postgres', 'gitlab', 'custom'];
+  const presets = ['jira', 'github', 'postgres', 'mysql', 'gitlab', 'slack', 'custom'];
   const target = presets.includes(preset) ? preset : 'jira';
 
   presets.forEach(p => {
@@ -1460,7 +1806,6 @@ function selectMcpPreset(preset) {
     if (card) {
       if (p === target) {
         card.classList.add('is-selected');
-        card.classList.remove('is-unconfigured');
       } else {
         card.classList.remove('is-selected');
       }
@@ -1486,9 +1831,15 @@ function selectMcpPreset(preset) {
   } else if (target === 'postgres') {
     const urlInput = document.getElementById('input_postgres_url');
     if (urlInput && !urlInput.value) setTimeout(() => urlInput.focus(), 50);
+  } else if (target === 'mysql') {
+    const urlInput = document.getElementById('input_mysql_url');
+    if (urlInput && !urlInput.value) setTimeout(() => urlInput.focus(), 50);
   } else if (target === 'gitlab') {
     const hostInput = document.getElementById('input_gitlab_host');
     if (hostInput && !hostInput.value) setTimeout(() => hostInput.focus(), 50);
+  } else if (target === 'slack') {
+    const tokenInput = document.getElementById('input_slack_bot_token');
+    if (tokenInput && !tokenInput.value) setTimeout(() => tokenInput.focus(), 50);
   }
 }
 
@@ -1749,14 +2100,305 @@ async function saveGitlabMcp(btn) {
   }
 }
 
+async function saveMysqlMcp(btn) {
+  const url = document.getElementById('input_mysql_url')?.value?.trim() || '';
+  if (!url) {
+    showToast('Vui lòng nhập MySQL Connection String URL (ví dụ: mysql://user:pass@localhost:3306/dbname).', 'warning');
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang lưu...';
+  }
+  try {
+    const res = await fetch('/api/mcp/add-mysql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, name: 'mysql' })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || 'Đã lưu & kích hoạt MySQL MCP thành công!', 'success');
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Không thể lưu MySQL MCP', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi khi lưu MySQL MCP: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Lưu & Kích hoạt MySQL MCP';
+    }
+  }
+}
+
+async function testSlackConnection(btn) {
+  const token = document.getElementById('input_slack_bot_token')?.value?.trim() || '';
+  const resultBox = document.getElementById('slackTestStatusResult');
+
+  if (!token) {
+    showToast('Vui lòng nhập Slack Bot User OAuth Token (xoxb-...).', 'warning');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang kết nối...';
+  }
+  if (resultBox) {
+    resultBox.classList.remove('hidden');
+    resultBox.className = 'jira-alert-box is-loading';
+    resultBox.innerHTML = `
+      <div class="jira-alert-icon">↻</div>
+      <div class="jira-alert-content">
+        <div class="jira-alert-title">Đang xác thực với Slack Web API...</div>
+        <div class="jira-alert-desc">Hệ thống đang kiểm tra bot token qua api.slack.com auth.test</div>
+      </div>
+    `;
+  }
+
+  try {
+    const res = await fetch('/api/mcp/test-slack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-success';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">✓</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Xác thực Slack thành công!</div>
+            <div class="jira-alert-desc">Đã kết nối Workspace: <strong>${escapeHtml(d.team || 'Slack')}</strong> | Bot: <strong>${escapeHtml(d.user || 'EasySalon Agent')}</strong></div>
+          </div>
+        `;
+      }
+      showToast('Xác thực Slack Web API thành công!', 'success');
+    } else {
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-error';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">✕</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Xác thực Slack thất bại</div>
+            <div class="jira-alert-desc">${escapeHtml(d.message || 'Token không hợp lệ hoặc thiếu quyền auth.test')}</div>
+          </div>
+        `;
+      }
+      showToast(d.message || 'Xác thực Slack thất bại', 'error');
+    }
+  } catch (err) {
+    if (resultBox) {
+      resultBox.className = 'jira-alert-box is-error';
+      resultBox.innerHTML = `
+        <div class="jira-alert-icon">✕</div>
+        <div class="jira-alert-content">
+          <div class="jira-alert-title">Lỗi kết nối Slack API</div>
+          <div class="jira-alert-desc">${escapeHtml(err.message)}</div>
+        </div>
+      `;
+    }
+    showToast('Lỗi khi gọi Slack API: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Kiểm tra kết nối Slack';
+    }
+  }
+}
+
+async function saveSlackMcp(btn) {
+  const token = document.getElementById('input_slack_bot_token')?.value?.trim() || '';
+  const teamId = document.getElementById('input_slack_team_id')?.value?.trim() || '';
+
+  if (!token) {
+    showToast('Vui lòng nhập Slack Bot User OAuth Token.', 'warning');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang lưu...';
+  }
+
+  try {
+    const res = await fetch('/api/mcp/add-slack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, team_id: teamId, name: 'slack' })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(d.message || 'Đã lưu & kích hoạt Slack MCP thành công!', 'success');
+      fetchMcpServers(true);
+    } else {
+      showToast((d && d.message) || 'Không thể lưu Slack MCP', 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi khi lưu Slack MCP: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Lưu & Kích hoạt Slack MCP';
+    }
+  }
+}
+
+async function autoDetectWorkspace(type) {
+  const inputId = type === 'fe' ? 'input_fe_workspace' : 'input_be_workspace';
+  const badgeId = type === 'fe' ? 'badge_fe_workspace_status' : 'badge_be_workspace_status';
+  const defaultFolder = type === 'fe' ? 'easysalon-webapp' : 'easysalon-api';
+  const inputEl = document.getElementById(inputId);
+  const badgeEl = document.getElementById(badgeId);
+
+  if (badgeEl) {
+    badgeEl.textContent = 'Đang dò...';
+    badgeEl.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 font-medium';
+  }
+
+  try {
+    const res = await fetch(`/api/workspace/detect?target=${encodeURIComponent(type)}&name=${encodeURIComponent(defaultFolder)}`);
+    const d = await res.json();
+    if (d && d.success && d.path) {
+      if (inputEl) inputEl.value = d.path;
+      if (badgeEl) {
+        if (d.exists) {
+          badgeEl.textContent = 'Hợp lệ';
+          badgeEl.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-medium';
+        } else {
+          badgeEl.textContent = 'Chưa tồn tại';
+          badgeEl.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-800 font-medium';
+        }
+      }
+      onSettingsOptionChanged();
+      showToast(`Đã tự động điền đường dẫn ${type === 'fe' ? 'Frontend' : 'Backend'}: ${d.path}`, 'success');
+    } else {
+      showToast(`Không tự động tìm thấy thư mục '${defaultFolder}'`, 'warning');
+    }
+  } catch (err) {
+    showToast('Lỗi khi dò đường dẫn: ' + err.message, 'error');
+  }
+}
+
+function setWorkspaceValue(type, path) {
+  const inputId = type === 'fe' ? 'input_fe_workspace' : 'input_be_workspace';
+  const inputEl = document.getElementById(inputId);
+  if (inputEl) {
+    inputEl.value = path;
+    onWorkspaceInputChanged(type, path);
+    onSettingsOptionChanged();
+    showToast(`Đã chọn đường dẫn: ${path}`, 'success');
+  }
+}
+
+function onWorkspaceInputChanged(type, val) {
+  const badgeId = type === 'fe' ? 'badge_fe_workspace_status' : 'badge_be_workspace_status';
+  const badgeEl = document.getElementById(badgeId);
+  if (badgeEl) {
+    if (val && val.trim()) {
+      badgeEl.textContent = 'Đã chỉnh sửa';
+      badgeEl.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 font-medium';
+    } else {
+      badgeEl.textContent = 'Hệ thống';
+      badgeEl.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-medium';
+    }
+  }
+}
+
+async function autoDetectCli(type) {
+  const isAgy = (type === 'agy');
+  const inputId = isAgy ? 'input_agy_bin' : 'input_opencode_bin';
+  const badgeId = isAgy ? 'badge_agy_bin_status' : 'badge_opencode_bin_status';
+  const nameLabel = isAgy ? 'Antigravity CLI (agy)' : 'OpenCode CLI (opencode)';
+  const inputEl = document.getElementById(inputId);
+  const badgeEl = document.getElementById(badgeId);
+
+  if (badgeEl) {
+    badgeEl.textContent = 'Đang dò...';
+    badgeEl.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 font-medium';
+  }
+
+  try {
+    const res = await fetch(`/api/cli/detect?target=${encodeURIComponent(type)}`);
+    const d = await res.json();
+    if (d && d.success && d.path) {
+      if (inputEl) inputEl.value = d.path;
+      if (badgeEl) {
+        if (d.exists) {
+          badgeEl.textContent = 'Sẵn sàng';
+          badgeEl.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-700 font-medium';
+        } else {
+          badgeEl.textContent = 'Chưa cài CLI';
+          badgeEl.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-700 font-medium';
+        }
+      }
+      const suggestBtn = document.getElementById(isAgy ? 'btn_suggest_agy_bin' : 'btn_suggest_opencode_bin');
+      if (suggestBtn) suggestBtn.textContent = d.path;
+
+      onSettingsOptionChanged();
+      const osName = d.platform === 'windows' ? 'Windows' : 'Linux/Unix';
+      if (d.exists) {
+        showToast(`Đã tự động nhận diện ${nameLabel} trên ${osName}: ${d.path}`, 'success');
+      } else {
+        showToast(`Đã điền đường dẫn gợi ý ${nameLabel} (${osName}): ${d.path}`, 'warning');
+      }
+    } else {
+      showToast(`Không thể tự động tìm thấy ${nameLabel}`, 'warning');
+    }
+  } catch (err) {
+    showToast('Lỗi khi dò đường dẫn CLI: ' + err.message, 'error');
+  }
+}
+
+function setCliValue(type, path) {
+  if (!path) return;
+  const isAgy = (type === 'agy');
+  const inputId = isAgy ? 'input_agy_bin' : 'input_opencode_bin';
+  const inputEl = document.getElementById(inputId);
+  if (inputEl) {
+    inputEl.value = path.trim();
+    onCliInputChanged(type, path.trim());
+    onSettingsOptionChanged();
+    showToast(`Đã chọn đường dẫn CLI: ${path.trim()}`, 'success');
+  }
+}
+
+function onCliInputChanged(type, val) {
+  const badgeId = (type === 'agy') ? 'badge_agy_bin_status' : 'badge_opencode_bin_status';
+  const badgeEl = document.getElementById(badgeId);
+  if (badgeEl) {
+    if (val && val.trim()) {
+      badgeEl.textContent = 'Đã chỉnh sửa';
+      badgeEl.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 font-medium';
+    } else {
+      badgeEl.textContent = 'Tự dò tìm';
+      badgeEl.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-medium';
+    }
+  }
+}
+
 window.fetchMcpServers = fetchMcpServers;
 window.renderMcpServers = renderMcpServers;
 window.selectMcpPreset = selectMcpPreset;
+window.togglePresetMcp = togglePresetMcp;
+window.removePresetMcp = removePresetMcp;
 window.testGithubConnection = testGithubConnection;
 window.saveGithubMcp = saveGithubMcp;
 window.savePostgresMcp = savePostgresMcp;
+window.saveMysqlMcp = saveMysqlMcp;
 window.testGitlabConnection = testGitlabConnection;
 window.saveGitlabMcp = saveGitlabMcp;
+window.testSlackConnection = testSlackConnection;
+window.saveSlackMcp = saveSlackMcp;
+window.autoDetectWorkspace = autoDetectWorkspace;
+window.setWorkspaceValue = setWorkspaceValue;
+window.onWorkspaceInputChanged = onWorkspaceInputChanged;
+window.autoDetectCli = autoDetectCli;
+window.setCliValue = setCliValue;
+window.onCliInputChanged = onCliInputChanged;
 window.toggleJiraTokenMask = toggleJiraTokenMask;
 window.testJiraConnection = testJiraConnection;
 window.saveJiraMcp = saveJiraMcp;
@@ -1928,7 +2570,7 @@ async function saveSettingsFromPage() {
   const effort = currentStudioSettings.effort || 'high';
   const model = currentStudioSettings.model || 'gemini-3.8-flash-high';
   const opencodeModelSelect = document.getElementById('pageSettingsOpencodeModelSelect');
-  const opencode_model = opencodeModelSelect ? opencodeModelSelect.value : (currentStudioSettings.opencode_model || '9router/ag/gemini-3.8-flash-high');
+  const opencode_model = (opencodeModelSelect ? opencodeModelSelect.value : (currentStudioSettings.opencode_model || '9router/ag/gemini-3.8-flash')).replace(/-(low|medium|high)$/i, '');
   const api_provider = currentStudioSettings.api_provider || 'gemini';
 
   const gemini_api_key = document.getElementById('input_gemini_api_key')?.value?.trim() ?? (currentStudioSettings.gemini_api_key || '');
@@ -2046,6 +2688,17 @@ function updateEnvUI(settings, envInfo) {
   }
 
   if (envInfo) {
+    const agySuggest = document.getElementById('btn_suggest_agy_bin');
+    if (agySuggest && envInfo.agy_bin) {
+      agySuggest.textContent = envInfo.agy_bin;
+      agySuggest.title = `Nhấn để áp dụng: ${envInfo.agy_bin}`;
+    }
+    const openSuggest = document.getElementById('btn_suggest_opencode_bin');
+    if (openSuggest && envInfo.opencode_bin) {
+      openSuggest.textContent = envInfo.opencode_bin;
+      openSuggest.title = `Nhấn để áp dụng: ${envInfo.opencode_bin}`;
+    }
+
     const setStatusBadge = (id, exists, labelOk, labelMissing) => {
       const b = document.getElementById(id);
       if (!b) return;

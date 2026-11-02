@@ -11,7 +11,7 @@ import threading
 import time
 import uuid
 
-from config import FE_WORKSPACE, BE_WORKSPACE, BRAIN_DIR, HISTORY_FILE, get_agy_bin, get_opencode_bin
+from config import FE_WORKSPACE, BE_WORKSPACE, BRAIN_DIR, HISTORY_FILE, get_agy_bin, get_opencode_bin, get_fe_workspace, get_be_workspace, get_workspace
 from studio.state import (
     app_state,
     state_lock,
@@ -92,6 +92,125 @@ def close_task_terminals(task_id: str):
                 print(f"[STUDIO] Đã đóng terminal ngầm và giải phóng context của tác vụ [{tid}] (key: {key})")
 
 
+_MODEL_VARIANT_RE = re.compile(r'-(low|medium|high|xhigh|max)$', re.IGNORECASE)
+_EFFORT_FALLBACK_ORDER = ('high', 'medium', 'low', 'xhigh', 'max')
+_AVAILABLE_MODELS_CACHE = {'ts': 0.0, 'ids': set()}
+_AVAILABLE_MODELS_TTL = 60.0
+
+
+def _split_provider_prefix(model_id: str):
+    """Tách tiền tố provider ('9router/' hoặc 'opencode/') khỏi id model thô."""
+    mid = str(model_id or '').strip()
+    for prefix in ('9router/', 'opencode/'):
+        if mid.startswith(prefix):
+            return prefix, mid[len(prefix):]
+    return '', mid
+
+
+def _available_opencode_model_ids(force: bool = False) -> set:
+    """Tập id model thô (không kèm tiền tố provider) đang có thật trên 9router/OpenCode."""
+    now = time.time()
+    cached = _AVAILABLE_MODELS_CACHE['ids']
+    if not force and cached and (now - _AVAILABLE_MODELS_CACHE['ts']) < _AVAILABLE_MODELS_TTL:
+        return cached
+
+    ids = set()
+    try:
+        from studio.state import _9ROUTER_RAW_MODELS, get_opencode_models
+        if force or not _9ROUTER_RAW_MODELS:
+            get_opencode_models()
+        for mid in (_9ROUTER_RAW_MODELS or set()):
+            mid = str(mid or '').strip()
+            if not mid:
+                continue
+            _prefix, raw = _split_provider_prefix(mid)
+            ids.add(raw)
+    except Exception:
+        pass
+
+    _AVAILABLE_MODELS_CACHE['ids'] = ids
+    _AVAILABLE_MODELS_CACHE['ts'] = now
+    return ids
+
+
+def resolve_effective_opencode_model(base_model: str, effort: str = None) -> str:
+    """
+    Resolve model OpenCode kết hợp với mức độ suy luận (effort) được chọn từ card bên dưới.
+    Ví dụ: '9router/ag/gemini-3.8-flash' + effort='high' -> '9router/ag/gemini-3.8-flash-high'.
+    Nếu model không có variant (ví dụ '9router/ag/gemini-pro-agent') thì giữ nguyên base model.
+    Luôn đối chiếu với danh sách model thật từ 9router để tránh lỗi ModelUnavailable.
+    """
+    prefix, raw = _split_provider_prefix(base_model or '9router/ag/gemini-3.8-flash')
+    effort_str = str(effort or 'high').strip().lower()
+
+    if raw.lower().endswith('-agent'):
+        target_raw = raw
+        siblings = {raw}
+    else:
+        base_raw = _MODEL_VARIANT_RE.sub('', raw) or raw
+        available = _available_opencode_model_ids()
+        siblings = {m for m in available if _MODEL_VARIANT_RE.sub('', m) == base_raw}
+        candidate = f"{base_raw}-{effort_str}"
+
+        if available:
+            if candidate in available:
+                target_raw = candidate
+            elif base_raw in available:
+                target_raw = base_raw
+            else:
+                target_raw = next(
+                    (f"{base_raw}-{e}" for e in _EFFORT_FALLBACK_ORDER if f"{base_raw}-{e}" in available),
+                    base_raw,
+                )
+        else:
+            target_raw = candidate
+
+    target = f"{prefix}{target_raw}"
+
+    try:
+        from studio.state import sync_opencode_provider_models
+        # Đăng ký luôn mọi biến thể effort của model nền để lần đổi effort sau không bị ModelUnavailable.
+        sync_opencode_provider_models({f"{prefix}{m}" for m in siblings} | {target})
+    except Exception:
+        pass
+
+    return target
+
+
+def sync_active_task_models(settings: dict = None):
+    """Đồng bộ model/effort hiển thị của các session đang có theo cấu hình mới nhất.
+
+    Trước đây khi đổi Effort/Model trong Settings, header AI Terminal vẫn giữ giá trị cũ
+    (ví dụ '-high') trong khi Settings hiển thị giá trị mới ('-medium'). Hàm này ghi đè
+    snapshot của từng session để UI và terminal luôn khớp nhau.
+    """
+    try:
+        cfg = settings if isinstance(settings, dict) and settings else app_state.get('settings') or {}
+        engine = str(cfg.get('engine') or 'gemini_cli').strip().lower()
+        effort = str(cfg.get('effort') or 'high').strip()
+        base_model = str(cfg.get('opencode_model') or '9router/ag/gemini-3.8-flash').strip()
+        if engine == 'opencode':
+            effective_model = resolve_effective_opencode_model(base_model, effort)
+        else:
+            effective_model = str(cfg.get('model') or '').strip()
+
+        with state_lock:
+            for ts in (app_state.get('active_tasks') or {}).values():
+                if not isinstance(ts, dict):
+                    continue
+                ts['engine'] = engine
+                ts['effort'] = effort
+                ts['model'] = effective_model
+                sess = ts.get('session')
+                if isinstance(sess, dict):
+                    sess['engine'] = engine
+                    sess['effort'] = effort
+                    sess['model'] = effective_model
+        return effective_model
+    except Exception:
+        return ''
+
+
 def get_or_start_background_terminal(role: str, task_id: str = None, verbose: bool = True):
     """
     Lấy hoặc khởi tạo cấu hình/tiến trình AI Terminal ngầm cho từng tác vụ (task_id) trên FE hoặc BE.
@@ -109,7 +228,8 @@ def get_or_start_background_terminal(role: str, task_id: str = None, verbose: bo
         settings = app_state.get('settings', {}) if isinstance(app_state.get('settings'), dict) else load_settings()
         target_engine = str(settings.get('engine') or 'gemini_cli').strip().lower()
         target_effort = str(settings.get('effort') or 'high').strip()
-        target_opencode_model = str(settings.get('opencode_model') or '9router/ag/gemini-3.8-flash-high').strip()
+        base_opencode_model = str(settings.get('opencode_model') or '9router/ag/gemini-3.8-flash').strip()
+        target_opencode_model = resolve_effective_opencode_model(base_opencode_model, target_effort)
         target_model = target_opencode_model if target_engine == 'opencode' else str(settings.get('model') or '').strip()
 
         last_cid = None
@@ -147,14 +267,14 @@ def get_or_start_background_terminal(role: str, task_id: str = None, verbose: bo
             if ts and ts.get('session'):
                 last_cid = ts['session'].get('conversation_id')
 
-        ws = FE_WORKSPACE if role == 'fe' else BE_WORKSPACE
+        ws = get_workspace(role)
         label = 'Frontend (easysalon-webapp)' if role == 'fe' else 'Backend (easysalon-api)'
         if task_id:
             label += f" [{task_id}]"
 
         # TRƯỜNG HỢP 1: 9router OpenCode Engine
         if target_engine == 'opencode':
-            opencode_model = str(settings.get('opencode_model') or '9router/ag/gemini-3.8-flash-high').strip()
+            opencode_model = target_opencode_model
             info = {
                 'key': key,
                 'role': role,
@@ -235,7 +355,9 @@ def build_fallback_cli_cmd(prompt_str: str, conversation_id: str = None) -> list
     engine = str(settings.get('engine') or 'gemini_cli').strip().lower()
     if engine == 'opencode':
         opencode_bin = get_opencode_bin()
-        opencode_model = str(settings.get('opencode_model') or '9router/ag/gemini-3.8-flash-high').strip()
+        base_opencode_model = str(settings.get('opencode_model') or '9router/ag/gemini-3.8-flash').strip()
+        effort = str(settings.get('effort') or 'high').strip()
+        opencode_model = resolve_effective_opencode_model(base_opencode_model, effort)
         cmd = [opencode_bin, 'run', '--format', 'json', '--auto']
         if opencode_model:
             cmd.extend(['--model', opencode_model])
@@ -272,8 +394,8 @@ def format_step_terminal_action(tool_name: str, params: dict, output: str = '') 
     ● Edited BedRoomPositionFormButton.tsx
     """
     tname = (tool_name or '').lower().strip()
-    cmd = str(params.get('CommandLine') or params.get('command') or '').strip()
-    path = str(params.get('Path') or params.get('path') or params.get('TargetFile') or '').strip()
+    cmd = str(params.get('CommandLine') or params.get('command') or params.get('cmd') or '').strip()
+    path = str(params.get('Path') or params.get('path') or params.get('filePath') or params.get('file_path') or params.get('TargetFile') or '').strip()
     pattern = str(params.get('query') or params.get('pattern') or '').strip()
     fname = os.path.basename(path) if path else ''
 
@@ -288,10 +410,10 @@ def format_step_terminal_action(tool_name: str, params: dict, output: str = '') 
         action_type = 'ran'
         q = pattern or cmd or fname or 'text'
         display_title = f"Ran (grep \"{q}\")"
-    elif tname in ('find_by_name', 'list_dir', 'ls', 'explore'):
+    elif tname in ('find_by_name', 'list_dir', 'ls', 'explore', 'glob'):
         action_type = 'explored'
-        display_title = f"Explored ({fname or path or '.'})"
-    elif tname in ('replace_file_content', 'multi_replace_file_content', 'edit_file', 'write_file', 'edit', 'write', 'sed_file'):
+        display_title = f"Explored ({pattern or fname or path or '.'})"
+    elif tname in ('replace_file_content', 'multi_replace_file_content', 'edit_file', 'write_file', 'edit', 'write', 'sed_file', 'patch', 'apply_diff'):
         action_type = 'edited'
         display_title = f"Edited {fname}" if fname else "Edited file"
     else:
@@ -420,7 +542,7 @@ def get_terminal_feed(workspace, limit=14):
     if not completed_result:
         try:
             work_logs = load_messages()
-            role = 'fe' if workspace == FE_WORKSPACE else 'be'
+            role = 'fe' if os.path.abspath(workspace) == os.path.abspath(get_fe_workspace()) else 'be'
             for log in reversed(work_logs):
                 target = log.get('target', '')
                 if target in (role, 'both') and (log.get('result') or log.get('turns')):
@@ -632,7 +754,7 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
     turn_data.setdefault('changed_files', [])
     touched_paths = set()
     last_git_scan_time = 0.0
-    role = 'fe' if os.path.abspath(cwd) == os.path.abspath(FE_WORKSPACE) else 'be'
+    role = 'fe' if os.path.abspath(cwd) == os.path.abspath(get_fe_workspace()) else 'be'
     prompt_text = cmd[-1] if isinstance(cmd, (list, tuple)) and cmd else str(cmd)
 
     # Ghi nhận các file đã có thay đổi trước đó (dirty files) trong workspace trước khi AI thực thi lượt này
@@ -660,8 +782,26 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
     settings = app_state.get('settings', {}) if isinstance(app_state.get('settings'), dict) else load_settings()
     engine = str(settings.get('engine') or 'gemini_cli').strip().lower()
     is_opencode = (engine == 'opencode')
-    opencode_model = str(settings.get('opencode_model') or '9router/ag/gemini-3.8-flash-high').strip()
-    engine_label = 'OpenCode' if is_opencode else 'Gemini CLI'
+    target_effort = str(settings.get('effort') or 'high').strip()
+    base_opencode_model = str(settings.get('opencode_model') or '9router/ag/gemini-3.8-flash').strip()
+    opencode_model = resolve_effective_opencode_model(base_opencode_model, target_effort)
+    engine_label = 'OpenCode CLI' if is_opencode else 'Gemini CLI'
+    active_model = opencode_model if is_opencode else str(settings.get('model') or '')
+
+    turn_data['engine'] = engine
+    turn_data['engine_label'] = engine_label
+    turn_data['model'] = active_model
+    turn_data['effort'] = target_effort
+    if task_state and isinstance(task_state, dict):
+        task_state['engine'] = engine
+        task_state['engine_label'] = engine_label
+        task_state['model'] = active_model
+        task_state['effort'] = target_effort
+        if task_state.get('session') and isinstance(task_state['session'], dict):
+            task_state['session']['engine'] = engine
+            task_state['session']['engine_label'] = engine_label
+            task_state['session']['model'] = active_model
+            task_state['session']['effort'] = target_effort
 
     key = _get_terminal_key(role, task_id)
     role_lock = _get_terminal_lock(key)
@@ -693,7 +833,7 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
                     '--session', opencode_session_id,
                     prompt_text
                 ]
-                print(f"[STUDIO] AI Terminal [{role.upper()}] thực thi lượt mới qua OpenCode (9router) [Model: {opencode_model}]...")
+                print(f"[STUDIO] AI Terminal [{role.upper()}] thực thi lượt mới qua OpenCode (9router) [Model: {opencode_model}, Effort: {target_effort.upper()}]...")
                 proc = subprocess.Popen(
                     opencode_cmd,
                     cwd=cwd,
@@ -766,14 +906,17 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
                                 state_str = 'DONE' if state_status == 'completed' else state_status.upper()
 
                                 param_summary = ''
-                                if 'command' in params:
-                                    param_summary = str(params['command'])
-                                elif 'path' in params:
-                                    param_summary = str(params['path'])
-                                    if tname in ('edit', 'write', 'edit_file', 'write_file'):
-                                        touched_paths.add(str(params['path']))
-                                elif 'pattern' in params:
-                                    param_summary = str(params['pattern'])
+                                p_cmd = params.get('CommandLine') or params.get('command') or params.get('cmd')
+                                p_path = params.get('Path') or params.get('path') or params.get('filePath') or params.get('file_path') or params.get('TargetFile')
+                                p_pattern = params.get('query') or params.get('pattern')
+                                if p_cmd:
+                                    param_summary = str(p_cmd)
+                                elif p_path:
+                                    param_summary = str(p_path)
+                                    if tname in ('edit', 'write', 'edit_file', 'write_file', 'patch', 'apply_diff'):
+                                        touched_paths.add(str(p_path))
+                                elif p_pattern:
+                                    param_summary = str(p_pattern)
                                 elif params:
                                     param_summary = ", ".join([f"{k}: {v}" for k, v in list(params.items())[:2]])
 
@@ -810,7 +953,7 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
                                         turn_data['changed_files'] = latest_changes
                                     turn_data['elapsed_sec'] = round(time.time() - t0, 1)
                                     if task_state is not None:
-                                        task_state['status_text'] = f"● {act_info['display_title']}"
+                                        task_state['status_text'] = f"[OpenCode] ● {act_info['display_title']}"
 
                             elif ev_type == 'text':
                                 part = event_data.get('part', {})
@@ -822,7 +965,7 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
                                         turn_data['elapsed_sec'] = round(time.time() - t0, 1)
                                         if task_state is not None:
                                             snippet = "".join(content_parts)[-50:].strip().replace('\n', ' ')
-                                            task_state['status_text'] = f"AI Terminal [{role.upper()}] ⢿ {snippet}" if snippet else f"AI Terminal [{role.upper()}] ⢿ Đang phản hồi..."
+                                            task_state['status_text'] = f"[OpenCode • {role.upper()}] ⢿ {snippet}" if snippet else f"[OpenCode • {role.upper()}] ⢿ Đang phản hồi..."
 
                             elif ev_type == 'error':
                                 err_obj = event_data.get('error', {})
@@ -912,7 +1055,7 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
                                             turn_data['changed_files'] = latest_changes
                                         turn_data['elapsed_sec'] = round(time.time() - t0, 1)
                                         if task_state is not None:
-                                            task_state['status_text'] = f"● {act_info['display_title']}"
+                                            task_state['status_text'] = f"[Gemini CLI] ● {act_info['display_title']}"
 
                                 elif step_type == 'agent_response':
                                     text_delta = su.get('text_delta')
@@ -923,7 +1066,7 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
                                             turn_data['elapsed_sec'] = round(time.time() - t0, 1)
                                             if task_state is not None:
                                                 snippet = "".join(content_parts)[-50:].strip().replace('\n', ' ')
-                                                task_state['status_text'] = f"AI Terminal [{role.upper()}] ⢿ {snippet}" if snippet else f"AI Terminal [{role.upper()}] ⢿ Đang phản hồi..."
+                                                task_state['status_text'] = f"[Gemini CLI • {role.upper()}] ⢿ {snippet}" if snippet else f"[Gemini CLI • {role.upper()}] ⢿ Đang phản hồi..."
 
                             elif event_type == 'result':
                                 res = event_data.get('result', {})
@@ -1124,7 +1267,7 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
             'sub': 'webapp (React/TypeScript)',
             'repo_label': 'Frontend (easysalon-webapp)',
             'color': '#06b6d4',
-            'workspace': FE_WORKSPACE,
+            'workspace': get_fe_workspace(),
             'desc': 'Frontend React / TypeScript / Ant Design Engineer tại easysalon-webapp'
         },
         'be': {
@@ -1132,7 +1275,7 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
             'sub': 'api (.NET/C#)',
             'repo_label': 'Backend (easysalon-api)',
             'color': '#10b981',
-            'workspace': BE_WORKSPACE,
+            'workspace': get_be_workspace(),
             'desc': 'Backend .NET / C# Web API Engineer tại easysalon-api'
         }
     }
@@ -1147,6 +1290,14 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
     converted_prompt = f"{slash_prefix} {prompt}".strip() if slash_prefix else prompt.strip()
 
     with state_lock:
+        settings = app_state.get('settings', {}) if isinstance(app_state.get('settings'), dict) else load_settings()
+        target_engine = str(settings.get('engine') or 'gemini_cli').strip().lower()
+        target_effort = str(settings.get('effort') or 'high').strip()
+        base_opencode_model = str(settings.get('opencode_model') or '9router/ag/gemini-3.8-flash').strip()
+        target_opencode_model = resolve_effective_opencode_model(base_opencode_model, target_effort)
+        target_model = target_opencode_model if target_engine == 'opencode' else str(settings.get('model') or '').strip()
+        target_engine_label = 'OpenCode CLI' if target_engine == 'opencode' else 'Gemini CLI'
+
         task_state = app_state['active_tasks'].get(task_id)
         existing_session = task_state.get('session') if task_state else None
         existing_turns = list(existing_session.get('turns', [])) if existing_session else []
@@ -1160,6 +1311,10 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
             'prompt': prompt,
             'converted_prompt': converted_prompt,
             'skill': skill,
+            'engine': target_engine,
+            'engine_label': target_engine_label,
+            'model': target_model,
+            'effort': target_effort,
             'starter': current_role,
             'total_rounds': base_round + max_rounds,
             'turns': existing_turns,
@@ -1174,6 +1329,10 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
                 'mode': 'task',
                 'queue_status': 'running',
                 'is_running': True,
+                'engine': target_engine,
+                'engine_label': target_engine_label,
+                'model': target_model,
+                'effort': target_effort,
                 'current_process': None,
                 'active_round': base_round,
                 'total_rounds': base_round + max_rounds,
@@ -1186,6 +1345,10 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
             task_state['is_running'] = True
             task_state['queue_status'] = 'running'
             task_state['mode'] = 'task'
+            task_state['engine'] = target_engine
+            task_state['engine_label'] = target_engine_label
+            task_state['model'] = target_model
+            task_state['effort'] = target_effort
             task_state['total_rounds'] = base_round + max_rounds
             task_state['active_round'] = base_round
             task_state['active_speaker'] = target if target != 'both' else current_role
@@ -1248,7 +1411,11 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
             'step_logs': [],
             'changed_files': [],
             'content': '',
-            'is_streaming': True
+            'is_streaming': True,
+            'engine': target_engine,
+            'engine_label': target_engine_label,
+            'model': target_model,
+            'effort': target_effort
         }
         with state_lock:
             for prev_t in task_state.get('session', {}).get('turns', []):
@@ -1319,7 +1486,11 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
                 'step_logs': [],
                 'changed_files': [],
                 'content': '',
-                'is_streaming': True
+                'is_streaming': True,
+                'engine': target_engine,
+                'engine_label': target_engine_label,
+                'model': target_model,
+                'effort': target_effort
             }
             with state_lock:
                 for prev_t in task_state.get('session', {}).get('turns', []):
@@ -1441,14 +1612,14 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
             'label': 'Frontend Debugger',
             'sub': 'webapp (React/TypeScript)',
             'repo_label': 'Frontend (easysalon-webapp)',
-            'workspace': FE_WORKSPACE,
+            'workspace': get_fe_workspace(),
             'desc': 'Frontend React Debugger tại easysalon-webapp, chuyên sâu về Formik, Yup validation, API client và state.'
         },
         'be': {
             'label': 'Backend Debugger',
             'sub': 'api (.NET/C#)',
             'repo_label': 'Backend (easysalon-api)',
-            'workspace': BE_WORKSPACE,
+            'workspace': get_be_workspace(),
             'desc': 'Backend .NET / EF Core Debugger tại easysalon-api, chuyên sâu về Controller, DTO, LINQ query, MySQL và Transaction.'
         }
     }
@@ -1457,6 +1628,14 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
     preview_cmd = f"{slash_prefix} {description}".strip() if slash_prefix else description.strip()
 
     with state_lock:
+        settings = app_state.get('settings', {}) if isinstance(app_state.get('settings'), dict) else load_settings()
+        target_engine = str(settings.get('engine') or 'gemini_cli').strip().lower()
+        target_effort = str(settings.get('effort') or 'high').strip()
+        base_opencode_model = str(settings.get('opencode_model') or '9router/ag/gemini-3.8-flash').strip()
+        target_opencode_model = resolve_effective_opencode_model(base_opencode_model, target_effort)
+        target_model = target_opencode_model if target_engine == 'opencode' else str(settings.get('model') or '').strip()
+        target_engine_label = 'OpenCode CLI' if target_engine == 'opencode' else 'Gemini CLI'
+
         task_state = app_state['active_tasks'].get(task_id)
         existing_session = task_state.get('session') if task_state else None
         existing_turns = list(existing_session.get('turns', [])) if existing_session else []
@@ -1471,6 +1650,10 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
             'description': description,
             'converted_prompt': preview_cmd,
             'error_log': error_log,
+            'engine': target_engine,
+            'engine_label': target_engine_label,
+            'model': target_model,
+            'effort': target_effort,
             'total_rounds': base_round + max_rounds,
             'turns': existing_turns,
             'changed_files': existing_changes,
@@ -1484,6 +1667,10 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
                 'mode': 'fixbug',
                 'queue_status': 'running',
                 'is_running': True,
+                'engine': target_engine,
+                'engine_label': target_engine_label,
+                'model': target_model,
+                'effort': target_effort,
                 'current_process': None,
                 'active_round': base_round,
                 'total_rounds': base_round + max_rounds,
@@ -1496,6 +1683,10 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
             task_state['is_running'] = True
             task_state['queue_status'] = 'running'
             task_state['mode'] = 'fixbug'
+            task_state['engine'] = target_engine
+            task_state['engine_label'] = target_engine_label
+            task_state['model'] = target_model
+            task_state['effort'] = target_effort
             task_state['total_rounds'] = base_round + max_rounds
             task_state['active_round'] = base_round
             task_state['active_speaker'] = 'fe' if scope in ('fe', 'both') else 'be'
@@ -1566,7 +1757,11 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
             'step_logs': [],
             'changed_files': [],
             'content': '',
-            'is_streaming': True
+            'is_streaming': True,
+            'engine': target_engine,
+            'engine_label': target_engine_label,
+            'model': target_model,
+            'effort': target_effort
         }
         with state_lock:
             for prev_t in task_state.get('session', {}).get('turns', []):
@@ -1700,6 +1895,14 @@ def enqueue_task_item(item_dict: dict) -> dict:
         existing_turns = list(existing_session.get('turns', [])) if existing_session else []
         existing_changes = list(existing_session.get('changed_files', [])) if existing_session else []
 
+        settings = app_state.get('settings', {}) if isinstance(app_state.get('settings'), dict) else load_settings()
+        target_engine = str(item_dict.get('engine') or settings.get('engine') or 'gemini_cli').strip().lower()
+        target_effort = str(item_dict.get('effort') or settings.get('effort') or 'high').strip()
+        base_opencode_model = str(settings.get('opencode_model') or '9router/ag/gemini-3.8-flash').strip()
+        target_opencode_model = resolve_effective_opencode_model(base_opencode_model, target_effort)
+        target_model = target_opencode_model if target_engine == 'opencode' else str(settings.get('model') or '').strip()
+        target_engine_label = 'OpenCode CLI' if target_engine == 'opencode' else 'Gemini CLI'
+
         session_obj = {
             'id': existing_session.get('id', f"queued_{task_id}") if existing_session else f"queued_{task_id}",
             'task_id': task_id,
@@ -1709,6 +1912,10 @@ def enqueue_task_item(item_dict: dict) -> dict:
             'description': item_dict.get('fix_desc', ''),
             'converted_prompt': converted_prompt,
             'skill': skill_str,
+            'engine': target_engine,
+            'engine_label': target_engine_label,
+            'model': target_model,
+            'effort': target_effort,
             'turns': existing_turns,
             'changed_files': existing_changes,
             'status': 'QUEUED',
@@ -1718,6 +1925,10 @@ def enqueue_task_item(item_dict: dict) -> dict:
             'task_id': task_id,
             'title': title,
             'mode': mode,
+            'engine': target_engine,
+            'engine_label': target_engine_label,
+            'model': target_model,
+            'effort': target_effort,
             'queue_status': 'queued',
             'is_running': False,
             'current_process': None,

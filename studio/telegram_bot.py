@@ -19,6 +19,9 @@ from telebot import types
 from config import (
     FE_WORKSPACE,
     BE_WORKSPACE,
+    get_fe_workspace,
+    get_be_workspace,
+    get_workspace,
     TELEGRAM_BOT_TOKEN,
     TELEGRAM_BOT_NAME,
     TELEGRAM_ALLOWED_USERS,
@@ -131,16 +134,18 @@ def build_sync_inline_keyboard(fe_data=None, be_data=None):
 
 def fetch_and_format_sync_status(do_fetch=True):
     """Gọi kiểm tra trạng thái Staging/Master cho FE & BE và format thông điệp HTML."""
+    fe_ws = get_fe_workspace()
+    be_ws = get_be_workspace()
     with ThreadPoolExecutor(max_workers=2) as executor:
-        f_fe = executor.submit(check_sync_pull_status, FE_WORKSPACE, ('staging', 'master', 'beta'), do_fetch)
-        f_be = executor.submit(check_sync_pull_status, BE_WORKSPACE, ('staging', 'master', 'beta'), do_fetch)
+        f_fe = executor.submit(check_sync_pull_status, fe_ws, ('staging', 'master', 'beta'), do_fetch)
+        f_be = executor.submit(check_sync_pull_status, be_ws, ('staging', 'master', 'beta'), do_fetch)
         fe_res = f_fe.result()
         be_res = f_be.result()
 
     now_str = datetime.datetime.now().strftime("%H:%M:%S - %d/%m/%Y")
     
-    fe_curr = get_git_repo_details(FE_WORKSPACE).get('current_branch', 'unknown')
-    be_curr = get_git_repo_details(BE_WORKSPACE).get('current_branch', 'unknown')
+    fe_curr = get_git_repo_details(fe_ws).get('current_branch', 'unknown')
+    be_curr = get_git_repo_details(be_ws).get('current_branch', 'unknown')
 
     msg_lines = [
         f"<b>🔄 TRẠNG THÁI ĐỒNG BỘ STAGING & MASTER</b>",
@@ -231,7 +236,7 @@ def execute_pull_for_telegram(target: str, branch: str, chat_id: int):
     any_conflict = False
 
     if target in ('fe', 'both'):
-        res_fe = sync_pull_branch(FE_WORKSPACE, branch, return_to_current=True)
+        res_fe = sync_pull_branch(get_fe_workspace(), branch, return_to_current=True)
         results['fe'] = res_fe
         if not res_fe.get('success'):
             all_ok = False
@@ -251,7 +256,7 @@ def execute_pull_for_telegram(target: str, branch: str, chat_id: int):
         )
 
     if target in ('be', 'both'):
-        res_be = sync_pull_branch(BE_WORKSPACE, branch, return_to_current=True)
+        res_be = sync_pull_branch(get_be_workspace(), branch, return_to_current=True)
         results['be'] = res_be
         if not res_be.get('success'):
             all_ok = False
@@ -354,8 +359,8 @@ if bot:
     @bot.message_handler(commands=['status', 'git'])
     @auth_guard
     def handle_status(message):
-        fe = get_git_repo_details(FE_WORKSPACE)
-        be = get_git_repo_details(BE_WORKSPACE)
+        fe = get_git_repo_details(get_fe_workspace())
+        be = get_git_repo_details(get_be_workspace())
 
         lines = [
             "<b>📊 TRẠNG THÁI GIT (FRONTEND & BACKEND)</b>\n",
@@ -434,7 +439,7 @@ if bot:
         if target not in ('fe', 'be'):
             bot.reply_to(message, "⚠️ Đối tượng phải là <code>fe</code> hoặc <code>be</code>")
             return
-        ws = FE_WORKSPACE if target == 'fe' else BE_WORKSPACE
+        ws = get_workspace(target)
         label = "Frontend" if target == 'fe' else "Backend"
         ok, msg = switch_git_branch(ws, branch)
         if ok:

@@ -53,6 +53,18 @@ body.light-mode #taskFeed div[id^="fixHeader_"] {
   border-color: rgba(22, 119, 255, 0.3) !important;
 }
 
+body.light-mode #taskFeedEngineBadge {
+  background-color: #e6f4ff !important;
+  color: #0958d9 !important;
+  border-color: #91caff !important;
+}
+
+body.light-mode .turn-engine-badge {
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
+  border-color: #cbd5e1 !important;
+}
+
 /* Feed filter tabs & Empty state in light mode */
 body.light-mode #feedTaskFilterTabs {
   background-color: #f1f5f9 !important;

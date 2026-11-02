@@ -138,12 +138,21 @@ def get_all_mcp_servers() -> list:
             "postgres" in name.lower()
             or "server-postgres" in " ".join([command] + [str(a) for a in args])
         )
+        is_mysql = (
+            "mysql" in name.lower()
+            or "server-mysql" in " ".join([command] + [str(a) for a in args])
+        )
         is_gitlab = (
             "gitlab" in name.lower()
             or "GITLAB_PERSONAL_ACCESS_TOKEN" in env
             or "server-gitlab" in " ".join([command] + [str(a) for a in args])
         )
-        preset_name = "jira" if is_jira else ("github" if is_github else ("postgres" if is_postgres else ("gitlab" if is_gitlab else "custom")))
+        is_slack = (
+            "slack" in name.lower()
+            or "SLACK_BOT_TOKEN" in env
+            or "server-slack" in " ".join([command] + [str(a) for a in args])
+        )
+        preset_name = "jira" if is_jira else ("github" if is_github else ("postgres" if is_postgres else ("mysql" if is_mysql else ("gitlab" if is_gitlab else ("slack" if is_slack else "custom")))))
 
         # Full command string for display
         cmd_str = ""
@@ -539,6 +548,21 @@ def save_postgres_mcp_preset(conn_url: str, server_name: str = "postgres") -> di
     return save_mcp_server(server_name, cfg, target="both")
 
 
+def save_mysql_mcp_preset(conn_url: str, server_name: str = "mysql") -> dict:
+    """Helper cấu hình nhanh MySQL MCP Server chuẩn stdio npx."""
+    conn_url = (conn_url or "").strip()
+    if not conn_url:
+        raise ValueError("Vui lòng nhập MySQL Connection String URL.")
+    cfg = {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-mysql", conn_url],
+        "env": {},
+        "disabled": False,
+    }
+    return save_mcp_server(server_name, cfg, target="both")
+
+
 def save_gitlab_mcp_preset(host: str, token: str, server_name: str = "gitlab") -> dict:
     """Helper cấu hình nhanh GitLab MCP Server chuẩn stdio npx."""
     host = (host or "").strip().rstrip("/")
@@ -558,6 +582,67 @@ def save_gitlab_mcp_preset(host: str, token: str, server_name: str = "gitlab") -
             "GITLAB_PERSONAL_ACCESS_TOKEN": token,
             "GITLAB_API_URL": api_url,
         },
+        "disabled": False,
+    }
+    return save_mcp_server(server_name, cfg, target="both")
+
+
+def test_slack_connection(bot_token: str) -> dict:
+    """Kiểm tra xác thực với Slack Web API (auth.test) bằng Bot User OAuth Token."""
+    bot_token = (bot_token or "").strip()
+    if not bot_token:
+        return {"success": False, "message": "Vui lòng nhập Slack Bot User OAuth Token (xoxb-...)."}
+
+    headers = {
+        "Authorization": f"Bearer {bot_token}",
+        "Content-Type": "application/json; charset=utf-8",
+        "User-Agent": "EasySalon-Studio/1.0",
+    }
+    try:
+        req = urllib.request.Request("https://slack.com/api/auth.test", headers=headers, method="POST", data=b"{}")
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status == 200:
+                body = json.loads(resp.read().decode("utf-8"))
+                if body.get("ok"):
+                    team = body.get("team") or ""
+                    user = body.get("user") or ""
+                    return {
+                        "success": True,
+                        "team": team,
+                        "user": user,
+                        "message": f"Kết nối Slack thành công! Workspace: {team} (Bot: @{user})",
+                    }
+                else:
+                    err = body.get("error", "auth_failed")
+                    err_msg = {
+                        "invalid_auth": "Slack Token không hợp lệ hoặc đã bị thu hồi.",
+                        "not_authed": "Chưa cung cấp token xác thực.",
+                        "account_inactive": "Tài khoản Slack hoặc ứng dụng bot đã bị vô hiệu hóa.",
+                        "token_revoked": "Token xác thực đã bị thu hồi.",
+                    }.get(err, f"Lỗi xác thực Slack: {err}")
+                    return {"success": False, "message": err_msg}
+    except urllib.error.HTTPError as he:
+        return {"success": False, "message": f"Lỗi Slack API: {he.code} {he.reason}"}
+    except Exception as e:
+        return {"success": False, "message": f"Lỗi kết nối tới Slack API: {str(e)}"}
+
+
+def save_slack_mcp_preset(bot_token: str, team_id: str = "", server_name: str = "slack") -> dict:
+    """Helper cấu hình nhanh Slack MCP Server chuẩn stdio npx."""
+    bot_token = (bot_token or "").strip()
+    if not bot_token:
+        raise ValueError("Vui lòng nhập Slack Bot User OAuth Token (xoxb-...).")
+    env = {
+        "SLACK_BOT_TOKEN": bot_token,
+    }
+    if team_id.strip():
+        env["SLACK_TEAM_ID"] = team_id.strip()
+
+    cfg = {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-slack"],
+        "env": env,
         "disabled": False,
     }
     return save_mcp_server(server_name, cfg, target="both")

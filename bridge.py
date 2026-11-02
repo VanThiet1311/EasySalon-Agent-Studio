@@ -27,7 +27,16 @@ MESSAGES_FILE = os.path.join(BASE_DIR, 'messages.json')
 ACTIVE_DIALOGUE_FILE = os.path.join(BASE_DIR, 'active_dialogue.json')
 DAEMON_PID_FILE = os.path.join(BASE_DIR, '.daemon.pid')
 
-from config import FE_WORKSPACE, BE_WORKSPACE, WEB_PORT, WEB_HOST, get_agy_bin
+from config import (
+    FE_WORKSPACE,
+    BE_WORKSPACE,
+    get_fe_workspace,
+    get_be_workspace,
+    get_workspace,
+    WEB_PORT,
+    WEB_HOST,
+    get_agy_bin,
+)
 
 ANSI_RE = re.compile(r'\033\[[0-9;]*[a-zA-Z]')
 
@@ -379,7 +388,7 @@ def run_daemon():
 
     while True:
         try:
-            current_ttys = set(find_target_ttys(BE_WORKSPACE) + find_target_ttys(FE_WORKSPACE))
+            current_ttys = set(find_target_ttys(get_be_workspace()) + find_target_ttys(get_fe_workspace()))
 
             for tty in list(tty_tracking.keys()):
                 if tty not in current_ttys:
@@ -490,7 +499,7 @@ def cmd_send(args):
     messages.append(new_msg)
     save_messages(messages)
 
-    target_dir = BE_WORKSPACE if args.receiver.lower() == 'be' else FE_WORKSPACE
+    target_dir = get_workspace(args.receiver)
     active_dialogue = {
         'id': msg_id,
         'from': args.sender,
@@ -585,7 +594,7 @@ def cmd_reply(args):
     save_messages(messages)
 
     receiver = updated_msg.get('from', 'fe')
-    target_dir = BE_WORKSPACE if receiver.lower() == 'be' else FE_WORKSPACE
+    target_dir = get_workspace(receiver)
 
     active_dialogue = load_active_dialogue()
     active_dialogue['status'] = 'REPLIED'
@@ -676,7 +685,7 @@ def cmd_clear(args):
 
 def cmd_open_terminal(args):
     target = args.target.lower()
-    target_dir = BE_WORKSPACE if target == 'be' else FE_WORKSPACE
+    target_dir = get_workspace(target)
     role_name = 'Backend' if target == 'be' else 'Frontend'
     agy_bin = get_agy_bin()
 
@@ -721,12 +730,11 @@ def cmd_open_terminal(args):
 
 def cmd_call(args):
     target_role = args.target.lower()
+    target_dir = get_workspace(target_role)
     if target_role == 'be':
-        target_dir = BE_WORKSPACE
         from_role = 'fe'
         expert_desc = "Backend .NET/C# Expert của EasySalon (sử dụng các skill backend)"
     else:
-        target_dir = FE_WORKSPACE
         from_role = 'be'
         expert_desc = "Frontend React/TypeScript/Ant Design Expert của EasySalon (sử dụng 25 skills frontend)"
 
@@ -994,12 +1002,15 @@ def cmd_discuss(args):
         print(f"Lỗi: Không tìm thấy agy executable tại '{agy_bin}'.")
         sys.exit(1)
 
-    if not os.path.exists(FE_WORKSPACE):
-        print(f"Lỗi: Không tìm thấy thư mục Frontend tại '{FE_WORKSPACE}'.")
+    fe_ws = get_fe_workspace()
+    be_ws = get_be_workspace()
+
+    if not os.path.exists(fe_ws):
+        print(f"Lỗi: Không tìm thấy thư mục Frontend tại '{fe_ws}'.")
         sys.exit(1)
 
-    if not os.path.exists(BE_WORKSPACE):
-        print(f"Lỗi: Không tìm thấy thư mục Backend tại '{BE_WORKSPACE}'.")
+    if not os.path.exists(be_ws):
+        print(f"Lỗi: Không tìm thấy thư mục Backend tại '{be_ws}'.")
         sys.exit(1)
 
     cols = shutil.get_terminal_size((80, 24)).columns
@@ -1024,14 +1035,14 @@ def cmd_discuss(args):
             'label': 'FRONTEND AGENT (webapp)',
             'avatar': '👨‍💻',
             'color': '36',
-            'workspace': FE_WORKSPACE,
+            'workspace': fe_ws,
             'desc': 'Frontend React / TypeScript / Ant Design Engineer tại easysalon-webapp'
         },
         'be': {
             'label': 'BACKEND AGENT (api)',
             'avatar': '🤖',
             'color': '32',
-            'workspace': BE_WORKSPACE,
+            'workspace': be_ws,
             'desc': 'Backend .NET / C# Web API Engineer tại easysalon-api'
         }
     }

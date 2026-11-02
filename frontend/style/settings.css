@@ -543,11 +543,36 @@ body.dark-mode #btnSaveSettingsPage:not(.is-dirty) *,
   border-color: #1677ff;
   box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.25);
 }
+.opencode-active-model-card {
+  background-color: #101e38;
+  border: 1px solid rgba(36, 65, 112, 0.8);
+}
 
 body.light-mode .settings-opencode-box {
   background-color: #f8fafc !important;
   border: 1.5px solid #e2e8f0 !important;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+body.light-mode .opencode-active-model-card {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+body.light-mode #quickOpencodeActiveModel {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #0958d9 !important;
+}
+body.light-mode #quickOpencodeEffortBadge {
+  background-color: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+  color: #15803d !important;
+}
+body.light-mode .opencode-active-label {
+  color: #1e293b !important;
+}
+body.light-mode .opencode-active-desc {
+  color: #64748b !important;
 }
 body.light-mode .settings-opencode-box .opencode-box-title {
   color: #0f172a !important;
@@ -602,7 +627,7 @@ body.light-mode #settingsPanel_mcp h3,
 body.light-mode #settingsPanel_mcp h4 {
   color: #0f172a !important;
 }
-body.light-mode #settingsPanel_mcp p {
+body.light-mode #settingsPanel_mcp p:not(.mcp-preset-desc, .mcp-preset-card p, .mcp-preset-card *, .is-selected, .is-selected *, .is-active, .is-active *) {
   color: #475569 !important;
 }
 body.light-mode #settingsPanel_mcp label {
@@ -858,7 +883,8 @@ body.light-mode .jira-alert-box.is-error .jira-alert-title {
 .mcp-preset-card:not(.is-selected) h5 {
   color: #ffffff !important;
 }
-.mcp-preset-card:not(.is-selected) p {
+.mcp-preset-card:not(.is-selected) p,
+.mcp-preset-card:not(.is-selected) .mcp-preset-desc {
   color: #94a3b8 !important;
 }
 
@@ -873,39 +899,134 @@ body.light-mode .mcp-preset-card:not(.is-selected):hover {
   background-color: #f8fafc !important;
   box-shadow: 0 4px 12px rgba(22, 119, 255, 0.1);
 }
-body.light-mode .mcp-preset-card:not(.is-selected) h5 {
+body.light-mode .mcp-preset-card:not(.is-selected) h5,
+body.light-mode #settingsPanel_mcp .mcp-preset-card:not(.is-selected) h5 {
   color: #0f172a !important;
 }
-body.light-mode .mcp-preset-card:not(.is-selected) p {
+body.light-mode .mcp-preset-card:not(.is-selected) p,
+body.light-mode .mcp-preset-card:not(.is-selected) .mcp-preset-desc,
+body.light-mode #settingsPanel_mcp .mcp-preset-card:not(.is-selected) p,
+body.light-mode #settingsPanel_mcp .mcp-preset-card:not(.is-selected) .mcp-preset-desc {
   color: #64748b !important;
 }
-body.light-mode .mcp-preset-card:not(.is-selected) span[id^="badgePreset_"] {
+body.light-mode .mcp-preset-card:not(.is-selected) span[id^="badgePreset_"]:not(.is-connected) {
   background-color: #f1f5f9 !important;
   border: 1px solid #cbd5e1 !important;
   color: #475569 !important;
 }
 
+/* PRESET BADGE ĐÃ KẾT NỐI - Luôn viền xanh lá nổi bật (Vivid Green Border) */
+span[id^="badgePreset_"].is-connected,
+.mcp-preset-card span[id^="badgePreset_"].is-connected {
+  background-color: rgba(6, 78, 59, 0.75) !important;
+  border: 1.5px solid #10b981 !important;
+  color: #34d399 !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode .mcp-preset-card:not(.is-selected) span[id^="badgePreset_"].is-connected,
+body.light-mode span[id^="badgePreset_"].is-connected {
+  background-color: #ecfdf5 !important;
+  border: 1.5px solid #10b981 !important;
+  color: #047857 !important;
+  font-weight: 600 !important;
+}
+
 /* ACTIVE / SELECTED PRESET CARD - Chuẩn AGENTS.md: Luôn là #1677ff (gradient), text trắng */
 .mcp-preset-card.is-selected,
 body.light-mode .mcp-preset-card.is-selected,
-body.dark-mode .mcp-preset-card.is-selected {
+body.dark-mode .mcp-preset-card.is-selected,
+body.light-mode main .mcp-preset-card.is-selected,
+#settingsPanel_mcp .mcp-preset-card.is-selected,
+body.light-mode #settingsPanel_mcp .mcp-preset-card.is-selected,
+div[id^="cardPreset_"].is-selected,
+body.light-mode div[id^="cardPreset_"].is-selected,
+body.light-mode #settingsPanel_mcp div[id^="cardPreset_"].is-selected {
   background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%) !important;
   border-color: #1677ff !important;
   box-shadow: 0 4px 14px rgba(22, 119, 255, 0.35) !important;
 }
+
 .mcp-preset-card.is-selected *,
+#settingsPanel_mcp .mcp-preset-card.is-selected *,
 body.light-mode .mcp-preset-card.is-selected *,
-body.dark-mode .mcp-preset-card.is-selected * {
+body.dark-mode .mcp-preset-card.is-selected *,
+body.light-mode #settingsPanel_mcp .mcp-preset-card.is-selected *,
+body.light-mode main .mcp-preset-card.is-selected *,
+body.light-mode main .mcp-preset-card.is-selected h5,
+body.light-mode main .mcp-preset-card.is-selected p,
+body.light-mode main .mcp-preset-card.is-selected span:not([id^="badgePreset_"].is-connected),
+div[id^="cardPreset_"].is-selected *,
+body.light-mode div[id^="cardPreset_"].is-selected *,
+body.light-mode #settingsPanel_mcp div[id^="cardPreset_"].is-selected * {
   color: #ffffff !important;
 }
+
 .mcp-preset-card.is-selected p,
-body.light-mode .mcp-preset-card.is-selected p {
-  color: rgba(255, 255, 255, 0.92) !important;
+.mcp-preset-card.is-selected .mcp-preset-desc,
+#settingsPanel_mcp .mcp-preset-card.is-selected p,
+#settingsPanel_mcp .mcp-preset-card.is-selected .mcp-preset-desc,
+div[id^="cardPreset_"].is-selected p,
+div[id^="cardPreset_"].is-selected .mcp-preset-desc,
+body.light-mode .mcp-preset-card.is-selected p,
+body.light-mode .mcp-preset-card.is-selected .mcp-preset-desc,
+body.light-mode #settingsPanel_mcp .mcp-preset-card.is-selected p,
+body.light-mode #settingsPanel_mcp .mcp-preset-card.is-selected .mcp-preset-desc,
+body.light-mode div[id^="cardPreset_"].is-selected p,
+body.light-mode div[id^="cardPreset_"].is-selected .mcp-preset-desc,
+body.light-mode #settingsPanel_mcp div[id^="cardPreset_"].is-selected p,
+body.light-mode #settingsPanel_mcp div[id^="cardPreset_"].is-selected .mcp-preset-desc,
+body.light-mode main .mcp-preset-card.is-selected p,
+body.light-mode main .mcp-preset-card.is-selected .mcp-preset-desc,
+body.light-mode main #settingsPanel_mcp .mcp-preset-card.is-selected p,
+body.light-mode main #settingsPanel_mcp .mcp-preset-card.is-selected .mcp-preset-desc {
+  color: #ffffff !important;
 }
-.mcp-preset-card.is-selected span[id^="badgePreset_"],
-body.light-mode .mcp-preset-card.is-selected span[id^="badgePreset_"] {
+
+.mcp-preset-card.is-selected span[id^="badgePreset_"]:not(.is-connected),
+body.light-mode .mcp-preset-card.is-selected span[id^="badgePreset_"]:not(.is-connected) {
   background-color: rgba(255, 255, 255, 0.22) !important;
   border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  color: #ffffff !important;
+}
+
+/* Khi card đang active (background xanh) mà badge đã kết nối: xanh lá nổi bật trên nền xanh */
+.mcp-preset-card.is-selected span[id^="badgePreset_"].is-connected,
+body.light-mode .mcp-preset-card.is-selected span[id^="badgePreset_"].is-connected {
+  background-color: rgba(16, 185, 129, 0.28) !important;
+  border: 1.5px solid #10b981 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.35) !important;
+}
+
+/* BẢO ĐẢM TOÀN BỘ NÚT LƯU & KÍCH HOẠT MCP LUÔN CÓ TEXT TRẮNG TRONG CẢ LIGHT VÀ DARK MODE */
+#settingsPanel_mcp button.bg-blue-600,
+#settingsPanel_mcp button.bg-\[\#1677ff\],
+#settingsPanel_mcp button[id^="btnSave"],
+body.light-mode #settingsPanel_mcp button.bg-blue-600,
+body.light-mode #settingsPanel_mcp button.bg-\[\#1677ff\],
+body.light-mode #settingsPanel_mcp button[id^="btnSave"],
+body.light-mode #btnSaveJiraMcp,
+body.light-mode #btnSaveGithubMcp,
+body.light-mode #btnSavePostgresMcp,
+body.light-mode #btnSaveGitlabMcp,
+body.light-mode #btnSaveSlackMcp {
+  background-color: #1677ff !important;
+  color: #ffffff !important;
+}
+
+#settingsPanel_mcp button.bg-blue-600 *,
+#settingsPanel_mcp button.bg-\[\#1677ff\] *,
+#settingsPanel_mcp button[id^="btnSave"] *,
+body.light-mode #settingsPanel_mcp button.bg-blue-600 *,
+body.light-mode #settingsPanel_mcp button.bg-\[\#1677ff\] *,
+body.light-mode #settingsPanel_mcp button[id^="btnSave"] *,
+body.light-mode #btnSaveJiraMcp *,
+body.light-mode #btnSaveGithubMcp *,
+body.light-mode #btnSavePostgresMcp *,
+body.light-mode #btnSaveGitlabMcp *,
+body.light-mode #btnSaveSlackMcp * {
   color: #ffffff !important;
 }
 
@@ -927,3 +1048,89 @@ body.light-mode .mcp-preset-card:not(.is-selected) svg.text-slate-300 {
   color: #475569 !important;
   stroke: #475569 !important;
 }
+
+/* ============================================================
+   GEMINI CLI NATIVE BACKGROUND COMMAND BOX
+   ============================================================ */
+.gemini-cli-cmd-box {
+  background-color: #070f1e;
+  border: 1px solid #1e3a66;
+  border-radius: 8px;
+  color: #e2e8f0;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.gemini-cli-cmd-box .cmd-prompt {
+  color: #34d399;
+}
+.gemini-cli-cmd-box .cmd-bin {
+  color: #67e8f9;
+  font-weight: 600;
+}
+.gemini-cli-cmd-box .cmd-flag {
+  color: #93c5fd;
+}
+.gemini-cli-cmd-box .cmd-arg {
+  color: #f1f5f9;
+}
+.gemini-cli-cmd-box .cmd-param {
+  color: #fbbf24;
+  font-weight: 500;
+}
+
+.btn-copy-gemini-cmd {
+  background-color: rgba(12, 22, 40, 0.85);
+  border: 1px solid rgba(36, 65, 112, 0.85);
+  color: #cbd5e1;
+}
+.btn-copy-gemini-cmd:hover {
+  background-color: #1677ff;
+  border-color: #1677ff;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(22, 119, 255, 0.35);
+}
+.btn-copy-gemini-cmd:hover * {
+  color: #ffffff !important;
+}
+
+/* Light mode for Gemini CLI Background Command Box */
+body.light-mode .gemini-cli-cmd-box {
+  background-color: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  color: #0f172a !important;
+}
+body.light-mode .gemini-cli-cmd-box .cmd-prompt {
+  color: #059669 !important;
+}
+body.light-mode .gemini-cli-cmd-box .cmd-bin {
+  color: #0958d9 !important;
+  font-weight: 700 !important;
+}
+body.light-mode .gemini-cli-cmd-box .cmd-flag {
+  color: #1d4ed8 !important;
+}
+body.light-mode .gemini-cli-cmd-box .cmd-arg {
+  color: #0f172a !important;
+  font-weight: 500 !important;
+}
+body.light-mode .gemini-cli-cmd-box .cmd-param {
+  color: #b45309 !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode .btn-copy-gemini-cmd {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+body.light-mode .btn-copy-gemini-cmd:hover {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(22, 119, 255, 0.25) !important;
+}
+body.light-mode .btn-copy-gemini-cmd:hover * {
+  color: #ffffff !important;
+}
+

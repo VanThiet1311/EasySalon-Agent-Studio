@@ -6,6 +6,8 @@ Tự động tải cấu hình từ file .env thuần Python (không cần phụ
 
 import os
 import shutil
+import platform
+import glob
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_FILE = os.path.join(BASE_DIR, '.env')
@@ -63,29 +65,74 @@ def _read_json_settings():
     return {}
 
 
-def _resolve_path(key, default_val, json_key=None):
+def _resolve_workspace(key, json_key, default_val):
     """
-    Quy tắc ưu tiên:
-    1. Biến môi trường os.environ (từ file .env hoặc hệ thống)
-    2. Cấu hình được người dùng lưu qua UI vào settings.json
+    Quy tắc ưu tiên cho Workspace:
+    1. settings.json (Nguồn cấu hình chính thức từ UI)
+    2. Biến môi trường os.environ (.env / hệ thống)
     3. Giá trị mặc định (Fallback)
     """
+    st = _read_json_settings()
+    j_val = st.get(json_key)
+    if j_val and str(j_val).strip():
+        return os.path.expanduser(os.path.expandvars(str(j_val).strip()))
+
     val = os.environ.get(key)
     if val and str(val).strip():
         return os.path.expanduser(os.path.expandvars(str(val).strip()))
 
+    return os.path.expanduser(os.path.expandvars(default_val.strip())) if default_val else ''
+
+
+def get_fe_workspace() -> str:
+    """Lấy đường dẫn Frontend Workspace (easysalon-webapp) trực tiếp từ settings.json."""
+    return _resolve_workspace('FE_WORKSPACE', 'fe_workspace', '/run/media/thietnv/Data/Project/easysalon-webapp')
+
+
+def get_be_workspace() -> str:
+    """Lấy đường dẫn Backend Workspace (easysalon-api) trực tiếp từ settings.json."""
+    return _resolve_workspace('BE_WORKSPACE', 'be_workspace', '/run/media/thietnv/Data/Project/easysalon-api')
+
+
+def get_workspace(role: str = 'fe') -> str:
+    """Lấy đường dẫn Workspace theo vai trò ('fe' | 'be') trực tiếp từ settings.json."""
+    r = str(role or 'fe').strip().lower()
+    if r in ('be', 'backend', 'api'):
+        return get_be_workspace()
+    return get_fe_workspace()
+
+
+# 1. Đường dẫn Workspace của Frontend & Backend (khởi tạo từ settings.json)
+FE_WORKSPACE = get_fe_workspace()
+BE_WORKSPACE = get_be_workspace()
+
+
+def refresh_workspaces():
+    """Làm mới lại các biến FE_WORKSPACE & BE_WORKSPACE theo settings.json mới nhất."""
+    global FE_WORKSPACE, BE_WORKSPACE
+    FE_WORKSPACE = get_fe_workspace()
+    BE_WORKSPACE = get_be_workspace()
+    return FE_WORKSPACE, BE_WORKSPACE
+
+
+def _resolve_path(key, default_val, json_key=None):
+    """
+    Quy tắc ưu tiên cho các biến đường dẫn chung:
+    1. Cấu hình được người dùng lưu qua UI vào settings.json
+    2. Biến môi trường os.environ (từ file .env hoặc hệ thống)
+    3. Giá trị mặc định (Fallback)
+    """
     j_key = json_key or key.lower()
     st = _read_json_settings()
     j_val = st.get(j_key)
     if j_val and str(j_val).strip():
         return os.path.expanduser(os.path.expandvars(str(j_val).strip()))
 
+    val = os.environ.get(key)
+    if val and str(val).strip():
+        return os.path.expanduser(os.path.expandvars(str(val).strip()))
+
     return os.path.expanduser(os.path.expandvars(default_val.strip())) if default_val else ''
-
-
-# 1. Đường dẫn Workspace của Frontend & Backend
-FE_WORKSPACE = _resolve_path('FE_WORKSPACE', '/run/media/thietnv/Data/Project/easysalon-webapp', 'fe_workspace')
-BE_WORKSPACE = _resolve_path('BE_WORKSPACE', '/run/media/thietnv/Data/Project/easysalon-api', 'be_workspace')
 
 # 2. Cấu hình Web Server
 WEB_PORT = int(os.environ.get('WEB_PORT', '8765'))
@@ -104,13 +151,134 @@ TELEGRAM_ALLOWED_USERS = [
 TELEGRAM_ENABLED = os.environ.get('TELEGRAM_ENABLED', 'false').lower() in ('true', '1', 'yes')
 
 
+def detect_installed_cli_path(target: str) -> dict:
+    """
+    Tự động dò tìm đường dẫn nhị phân đã cài đặt của Antigravity CLI ('agy') hoặc OpenCode CLI ('opencode').
+    Hỗ trợ cả môi trường Linux/Unix (POSIX) và Windows.
+    """
+    target_clean = str(target or 'agy').strip().lower()
+    is_windows = (platform.system() == 'Windows' or os.name == 'nt')
+    found_path = None
+    exists = False
+
+    if target_clean in ('agy', 'antigravity', 'gemini_cli'):
+        if is_windows:
+            candidates = [
+                shutil.which('agy.exe'),
+                shutil.which('agy.cmd'),
+                shutil.which('agy'),
+                shutil.which('antigravity.exe'),
+                os.path.expandvars(r'%LOCALAPPDATA%\Programs\antigravity-cli\agy.exe'),
+                os.path.expandvars(r'%LOCALAPPDATA%\Programs\Antigravity\agy.exe'),
+                os.path.expandvars(r'%LOCALAPPDATA%\antigravity-cli\bin\agy.exe'),
+                os.path.expandvars(r'%APPDATA%\antigravity-cli\bin\agy.exe'),
+                os.path.expandvars(r'%APPDATA%\npm\agy.cmd'),
+                os.path.expanduser(r'~\.gemini\antigravity-cli\bin\agy.exe'),
+                os.path.expanduser(r'~\.gemini\antigravity-cli\bin\agy.cmd'),
+                os.path.expanduser(r'~\.local\bin\agy.exe'),
+                os.path.expandvars(r'%ProgramFiles%\Antigravity\agy.exe'),
+                os.path.expandvars(r'%ProgramFiles(x86)%\Antigravity\agy.exe'),
+            ]
+            fallback = shutil.which('agy') or os.path.expandvars(r'%LOCALAPPDATA%\Programs\antigravity-cli\agy.exe') or 'agy.exe'
+        else:
+            candidates = [
+                shutil.which('agy'),
+                os.path.expanduser('~/.local/bin/agy'),
+                os.path.expanduser('~/.gemini/antigravity-cli/bin/agy'),
+                os.path.expanduser('~/.antigravity/bin/agy'),
+                '/usr/local/bin/agy',
+                '/usr/bin/agy',
+                '/opt/homebrew/bin/agy',
+            ]
+            fallback = shutil.which('agy') or os.path.expanduser('~/.local/bin/agy') or 'agy'
+
+        for c in candidates:
+            if c:
+                if os.path.isabs(c) and os.path.exists(c):
+                    found_path = os.path.abspath(c)
+                    exists = True
+                    break
+                w = shutil.which(c)
+                if w:
+                    found_path = os.path.abspath(w) if os.path.exists(w) else w
+                    exists = True
+                    break
+
+        return {
+            'target': 'agy',
+            'path': found_path or fallback,
+            'exists': exists or bool(found_path and os.path.exists(found_path)),
+            'platform': 'windows' if is_windows else 'linux',
+            'fallback': fallback
+        }
+
+    else:
+        if is_windows:
+            candidates = [
+                shutil.which('opencode.cmd'),
+                shutil.which('opencode.exe'),
+                shutil.which('opencode.ps1'),
+                shutil.which('opencode'),
+                os.path.expandvars(r'%APPDATA%\npm\opencode.cmd'),
+                os.path.expandvars(r'%APPDATA%\npm\opencode.ps1'),
+                os.path.expanduser(r'~\AppData\Roaming\npm\opencode.cmd'),
+                os.path.expandvars(r'%LOCALAPPDATA%\npm-global\opencode.cmd'),
+                os.path.expandvars(r'%LOCALAPPDATA%\Programs\opencode\opencode.exe'),
+                os.path.expandvars(r'%ProgramFiles%\nodejs\opencode.cmd'),
+                r'C:\Program Files\nodejs\opencode.cmd',
+                os.path.expandvars(r'%LOCALAPPDATA%\Yarn\bin\opencode.cmd'),
+                os.path.expanduser(r'~\.config\yarn\global\node_modules\.bin\opencode.cmd'),
+            ]
+            fallback = shutil.which('opencode') or os.path.expandvars(r'%APPDATA%\npm\opencode.cmd') or 'opencode.cmd'
+        else:
+            candidates = [
+                shutil.which('opencode'),
+                os.path.expanduser('~/.npm-global/bin/opencode'),
+                os.path.expanduser('~/.local/bin/opencode'),
+                '/usr/local/bin/opencode',
+                '/usr/bin/opencode',
+                '/opt/homebrew/bin/opencode',
+            ]
+            try:
+                candidates.extend(sorted(glob.glob(os.path.expanduser('~/.nvm/versions/node/*/bin/opencode')), reverse=True))
+                candidates.extend(glob.glob(os.path.expanduser('~/.local/share/fnm/current/bin/opencode')))
+                candidates.extend(glob.glob(os.path.expanduser('~/.volta/bin/opencode')))
+            except Exception:
+                pass
+            candidates.extend([
+                os.path.expanduser('~/.yarn/bin/opencode'),
+                os.path.expanduser('~/.config/yarn/global/node_modules/.bin/opencode'),
+            ])
+            fallback = shutil.which('opencode') or os.path.expanduser('~/.npm-global/bin/opencode') or 'opencode'
+
+        for c in candidates:
+            if c:
+                if os.path.isabs(c) and os.path.exists(c):
+                    found_path = os.path.abspath(c)
+                    exists = True
+                    break
+                w = shutil.which(c)
+                if w:
+                    found_path = os.path.abspath(w) if os.path.exists(w) else w
+                    exists = True
+                    break
+
+        return {
+            'target': 'opencode',
+            'path': found_path or fallback,
+            'exists': exists or bool(found_path and os.path.exists(found_path)),
+            'platform': 'windows' if is_windows else 'linux',
+            'fallback': fallback
+        }
+
+
 def get_agy_bin():
     """
     Tìm đường dẫn file thực thi agy (Antigravity CLI / Gemini CLI).
     Quy tắc ưu tiên:
     1. os.environ['AGY_BIN']
     2. settings.json ('agy_bin')
-    3. Tìm kiếm trong PATH hoặc các đường dẫn chuẩn theo user hiện tại
+    3. Tìm kiếm tự động theo hệ điều hành (Linux/Windows)
     4. Fallback 'agy'
     """
     custom = os.environ.get('AGY_BIN')
@@ -122,12 +290,8 @@ def get_agy_bin():
     if j_bin and (os.path.exists(j_bin) or shutil.which(j_bin)):
         return j_bin
 
-    return (
-        shutil.which('agy')
-        or os.path.expanduser('~/.local/bin/agy')
-        or os.path.expanduser('~/.gemini/antigravity-cli/bin/agy')
-        or 'agy'
-    )
+    detected = detect_installed_cli_path('agy')
+    return detected.get('path') or 'agy'
 
 
 def get_opencode_bin():
@@ -136,7 +300,7 @@ def get_opencode_bin():
     Quy tắc ưu tiên:
     1. os.environ['OPENCODE_BIN']
     2. settings.json ('opencode_bin')
-    3. Tìm kiếm trong PATH hoặc các đường dẫn npm global / local bin
+    3. Tìm kiếm tự động theo hệ điều hành (Linux/Windows)
     4. Fallback 'opencode'
     """
     custom = os.environ.get('OPENCODE_BIN')
@@ -148,13 +312,8 @@ def get_opencode_bin():
     if j_bin and (os.path.exists(j_bin) or shutil.which(j_bin)):
         return j_bin
 
-    return (
-        shutil.which('opencode')
-        or os.path.expanduser('~/.npm-global/bin/opencode')
-        or os.path.expanduser('~/.local/bin/opencode')
-        or '/usr/local/bin/opencode'
-        or 'opencode'
-    )
+    detected = detect_installed_cli_path('opencode')
+    return detected.get('path') or 'opencode'
 
 
 def get_nine_router_bin():
@@ -177,5 +336,18 @@ def get_nine_router_bin():
         or '/usr/local/bin/9router'
         or '9router'
     )
+
+
+def __getattr__(name: str):
+    """
+    Truy cập thuộc tính module động: FE_WORKSPACE & BE_WORKSPACE luôn trả về
+    đường dẫn mới nhất từ settings.json theo thời gian thực.
+    """
+    if name == 'FE_WORKSPACE':
+        return get_fe_workspace()
+    if name == 'BE_WORKSPACE':
+        return get_be_workspace()
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
 
 

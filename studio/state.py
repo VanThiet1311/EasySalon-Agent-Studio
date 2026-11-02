@@ -4,6 +4,7 @@
 import datetime
 import json
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -20,7 +21,7 @@ DEFAULT_SETTINGS = {
     'engine': 'gemini_cli',  # 'gemini_cli' (Gemini CLI / Antigravity) | 'opencode' (9router OpenCode)
     'effort': 'high',  # 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     'model': 'gemini-3.8-flash-high',
-    'opencode_model': '9router/ag/gemini-3.8-flash-high',
+    'opencode_model': '9router/ag/gemini-3.8-flash',
     'api_provider': 'gemini',  # 'gemini' | 'claude' | 'openai' | 'custom'
     'gemini_api_key': '',
     'claude_api_key': '',
@@ -47,6 +48,8 @@ def load_settings():
             merged = dict(DEFAULT_SETTINGS)
             if isinstance(data, dict):
                 merged.update(data)
+            if 'opencode_model' in merged and merged['opencode_model']:
+                merged['opencode_model'] = re.sub(r'-(low|medium|high)$', '', str(merged['opencode_model']), flags=re.IGNORECASE)
             return merged
     except Exception:
         return dict(DEFAULT_SETTINGS)
@@ -135,10 +138,94 @@ def start_gemini_cli_background() -> dict:
         }
 
 
+_9ROUTER_RAW_MODELS = set()
+
+
+def sync_opencode_provider_models(models_set):
+    """Đăng ký danh sách các model của 9router vào ~/.config/opencode/opencode.json để OpenCode route chính xác."""
+    try:
+        config_path = os.path.expanduser('~/.config/opencode/opencode.json')
+        if not os.path.exists(config_path):
+            return
+        with open(config_path, 'r', encoding='utf-8') as f:
+            cfg = json.load(f)
+        if not isinstance(cfg, dict):
+            return
+        provider = cfg.setdefault('provider', {})
+        nine_router = provider.setdefault('9router', {})
+        existing_models = nine_router.setdefault('models', {})
+        changed = False
+        for mid in (models_set or []):
+            if not mid:
+                continue
+            clean_mid = str(mid).replace('9router/', '').strip()
+            if clean_mid and clean_mid not in existing_models:
+                existing_models[clean_mid] = {
+                    'modalities': {'input': ['text', 'image'], 'output': ['text']},
+                    'name': clean_mid
+                }
+                changed = True
+        if changed:
+            tmp_path = config_path + '.tmp'
+            with open(tmp_path, 'w', encoding='utf-8') as f:
+                json.dump(cfg, f, indent=2)
+            os.replace(tmp_path, config_path)
+    except Exception:
+        pass
+
+
+def sync_opencode_active_model(settings: dict):
+    """
+    Ghi model hiệu dụng (base model + effort) vào ~/.config/opencode/opencode.json để
+    terminal `opencode` mở thủ công luôn khớp với mức suy luận đang chọn trên UI Studio.
+    Trước đây Studio chỉ lưu settings.json nên terminal vẫn chạy model cũ (thường là High).
+    """
+    try:
+        if not isinstance(settings, dict):
+            return
+        if str(settings.get('engine') or '').strip().lower() != 'opencode':
+            return
+
+        config_path = os.path.expanduser('~/.config/opencode/opencode.json')
+        if not os.path.exists(config_path):
+            return
+
+        with open(config_path, 'r', encoding='utf-8') as f:
+            cfg = json.load(f)
+        if not isinstance(cfg, dict):
+            return
+
+        base = str(settings.get('opencode_model') or '9router/ag/gemini-3.8-flash').strip()
+        effort = str(settings.get('effort') or 'high').strip().lower()
+        if re.search(r'-(low|medium|high)$', base, re.IGNORECASE):
+            target = base
+        elif base.startswith('9router/') and not base.endswith('-agent'):
+            target = f"{base}-{effort}"
+        else:
+            target = base
+
+        changed = cfg.get('model') != target
+        cfg['model'] = target
+
+        explorer = (cfg.get('agent') or {}).get('explorer')
+        if isinstance(explorer, dict) and explorer.get('model') != target:
+            explorer['model'] = target
+            changed = True
+
+        if changed:
+            tmp_path = config_path + '.tmp'
+            with open(tmp_path, 'w', encoding='utf-8') as f:
+                json.dump(cfg, f, indent=2)
+            os.replace(tmp_path, config_path)
+    except Exception:
+        pass
+
+
 def get_opencode_models() -> list:
-    """Truy vấn danh sách mô hình thực tế hiện tại từ 9router proxy và OpenCode."""
-    models = []
-    seen = set()
+    """Truy vấn danh sách mô hình thực tế hiện tại từ 9router proxy và OpenCode, loại bỏ hậu tố suy luận (-low/-medium/-high) để hiển thị base model tinh gọn."""
+    global _9ROUTER_RAW_MODELS
+    models_map = {}
+    raw_models_set = set()
 
     # 1. Truy vấn trực tiếp từ proxy 9router (cổng 20128)
     if is_nine_router_online():
@@ -150,16 +237,22 @@ def get_opencode_models() -> list:
                     mid = m.get('id', '').strip()
                     if not mid:
                         continue
-                    full_id = f'9router/{mid}' if not mid.startswith('9router/') else mid
-                    if full_id not in seen:
-                        seen.add(full_id)
-                        is_gemini = ('gemini' in mid.lower())
-                        models.append({
+                    raw_models_set.add(mid)
+                    clean_mid = mid.replace('9router/', '')
+                    # Chuẩn hóa loại bỏ các hậu tố suy luận: -low, -medium, -high
+                    base_mid = re.sub(r'-(low|medium|high)$', '', clean_mid, flags=re.IGNORECASE)
+                    full_id = f'9router/{base_mid}'
+                    is_gemini = ('gemini' in base_mid.lower())
+
+                    if full_id not in models_map:
+                        models_map[full_id] = {
                             'id': full_id,
-                            'name': mid,
+                            'name': base_mid,
                             'provider': '9router',
-                            'is_gemini': is_gemini
-                        })
+                            'is_gemini': is_gemini,
+                            'raw_variants': set()
+                        }
+                    models_map[full_id]['raw_variants'].add(clean_mid)
         except Exception:
             pass
 
@@ -172,22 +265,43 @@ def get_opencode_models() -> list:
             if res.returncode == 0:
                 for line in res.stdout.strip().splitlines():
                     mid = line.strip()
-                    if not mid or mid in seen:
+                    if not mid:
                         continue
-                    seen.add(mid)
-                    is_gemini = ('gemini' in mid.lower())
-                    models.append({
-                        'id': mid,
-                        'name': mid,
-                        'provider': 'opencode',
-                        'is_gemini': is_gemini
-                    })
+                    raw_models_set.add(mid)
+                    clean_mid = mid.replace('9router/', '').replace('opencode/', '')
+                    base_mid = re.sub(r'-(low|medium|high)$', '', clean_mid, flags=re.IGNORECASE)
+                    if mid.startswith('opencode/'):
+                        full_id = f'opencode/{base_mid}'
+                        provider = 'opencode'
+                    else:
+                        full_id = f'9router/{base_mid}'
+                        provider = '9router'
+                    is_gemini = ('gemini' in base_mid.lower())
+
+                    if full_id not in models_map:
+                        models_map[full_id] = {
+                            'id': full_id,
+                            'name': base_mid,
+                            'provider': provider,
+                            'is_gemini': is_gemini,
+                            'raw_variants': set()
+                        }
+                    models_map[full_id]['raw_variants'].add(clean_mid)
         except Exception:
             pass
 
+    _9ROUTER_RAW_MODELS = raw_models_set
+    sync_opencode_provider_models(raw_models_set)
+
+    result = []
+    for m in models_map.values():
+        item = dict(m)
+        item['raw_variants'] = sorted(list(m['raw_variants']))
+        result.append(item)
+
     # Phân loại ưu tiên: Mô hình Gemini đưa lên đầu
-    models.sort(key=lambda m: (not m['is_gemini'], m['id']))
-    return models
+    result.sort(key=lambda m: (not m['is_gemini'], m['id']))
+    return result
 
 
 def get_gemini_cli_status() -> dict:
@@ -249,12 +363,26 @@ def get_gemini_cli_status() -> dict:
         except Exception:
             pass
 
+        # Lệnh thực thi phải phản ánh ĐÚNG effort/model đang chọn trên UI,
+        # không được hardcode '--effort high' (gây hiển thị lệch với cài đặt thật).
+        studio_settings = load_settings()
+        active_effort = str(studio_settings.get('effort') or 'high').strip().lower()
+        active_model = str(studio_settings.get('model') or '').strip()
+        exec_command = f"{agy_bin} --dangerously-skip-permissions --mode accept-edits"
+        if active_effort:
+            exec_command += f" --effort {active_effort}"
+        if active_model:
+            exec_command += f" --model {active_model}"
+        exec_command += " --output-format stream-json"
+
         return {
             'installed': installed,
             'logged_in': logged_in,
             'ready': installed and logged_in,
             'daemon_active': daemon_active,
-            'exec_command': f"{agy_bin} --dangerously-skip-permissions --mode accept-edits --effort high --output-format stream-json",
+            'exec_command': exec_command,
+            'active_effort': active_effort,
+            'active_model': active_model,
             'version': version,
             'bin_path': agy_bin,
             'scope_id': scope_id,
@@ -280,6 +408,8 @@ def get_gemini_cli_status() -> dict:
             'installation_id': '',
             'system_user': os.environ.get('USER') or 'system',
             'cli_model': '',
+            'active_effort': '',
+            'active_model': '',
             'agent_mode': '',
             'trusted_workspaces_count': 0,
             'trusted_workspaces': [],
@@ -313,17 +443,25 @@ def save_settings(settings_dict: dict):
             if curr.get('jira_api_token'):
                 os.environ['JIRA_API_TOKEN'] = curr['jira_api_token']
 
-            try:
-                import config
+        with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(curr, f, ensure_ascii=False, indent=2)
+
+        # Đồng bộ effort/model sang cấu hình toàn cục của OpenCode CLI
+        # để terminal `opencode` mở tay không bị lệch mức suy luận so với UI.
+        sync_opencode_active_model(curr)
+
+        try:
+            import config
+            if hasattr(config, 'refresh_workspaces'):
+                config.refresh_workspaces()
+            else:
                 if curr.get('fe_workspace'):
                     config.FE_WORKSPACE = os.path.expanduser(str(curr['fe_workspace']).strip())
                 if curr.get('be_workspace'):
                     config.BE_WORKSPACE = os.path.expanduser(str(curr['be_workspace']).strip())
-            except Exception:
-                pass
+        except Exception:
+            pass
 
-        with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(curr, f, ensure_ascii=False, indent=2)
         return curr
     except Exception as e:
         print(f"[WARN] Không thể lưu settings.json: {e}")

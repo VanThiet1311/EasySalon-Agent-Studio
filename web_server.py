@@ -30,6 +30,9 @@ MESSAGES_FILE = os.path.join(BASE_DIR, 'messages.json')
 from config import (
     FE_WORKSPACE,
     BE_WORKSPACE,
+    get_fe_workspace,
+    get_be_workspace,
+    get_workspace,
     BRAIN_DIR,
     HISTORY_FILE,
     WEB_PORT,
@@ -83,9 +86,26 @@ def ensure_background_terminals():
     global background_terminals
     agy_bin = get_agy_bin()
 
+    # Đọc cấu hình hiện tại để terminal ngầm chạy ĐÚNG effort/model đang chọn trên UI.
+    # Nếu không truyền --effort/--model, agy sẽ dùng mặc định trong
+    # ~/.gemini/antigravity-cli/settings.json (thường là High) -> lệch với UI.
+    try:
+        from studio.state import load_settings
+        cur_settings = load_settings()
+    except Exception:
+        cur_settings = {}
+    cur_effort = str(cur_settings.get('effort') or 'high').strip().lower()
+    cur_model = str(cur_settings.get('model') or '').strip()
+
+    base_cmd = [agy_bin, '--dangerously-skip-permissions', '--mode', 'accept-edits']
+    if cur_effort:
+        base_cmd += ['--effort', cur_effort]
+    if cur_model:
+        base_cmd += ['--model', cur_model]
+
     targets = [
-        ('fe', FE_WORKSPACE, 'Frontend (easysalon-webapp)'),
-        ('be', BE_WORKSPACE, 'Backend (easysalon-api)')
+        ('fe', get_fe_workspace(), 'Frontend (easysalon-webapp)'),
+        ('be', get_be_workspace(), 'Backend (easysalon-api)')
     ]
 
     for role, ws, label in targets:
@@ -97,7 +117,7 @@ def ensure_background_terminals():
         try:
             m_fd, s_fd = pty.openpty()
             proc = subprocess.Popen(
-                [agy_bin, '--dangerously-skip-permissions', '--mode', 'accept-edits'],
+                base_cmd,
                 cwd=ws,
                 stdin=s_fd,
                 stdout=s_fd,
@@ -110,7 +130,7 @@ def ensure_background_terminals():
                 'pty': (m_fd, s_fd),
                 'workspace': ws
             }
-            print(f"[STUDIO] Đã mở Terminal ngầm riêng cho {label} (PID: {proc.pid})")
+            print(f"[STUDIO] Đã mở Terminal ngầm riêng cho {label} (PID: {proc.pid}, Effort: {cur_effort.upper() or 'DEFAULT'}, Model: {cur_model or 'DEFAULT'})")
         except Exception as e:
             print(f"[WARN] Không thể mở Terminal ngầm cho {label}: {e}")
 
@@ -249,7 +269,7 @@ def get_terminal_feed(workspace, limit=14):
     if not completed_result:
         try:
             work_logs = load_messages()
-            role = 'fe' if workspace == FE_WORKSPACE else 'be'
+            role = 'fe' if os.path.abspath(workspace) == os.path.abspath(get_fe_workspace()) else 'be'
             for log in reversed(work_logs):
                 target = log.get('target', '')
                 if target in (role, 'both') and (log.get('result') or log.get('turns')):
@@ -309,8 +329,8 @@ def get_custom_skills():
                     })
         return results
 
-    fe_skills = scan_skills_dir(FE_WORKSPACE, 'fe')
-    be_skills = scan_skills_dir(BE_WORKSPACE, 'be')
+    fe_skills = scan_skills_dir(get_fe_workspace(), 'fe')
+    be_skills = scan_skills_dir(get_be_workspace(), 'be')
     return {
         'fe': fe_skills,
         'be': be_skills
@@ -1613,14 +1633,14 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
             'label': 'Frontend Agent',
             'sub': 'webapp (React/TypeScript)',
             'color': '#06b6d4',
-            'workspace': FE_WORKSPACE,
+            'workspace': get_fe_workspace(),
             'desc': 'Frontend React / TypeScript / Ant Design Engineer tại easysalon-webapp'
         },
         'be': {
             'label': 'Backend Agent',
             'sub': 'api (.NET/C#)',
             'color': '#10b981',
-            'workspace': BE_WORKSPACE,
+            'workspace': get_be_workspace(),
             'desc': 'Backend .NET / C# Web API Engineer tại easysalon-api'
         }
     }
@@ -1855,13 +1875,13 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
         'fe': {
             'label': 'Frontend Debugger',
             'sub': 'webapp (React/TypeScript)',
-            'workspace': FE_WORKSPACE,
+            'workspace': get_fe_workspace(),
             'desc': 'Frontend React Debugger tại easysalon-webapp, chuyên sâu về Formik, Yup validation, API client và state.'
         },
         'be': {
             'label': 'Backend Debugger',
             'sub': 'api (.NET/C#)',
-            'workspace': BE_WORKSPACE,
+            'workspace': get_be_workspace(),
             'desc': 'Backend .NET / EF Core Debugger tại easysalon-api, chuyên sâu về Controller, DTO, LINQ query, MySQL và Transaction.'
         }
     }
@@ -3377,8 +3397,10 @@ def merge_module_endpoints(fe_endpoints, be_endpoints, base_route='', primary_co
 
 
 def get_diagram_data(force=False):
-    fe_branch, fe_commit = get_git_info(FE_WORKSPACE)
-    be_branch, be_commit = get_git_info(BE_WORKSPACE)
+    fe_ws = get_fe_workspace()
+    be_ws = get_be_workspace()
+    fe_branch, fe_commit = get_git_info(fe_ws)
+    be_branch, be_commit = get_git_info(be_ws)
     cache_key = f"{fe_branch}@{fe_commit}|{be_branch}@{be_commit}"
 
     with state_lock:
@@ -3390,8 +3412,8 @@ def get_diagram_data(force=False):
         mid = cfg['id']
         vdata = MODULE_VERIFIED_DATA.get(mid, {})
 
-        fe_info = scan_fe_directory(FE_WORKSPACE, cfg)
-        be_info = scan_be_controllers(BE_WORKSPACE, cfg['be_controllers'])
+        fe_info = scan_fe_directory(fe_ws, cfg)
+        be_info = scan_be_controllers(be_ws, cfg['be_controllers'])
 
         # Controllers & services
         primary_c = be_info.get('primary_controller') or (cfg['be_controllers'][0] if cfg.get('be_controllers') else vdata.get('controller', f"{mid.capitalize()}Controller"))
@@ -3610,8 +3632,8 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 }
             self.send_json(data)
         elif path == '/api/terminals':
-            fe_feed = get_terminal_feed(FE_WORKSPACE, limit=14)
-            be_feed = get_terminal_feed(BE_WORKSPACE, limit=14)
+            fe_feed = get_terminal_feed(get_fe_workspace(), limit=14)
+            be_feed = get_terminal_feed(get_be_workspace(), limit=14)
             self.send_json({
                 'fe': fe_feed,
                 'be': be_feed,
@@ -3629,8 +3651,8 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             skills = get_custom_skills()
             self.send_json(skills)
         elif path == '/api/git/info':
-            fe_info = get_git_repo_details(FE_WORKSPACE)
-            be_info = get_git_repo_details(BE_WORKSPACE)
+            fe_info = get_git_repo_details(get_fe_workspace())
+            be_info = get_git_repo_details(get_be_workspace())
             self.send_json({
                 'fe': fe_info,
                 'be': be_info
@@ -3640,12 +3662,12 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             target = qs.get('target', ['fe'])[0]
             branch = qs.get('branch', ['HEAD'])[0]
             limit = int(qs.get('limit', ['30'])[0])
-            ws = FE_WORKSPACE if target == 'fe' else BE_WORKSPACE
+            ws = get_workspace(target)
             data = get_git_commits(ws, branch=branch, limit=limit)
             self.send_json(data)
         elif path == '/api/git/cherry-pick/status':
-            fe_status = get_git_cherry_pick_status(FE_WORKSPACE)
-            be_status = get_git_cherry_pick_status(BE_WORKSPACE)
+            fe_status = get_git_cherry_pick_status(get_fe_workspace())
+            be_status = get_git_cherry_pick_status(get_be_workspace())
             self.send_json({
                 'fe': fe_status,
                 'be': be_status
@@ -3653,22 +3675,24 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
         elif path == '/api/git/conflict/status':
             qs = urllib.parse.parse_qs(parsed.query)
             target = qs.get('target', ['fe'])[0]
-            ws = FE_WORKSPACE if target == 'fe' else BE_WORKSPACE
+            ws = get_workspace(target)
             data = get_git_active_conflict_status(ws)
             self.send_json(data)
         elif path == '/api/git/conflict/file':
             qs = urllib.parse.parse_qs(parsed.query)
             target = qs.get('target', ['fe'])[0]
             file_path = qs.get('file', [''])[0]
-            ws = FE_WORKSPACE if target == 'fe' else BE_WORKSPACE
+            ws = get_workspace(target)
             data = get_git_conflict_file_info(ws, file_path)
             self.send_json(data)
         elif path in ('/api/git/sync-check', '/api/git/sync-pull/check'):
             qs = urllib.parse.parse_qs(parsed.query)
             do_fetch = qs.get('fetch', ['1'])[0] not in ('0', 'false', 'no')
+            fe_ws = get_fe_workspace()
+            be_ws = get_be_workspace()
             with ThreadPoolExecutor(max_workers=2) as executor:
-                fe_future = executor.submit(check_sync_pull_status, FE_WORKSPACE, ('staging', 'master', 'beta'), do_fetch)
-                be_future = executor.submit(check_sync_pull_status, BE_WORKSPACE, ('staging', 'master', 'beta'), do_fetch)
+                fe_future = executor.submit(check_sync_pull_status, fe_ws, ('staging', 'master', 'beta'), do_fetch)
+                be_future = executor.submit(check_sync_pull_status, be_ws, ('staging', 'master', 'beta'), do_fetch)
                 fe_res = fe_future.result()
                 be_res = be_future.result()
             self.send_json({
@@ -3803,13 +3827,13 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             action_name = "Tạo nhánh" if create_new else "Chuyển nhánh"
 
             if target in ('fe', 'both'):
-                ok, msg = switch_git_branch(FE_WORKSPACE, branch, create_new=create_new, base_branch=base_branch)
+                ok, msg = switch_git_branch(get_fe_workspace(), branch, create_new=create_new, base_branch=base_branch)
                 results.append(f"Frontend: {msg}")
                 add_work_log('GIT_SWITCH', f"{action_name} Frontend sang '{branch}'", msg, 'SUCCESS' if ok else 'ERROR', target='fe')
                 if not ok: all_ok = False
 
             if target in ('be', 'both'):
-                ok, msg = switch_git_branch(BE_WORKSPACE, branch, create_new=create_new, base_branch=base_branch)
+                ok, msg = switch_git_branch(get_be_workspace(), branch, create_new=create_new, base_branch=base_branch)
                 results.append(f"Backend: {msg}")
                 add_work_log('GIT_SWITCH', f"{action_name} Backend sang '{branch}'", msg, 'SUCCESS' if ok else 'ERROR', target='be')
                 if not ok: all_ok = False
@@ -3828,10 +3852,10 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             target = body.get('target', 'both')
             results = []
             if target in ('fe', 'both'):
-                subprocess.run(['git', 'fetch'], cwd=FE_WORKSPACE, capture_output=True, timeout=30)
+                subprocess.run(['git', 'fetch'], cwd=get_fe_workspace(), capture_output=True, timeout=30)
                 results.append("Frontend: Đã đồng bộ fetch remote")
             if target in ('be', 'both'):
-                subprocess.run(['git', 'fetch'], cwd=BE_WORKSPACE, capture_output=True, timeout=30)
+                subprocess.run(['git', 'fetch'], cwd=get_be_workspace(), capture_output=True, timeout=30)
                 results.append("Backend: Đã đồng bộ fetch remote")
             self.send_json({'success': True, 'message': ' | '.join(results)})
 
@@ -3840,14 +3864,14 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             results = []
             all_ok = True
             if target in ('fe', 'both'):
-                res_fe = pull_git_branch(FE_WORKSPACE)
+                res_fe = pull_git_branch(get_fe_workspace())
                 results.append(f"Frontend: {res_fe['message']}")
                 if not res_fe['success']:
                     all_ok = False
                 add_work_log('GIT_PULL', f"Git Pull Frontend ({res_fe.get('branch', '')})", res_fe['message'], 'SUCCESS' if res_fe['success'] else 'ERROR', target='fe')
 
             if target in ('be', 'both'):
-                res_be = pull_git_branch(BE_WORKSPACE)
+                res_be = pull_git_branch(get_be_workspace())
                 results.append(f"Backend: {res_be['message']}")
                 if not res_be['success']:
                     all_ok = False
@@ -3865,7 +3889,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             commits = body.get('commits', [])
             no_commit = bool(body.get('no_commit', False))
             record_origin = bool(body.get('record_origin', True))
-            ws = FE_WORKSPACE if target == 'fe' else BE_WORKSPACE
+            ws = get_workspace(target)
             repo_label = 'Frontend' if target == 'fe' else 'Backend'
 
             res = execute_git_cherry_pick(ws, commits, no_commit=no_commit, record_origin=record_origin)
@@ -3885,7 +3909,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
 
         elif path == '/api/git/cherry-pick/abort':
             target = body.get('target', 'fe')
-            ws = FE_WORKSPACE if target == 'fe' else BE_WORKSPACE
+            ws = get_workspace(target)
             repo_label = 'Frontend' if target == 'fe' else 'Backend'
             res = abort_git_cherry_pick(ws)
             add_work_log(
@@ -3899,7 +3923,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
 
         elif path == '/api/git/cherry-pick/continue':
             target = body.get('target', 'fe')
-            ws = FE_WORKSPACE if target == 'fe' else BE_WORKSPACE
+            ws = get_workspace(target)
             repo_label = 'Frontend' if target == 'fe' else 'Backend'
             res = continue_git_cherry_pick(ws)
             add_work_log(
@@ -3918,7 +3942,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             target = body.get('target', 'fe')
             branch = body.get('branch', '').strip()
             commit_message = body.get('commit_message', '').strip()
-            ws = FE_WORKSPACE if target == 'fe' else BE_WORKSPACE
+            ws = get_workspace(target)
             repo_label = 'Frontend' if target == 'fe' else 'Backend'
 
             res = push_git_branch(ws, branch_name=branch, commit_message=commit_message)
@@ -3940,7 +3964,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             any_conflict = False
 
             if target in ('fe', 'both'):
-                res_fe = sync_pull_branch(FE_WORKSPACE, branch, return_to_current=return_to_current)
+                res_fe = sync_pull_branch(get_fe_workspace(), branch, return_to_current=return_to_current)
                 results['fe'] = res_fe
                 if not res_fe.get('success'):
                     all_ok = False
@@ -3955,7 +3979,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 )
 
             if target in ('be', 'both'):
-                res_be = sync_pull_branch(BE_WORKSPACE, branch, return_to_current=return_to_current)
+                res_be = sync_pull_branch(get_be_workspace(), branch, return_to_current=return_to_current)
                 results['be'] = res_be
                 if not res_be.get('success'):
                     all_ok = False
@@ -3988,9 +4012,9 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             target = body.get('target', 'fe')
             results = {}
             if target in ('fe', 'both'):
-                results['fe'] = execute_git_stash(FE_WORKSPACE)
+                results['fe'] = execute_git_stash(get_fe_workspace())
             if target in ('be', 'both'):
-                results['be'] = execute_git_stash(BE_WORKSPACE)
+                results['be'] = execute_git_stash(get_be_workspace())
             all_ok = all(r.get('success', False) for r in results.values() if isinstance(r, dict))
             add_work_log(
                 'GIT_STASH',
@@ -4008,7 +4032,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
 
         elif path == '/api/git/merge/abort':
             target = body.get('target', 'fe')
-            ws = FE_WORKSPACE if target == 'fe' else BE_WORKSPACE
+            ws = get_workspace(target)
             repo_label = 'Frontend' if target == 'fe' else 'Backend'
             res = abort_git_merge(ws)
             add_work_log(
@@ -4025,7 +4049,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             file_path = body.get('file', '').strip()
             action = body.get('action', 'accept_current')
             block_index = body.get('block_index')
-            ws = FE_WORKSPACE if target == 'fe' else BE_WORKSPACE
+            ws = get_workspace(target)
             repo_label = 'Frontend' if target == 'fe' else 'Backend'
             res = resolve_git_conflict_file(ws, file_path, action, block_index=block_index)
             if res.get('file_staged'):
@@ -4040,7 +4064,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
 
         elif path == '/api/git/conflict/abort':
             target = body.get('target', 'fe')
-            ws = FE_WORKSPACE if target == 'fe' else BE_WORKSPACE
+            ws = get_workspace(target)
             repo_label = 'Frontend' if target == 'fe' else 'Backend'
             res = abort_git_conflict(ws)
             add_work_log(
@@ -4055,7 +4079,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
         elif path == '/api/git/conflict/continue':
             target = body.get('target', 'fe')
             commit_message = body.get('commit_message')
-            ws = FE_WORKSPACE if target == 'fe' else BE_WORKSPACE
+            ws = get_workspace(target)
             repo_label = 'Frontend' if target == 'fe' else 'Backend'
             res = continue_git_conflict(ws, commit_message=commit_message)
             add_work_log(
@@ -4074,7 +4098,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(404, "Not Found")
 
     def serve_logo(self):
-        local_logo = os.path.join(FE_WORKSPACE, 'static/assets/logo/logo-my.png')
+        local_logo = os.path.join(get_fe_workspace(), 'static/assets/logo/logo-my.png')
         if os.path.exists(local_logo):
             with open(local_logo, 'rb') as f:
                 data = f.read()
@@ -4104,8 +4128,8 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
     def serve_html(self):
         rendered_html = (
             HTML_TEMPLATE
-            .replace('{{FE_WORKSPACE}}', FE_WORKSPACE)
-            .replace('{{BE_WORKSPACE}}', BE_WORKSPACE)
+            .replace('{{FE_WORKSPACE}}', get_fe_workspace())
+            .replace('{{BE_WORKSPACE}}', get_be_workspace())
         )
         html_code = rendered_html.encode('utf-8')
         self.send_response(200)
@@ -8077,8 +8101,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         <button onclick="loadWorkLogs()" class="ant-btn text-xs h-[30px]">
           <span>Làm mới</span>
         </button>
-        <button onclick="clearLogs()" class="ant-btn ant-btn-danger text-xs h-[30px]">
-          <span>Xóa lịch sử</span>
+        <button onclick="clearLogs()" class="ant-btn ant-btn-danger text-xs h-[30px]" title="Xóa toàn bộ lịch sử hoạt động">
+          <span>Xóa tất cả lịch sử</span>
         </button>
       </div>
     </div>
