@@ -338,6 +338,16 @@ async function removeParallelTask(taskId, e) {
     });
   } catch (err) { }
 
+  if (taskId && taskId !== cleanId) {
+    try {
+      await fetch('/api/queue/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_id: taskId })
+      });
+    } catch (err) { }
+  }
+
   const cleanBare = String(cleanId).replace(/^queued_/, '');
   [taskId, cleanId, cleanBare, 'queued_' + cleanBare].forEach(id => {
     if (id) {
@@ -363,7 +373,7 @@ async function removeParallelTask(taskId, e) {
       loadTaskToForm(activeTaskId);
     } else {
       parallelTasks.splice(idx, 1);
-      if (activeTaskId === cleanId) {
+      if (activeTaskId === cleanId || activeTaskId === taskId || activeTaskId === cleanBare || activeTaskId === ('queued_' + cleanBare)) {
         activeTaskId = parallelTasks[Math.max(0, idx - 1)].id;
         loadTaskToForm(activeTaskId);
       }
@@ -378,6 +388,9 @@ async function removeParallelTask(taskId, e) {
   renderFeedFilterTabs();
   updateTaskActionButtons();
   await syncQueueToServer();
+  if (typeof pollStatus === 'function') {
+    pollStatus();
+  }
   pollStatus();
   showToast(`Đã xóa ${taskName}`);
 }
@@ -1608,16 +1621,12 @@ function renderFeedView(data) {
     }
 
     sessHeader.innerHTML = `
-          <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-            <div class="flex items-center gap-2">
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${badgeLabel}</span>
-              <span class="text-xs font-bold text-white">${escapeHtml(titleBadge)}</span>
+          <div class="flex items-center justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${badgeClass}">${badgeLabel}</span>
+              <span class="text-xs font-bold text-white truncate">${escapeHtml(titleBadge)}</span>
             </div>
-            <div class="flex items-center gap-2 text-[10px] font-sans text-white/90">
-              <span class="px-1.5 py-0.5 rounded border text-[10px] font-sans ${isOpenCode ? 'bg-white/20 border-white/30 text-white' : 'bg-emerald-500/30 border-emerald-300/40 text-white'} font-semibold" title="Bộ máy thực thi">${escapeHtml(engineBadgeLabel)}</span>
-              ${sessModel ? `<span class="px-1.5 py-0.5 rounded bg-black/20 border border-white/20 text-white font-mono text-[9.5px]" title="Mô hình: ${escapeHtml(sessModel)}">${escapeHtml(sessModel.replace(/^9router\//, ''))}</span>` : ''}
-              <span class="px-1.5 py-0.5 rounded bg-white/15 border border-white/25 text-white">Phạm vi: ${scopeBadge}</span>
-              <span class="px-1.5 py-0.5 rounded bg-white/15 border border-white/25 text-white">Skill: ${escapeHtml(skillBadge)}</span>
+            <div class="flex items-center gap-2 text-[10px] font-sans text-white/90 shrink-0">
               ${statusHtml}
               <button type="button" onclick="removeParallelTask('${sess._taskId || sess.task_id || sess.id}', event)" class="p-1 rounded bg-white/15 hover:bg-white/25 text-white border border-white/25 text-[10px] flex items-center justify-center transition cursor-pointer" title="Xóa tác vụ này khỏi Diễn biến thực thi">
                 <svg class="w-3.5 h-3.5 fill-current text-white" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>

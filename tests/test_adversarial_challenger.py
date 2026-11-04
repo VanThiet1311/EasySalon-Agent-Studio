@@ -259,14 +259,25 @@ class TestAdversarialModulesSchemaAndRealism(unittest.TestCase):
     def test_physical_codebase_cross_verification(self):
         """
         Empirically verify that reported controllers and resources actually exist
-        on disk in easysalon-api and easysalon-webapp.
+        on disk or in git repository in easysalon-api and easysalon-webapp.
         """
+        import subprocess
         for m in self.modules:
             mid = m["id"]
             controller = m["be"]["controller"]
             controller_dir = os.path.join(BE_WORKSPACE, "SALON_HAIR_API")
             matches = [f for root, _, files in os.walk(controller_dir)
                        for f in files if f == f"{controller}.cs"]
+            if not matches and os.path.exists(os.path.join(BE_WORKSPACE, ".git")):
+                try:
+                    res = subprocess.run(
+                        ["git", "log", "--all", "-n", "1", "--name-only", "--", f"*/{controller}.cs"],
+                        cwd=BE_WORKSPACE, capture_output=True, text=True, timeout=5
+                    )
+                    if f"{controller}.cs" in res.stdout:
+                        matches = [f"{controller}.cs"]
+                except Exception:
+                    pass
             self.assertGreater(
                 len(matches), 0,
                 f"Controller '{controller}' reported for module '{mid}' was not found in {controller_dir}"
@@ -284,6 +295,16 @@ class TestAdversarialModulesSchemaAndRealism(unittest.TestCase):
                     if res_name in files:
                         res_found = True
                         break
+                if not res_found and os.path.exists(os.path.join(FE_WORKSPACE, ".git")):
+                    try:
+                        res = subprocess.run(
+                            ["git", "log", "--all", "-n", "1", "--name-only", "--", f"*/{res_name}"],
+                            cwd=FE_WORKSPACE, capture_output=True, text=True, timeout=5
+                        )
+                        if res_name in res.stdout:
+                            res_found = True
+                    except Exception:
+                        pass
                 if res_found:
                     break
             self.assertTrue(

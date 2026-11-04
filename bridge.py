@@ -23,8 +23,25 @@ import unicodedata
 import uuid
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MESSAGES_FILE = os.path.join(BASE_DIR, 'messages.json')
-ACTIVE_DIALOGUE_FILE = os.path.join(BASE_DIR, 'active_dialogue.json')
+STORAGE_DIR = os.path.join(BASE_DIR, 'storage')
+os.makedirs(STORAGE_DIR, exist_ok=True)
+
+
+def _resolve_storage_file(filename: str) -> str:
+    """Trả về đường dẫn file trong thư mục storage/. Nếu file tồn tại ở root mà chưa có trong storage/, tự động di chuyển vào storage/."""
+    storage_path = os.path.join(STORAGE_DIR, filename)
+    root_path = os.path.join(BASE_DIR, filename)
+    if not os.path.exists(storage_path) and os.path.exists(root_path):
+        try:
+            import shutil
+            shutil.move(root_path, storage_path)
+        except Exception:
+            return root_path
+    return storage_path
+
+
+MESSAGES_FILE = _resolve_storage_file('messages.json')
+ACTIVE_DIALOGUE_FILE = _resolve_storage_file('active_dialogue.json')
 DAEMON_PID_FILE = os.path.join(BASE_DIR, '.daemon.pid')
 
 from config import (

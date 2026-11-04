@@ -450,10 +450,32 @@ body.light-mode #notifDropdownMenu {
   border: 1px solid #b7eb8f !important;
   color: #389e0d !important;
 }
-.notif-title-done { color: #389e0d !important; }
-.notif-title-running { color: #d48806 !important; }
-.notif-title-stopped { color: #1677ff !important; }
-.notif-title-default { color: #0f172a !important; }
+.notif-tag-jira-task {
+  background-color: #e6f4ff !important;
+  border: 1px solid #91caff !important;
+  color: #0958d9 !important;
+}
+.notif-tag-jira-task:hover { background-color: #bae0ff !important; }
+.notif-tag-jira-comment {
+  background-color: #f9f0ff !important;
+  border: 1px solid #d3adf7 !important;
+  color: #722ed1 !important;
+}
+.notif-tag-jira-comment:hover { background-color: #efdbff !important; }
+.notif-item.is-unread .notif-item-title,
+.notif-item.is-unread .notif-title-done,
+.notif-item.is-unread .notif-title-running,
+.notif-item.is-unread .notif-title-stopped,
+.notif-item.is-unread .notif-title-default {
+  color: #1677ff !important;
+}
+.notif-item .notif-item-title,
+.notif-item .notif-title-done,
+.notif-item .notif-title-running,
+.notif-item .notif-title-stopped,
+.notif-item .notif-title-default {
+  color: #94a3b8 !important;
+}
 
 /* ====================================================================
    ANT DESIGN MODAL (CONFIRM / ALERT DIALOG)
@@ -513,3 +535,5 @@ body.light-mode #studioToast span {
 @import "./diagram.css";
 @import "./settings.css";
 @import "./logs.css";
+@import "./jira.css";
+@import "./notes.css";

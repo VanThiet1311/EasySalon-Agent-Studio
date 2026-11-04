@@ -337,6 +337,52 @@ def get_custom_skills():
     }
 
 
+def get_git_stash_list(workspace):
+    """Lấy danh sách các bản git stash của workspace kèm thông tin branch tương ứng."""
+    stashes = []
+    try:
+        res = subprocess.run(
+            ['git', 'stash', 'list', '--format=%gd|%gs|%cr'],
+            cwd=workspace,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if res.returncode != 0:
+            return []
+
+        for line in res.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split('|', 2)
+            if len(parts) < 2:
+                continue
+            idx = parts[0].strip()
+            subj = parts[1].strip()
+            date = format_git_relative_date(parts[2].strip()) if len(parts) > 2 else ''
+
+            # Phân tích branch từ subject: "WIP on <branch>: ..." hoặc "On <branch>: ..."
+            m = re.match(r'^(?:WIP on|On)\s+([^:]+):(?:\s*(.*))?$', subj)
+            if m:
+                b_name = m.group(1).strip()
+                msg = (m.group(2) or '').strip()
+            else:
+                b_name = ''
+                msg = subj
+
+            stashes.append({
+                'index': idx,
+                'branch': b_name,
+                'message': msg,
+                'date': date,
+                'raw_subject': subj
+            })
+    except Exception:
+        pass
+    return stashes
+
+
 def get_git_repo_details(workspace):
     """Lấy thông tin chi tiết git: nhánh hiện tại, commit, trạng thái working directory, đồng bộ remote và danh sách nhánh."""
     try:
@@ -437,6 +483,10 @@ def get_git_repo_details(workspace):
     except Exception:
         prev_branch = ''
 
+    # Lấy thông tin stash và danh sách stash của nhánh hiện tại
+    stash_list = get_git_stash_list(workspace)
+    branch_stashes = [s for s in stash_list if s.get('branch') == curr_branch]
+
     return {
         'current_branch': curr_branch,
         'prev_branch': prev_branch,
@@ -449,7 +499,11 @@ def get_git_repo_details(workspace):
         'ahead_count': ahead_count,
         'behind_count': behind_count,
         'needs_pull': needs_pull,
-        'branches': branches
+        'branches': branches,
+        'stash_list': stash_list,
+        'branch_stashes': branch_stashes,
+        'has_branch_stash': len(branch_stashes) > 0,
+        'latest_branch_stash': branch_stashes[0] if branch_stashes else None
     }
 
 
@@ -487,9 +541,9 @@ def pull_git_branch(workspace):
         return {'success': False, 'branch': '', 'message': str(e)}
 
 
-def switch_git_branch(workspace, branch_name, create_new=False, base_branch=''):
+def switch_git_branch(workspace, branch_name, create_new=False, base_branch='', switch_branch=True):
     """
-    Chuyển nhánh git hoặc tạo nhánh mới nếu yêu cầu (git checkout hoặc git checkout -b).
+    Chuyển nhánh git hoặc tạo nhánh mới nếu yêu cầu (git checkout hoặc git checkout -b hoặc git branch).
     Tự động hỗ trợ tracking nhánh remote nếu nhánh chưa có ở local.
     Hỗ trợ tạo nhánh mới từ nhánh gốc base_branch (git checkout -b <branch> <base_branch>).
     """
@@ -501,6 +555,24 @@ def switch_git_branch(workspace, branch_name, create_new=False, base_branch=''):
 
         # Trường hợp 1: Người dùng yêu cầu tạo nhánh mới (-b)
         if create_new:
+            if not switch_branch:
+                cmd = ['git', 'branch', branch_name]
+                if base_branch:
+                    cmd.append(base_branch)
+                res = subprocess.run(cmd, cwd=workspace, capture_output=True, text=True, timeout=25)
+                msg = (res.stdout.strip() + '\n' + res.stderr.strip()).strip()
+                if res.returncode == 0:
+                    from_info = f" từ nhánh '{base_branch}'" if base_branch else ""
+                    return True, f"Đã tạo nhánh '{branch_name}'{from_info} thành công (vẫn giữ nhánh hiện tại)."
+                if base_branch and ('not a valid object name' in msg or 'fatal: Cannot update paths' in msg or 'fatal: invalid reference' in msg):
+                    cmd_rem = ['git', 'branch', branch_name, f'origin/{base_branch}']
+                    res_rem = subprocess.run(cmd_rem, cwd=workspace, capture_output=True, text=True, timeout=25)
+                    if res_rem.returncode == 0:
+                        return True, f"Đã tạo nhánh '{branch_name}' từ remote 'origin/{base_branch}' thành công (vẫn giữ nhánh hiện tại)."
+                if 'already exists' in msg:
+                    return False, f"Nhánh '{branch_name}' đã tồn tại sẵn."
+                return False, f"Không thể tạo nhánh mới '{branch_name}'. Chi tiết: {msg}"
+
             cmd = ['git', 'checkout', '-b', branch_name]
             if base_branch:
                 cmd.append(base_branch)
@@ -573,6 +645,62 @@ def switch_git_branch(workspace, branch_name, create_new=False, base_branch=''):
         return False, str(e)
 
 
+def rename_git_branch(workspace, new_name, old_name=''):
+    """
+    Đổi tên nhánh git (git branch -m [old_name] <new_name>).
+    Nếu old_name rỗng hoặc 'HEAD' hoặc 'CURRENT', đổi tên nhánh hiện tại:
+    git branch -m <new_name>
+    Nếu old_name được cung cấp, đổi tên nhánh old_name:
+    git branch -m <old_name> <new_name>
+    """
+    try:
+        new_name = (new_name or '').strip()
+        old_name = (old_name or '').strip()
+        if not new_name:
+            return False, "Tên nhánh mới không được để trống."
+
+        is_from_head = not old_name or old_name.upper() in ('HEAD', 'CURRENT', 'CURRENT_BRANCH')
+
+        curr_branch = ""
+        try:
+            curr_branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=workspace, text=True).strip()
+        except Exception:
+            pass
+
+        target_old = curr_branch if is_from_head else old_name
+
+        if target_old and target_old == new_name:
+            return False, f"Tên nhánh mới '{new_name}' trùng với tên nhánh hiện tại."
+
+        cmd = ['git', 'branch', '-m']
+        if not is_from_head:
+            cmd.append(old_name)
+        cmd.append(new_name)
+
+        res = subprocess.run(
+            cmd,
+            cwd=workspace,
+            capture_output=True,
+            text=True,
+            timeout=25
+        )
+        msg = (res.stdout.strip() + '\n' + res.stderr.strip()).strip()
+        if res.returncode == 0:
+            old_desc = f"'{target_old}'" if target_old else "nhánh hiện tại"
+            return True, f"Đã đổi tên nhánh {old_desc} thành '{new_name}' thành công."
+
+        if 'already exists' in msg:
+            return False, f"Nhánh '{new_name}' đã tồn tại sẵn trong repository."
+        if 'not a valid object name' in msg or 'fatal: invalid reference' in msg or 'error: refname' in msg:
+            return False, f"Tên nhánh '{new_name}' không hợp lệ hoặc không tìm thấy nhánh nguồn '{target_old or old_name}'."
+
+        return False, f"Không thể đổi tên nhánh. Chi tiết: {msg}"
+    except subprocess.TimeoutExpired:
+        return False, "Lệnh git branch -m quá thời gian chờ (timeout)."
+    except Exception as e:
+        return False, f"Lỗi hệ thống khi đổi tên nhánh: {str(e)}"
+
+
 def get_git_commits(workspace, branch='HEAD', limit=300):
     """Lấy danh sách commit của một nhánh cụ thể (hỗ trợ phân trang và nhận diện tác giả)."""
     try:
@@ -639,6 +767,37 @@ def execute_git_stash(workspace, message=""):
             return {'success': False, 'message': f'Git stash thất bại: {output}', 'output': output}
     except Exception as e:
         return {'success': False, 'message': f'Lỗi khi thực hiện git stash: {str(e)}'}
+
+
+def execute_git_stash_pop(workspace, stash_index=None):
+    """Thực hiện git stash pop để khôi phục thay đổi từ stash."""
+    try:
+        stash_ref = (stash_index or 'stash@{0}').strip()
+        if stash_ref and not stash_ref.startswith('stash@{'):
+            if stash_ref.isdigit():
+                stash_ref = f'stash@{{{stash_ref}}}'
+            else:
+                return {'success': False, 'message': f'Chỉ số stash không hợp lệ: {stash_ref}'}
+
+        cmd = ['git', 'stash', 'pop', stash_ref]
+        res = subprocess.run(cmd, cwd=workspace, capture_output=True, text=True, timeout=30)
+        output = (res.stdout.strip() + '\n' + res.stderr.strip()).strip()
+        if res.returncode == 0:
+            return {
+                'success': True,
+                'message': f'Đã lấy code từ {stash_ref} thành công.',
+                'output': output
+            }
+        else:
+            has_conflict = 'conflict' in output.lower() or 'xung đột' in output.lower()
+            return {
+                'success': False,
+                'conflict': has_conflict,
+                'message': f'Lỗi khi lấy code từ {stash_ref}: {output}',
+                'output': output
+            }
+    except Exception as e:
+        return {'success': False, 'message': f'Lỗi khi thực hiện git stash pop: {str(e)}'}
 
 
 def get_git_cherry_pick_status(workspace):
@@ -1466,9 +1625,15 @@ def build_skill_directive(skill_input) -> str:
             "để áp dụng đúng kiến trúc, DTO, entity, validation và luồng nghiệp vụ tương ứng trước khi xử lý.\n"
         )
 
-    formatted = [s if s.startswith('skill-') else f'skill-{s}' for s in skill_list]
+    formatted = []
+    for s in skill_list:
+        sc = s.strip().lstrip('/')
+        if not sc:
+            continue
+        formatted.append(sc)
+
     bullet_points = [
-        f"- Đọc và tuân thủ tài liệu skill nghiệp vụ tại '.agents/skills/{s}/SKILL.md' (nếu có trong workspace của bạn)"
+        f"- Đọc và tuân thủ tài liệu hướng dẫn nghiệp vụ/kiến trúc tại '.agents/skills/{s}/SKILL.md' (hoặc gọi tool skill '{s}') trong workspace."
         for s in formatted
     ]
 
@@ -1496,7 +1661,8 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            bufsize=1
+            bufsize=1,
+            start_new_session=True
         )
         with state_lock:
             if task_state is not None:
@@ -2317,7 +2483,7 @@ MODULE_VERIFIED_DATA = {
     'booking-bedroom': {
         'screens': ['RouteBedRoomPosition.tsx', 'RouteBedRoomManager.tsx'],
         'components': ['BedRoomContainer.tsx', 'BedRoomPositionTable.tsx', 'BedRoomPositionForm.tsx'],
-        'resources': ['bedRoomPosition.ts', 'bedRoomManager.ts'],
+        'resources': ['bedRoomPosition.ts', 'bedRoomManager.ts', 'booking.ts'],
         'route': '/bed-room-position',
         'endpoints': [
             {'method': 'GET', 'path': '/bed-room-position', 'note': 'Lấy danh sách vị trí giường'},
@@ -3407,6 +3573,8 @@ def get_diagram_data(force=False):
         if not force and app_state.get('diagram_cache') and app_state.get('diagram_cache_key') == cache_key:
             return app_state['diagram_cache']
 
+    ctrl_path = os.path.join(be_ws, 'SALON_HAIR_API')
+    existing_cs = {f[:-3] for root, _, files in os.walk(ctrl_path) for f in files if f.endswith('.cs')} if os.path.isdir(ctrl_path) else set()
     modules = []
     for cfg in CORE_MODULE_CONFIGS:
         mid = cfg['id']
@@ -3417,6 +3585,12 @@ def get_diagram_data(force=False):
 
         # Controllers & services
         primary_c = be_info.get('primary_controller') or (cfg['be_controllers'][0] if cfg.get('be_controllers') else vdata.get('controller', f"{mid.capitalize()}Controller"))
+        if primary_c not in existing_cs:
+            fallback_controllers = ['BookingsController'] if 'booking' in mid else []
+            for fb_c in fallback_controllers:
+                if fb_c in existing_cs:
+                    primary_c = fb_c
+                    break
 
         # Merge / fallback for routes & endpoints
         route = be_info.get('route') or fe_info.get('route') or vdata.get('route', f"/{mid}")
@@ -3456,11 +3630,10 @@ def get_diagram_data(force=False):
         resources = fe_info.get('resources') or vdata.get('resources', [f"{mid}.ts"])
 
         # Controllers & services
-        primary_c = be_info.get('primary_controller') or (cfg['be_controllers'][0] if cfg.get('be_controllers') else vdata.get('controller', f"{mid.capitalize()}Controller"))
-        service = be_info.get('service') or vdata.get('service', f"{primary_c.replace('Controller', '')}Service")
-        manager = be_info.get('manager') or vdata.get('manager', f"{primary_c.replace('Controller', '')}Manager")
-        entity = be_info.get('entity') or (vdata.get('entities', [primary_c.replace('Controller', '')])[0])
-        entities = be_info.get('entities') or vdata.get('entities', [entity])
+        service = be_info.get('service') or (('BookingService' if primary_c == 'BookingsController' else None) or vdata.get('service', f"{primary_c.replace('Controller', '')}Service"))
+        manager = be_info.get('manager') or (('BookingManager' if primary_c == 'BookingsController' else None) or vdata.get('manager', f"{primary_c.replace('Controller', '')}Manager"))
+        entity = be_info.get('entity') or (('Booking' if primary_c == 'BookingsController' else None) or (vdata.get('entities', [primary_c.replace('Controller', '')])[0]))
+        entities = be_info.get('entities') or (['Booking', 'BookingDetail'] if primary_c == 'BookingsController' else vdata.get('entities', [entity]))
         be_stack_str = be_info.get('be_stack_str') or f"{primary_c} → {service} → {entity} Entity"
 
         # Construct be_links
@@ -3572,9 +3745,45 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             '/logs',
             '/diagram',
             '/architecture',
+            '/jira',
+            '/jira-tasks',
+            '/jira-tickets',
+            '/settings',
+            '/setting',
+            '/effort',
+            '/model',
+            '/models',
+            '/engine',
+            '/account',
+            '/env',
+            '/environment',
+            '/api-settings',
+            '/api-keys',
+            '/settings/effort',
+            '/settings/model',
+            '/settings/models',
+            '/settings/engine',
+            '/settings/account',
+            '/settings/api',
+            '/settings/api-keys',
+            '/settings/mcp',
+            '/mcp',
+            '/mcp-servers',
+            '/settings/env',
+            '/settings/environment',
         }
 
-        if path in PAGE_ROUTES or path.startswith('/git-control') or path.startswith('/git/'):
+        is_html_route = (
+            path in PAGE_ROUTES
+            or path.startswith('/git-control')
+            or path.startswith('/git/')
+            or (path.startswith('/settings') and path != '/api/settings')
+            or path.startswith('/setting')
+            or (path.endswith('/settings') and path != '/api/settings')
+            or path.endswith('/setting')
+        )
+
+        if is_html_route:
             self.serve_html()
         elif path == '/logo-my.png':
             self.serve_logo()
@@ -3671,6 +3880,16 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             self.send_json({
                 'fe': fe_status,
                 'be': be_status
+            })
+        elif path == '/api/git/stash/list':
+            qs = urllib.parse.parse_qs(parsed.query)
+            target = qs.get('target', ['fe'])[0]
+            ws = get_workspace(target)
+            stashes = get_git_stash_list(ws)
+            self.send_json({
+                'success': True,
+                'target': target,
+                'stashes': stashes
             })
         elif path == '/api/git/conflict/status':
             qs = urllib.parse.parse_qs(parsed.query)
@@ -3818,22 +4037,23 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             branch = body.get('branch', '').strip()
             create_new = bool(body.get('create_new', False))
             base_branch = body.get('base_branch', '').strip()
+            switch_branch = bool(body.get('switch_branch', True))
             if not branch:
                 self.send_json({'success': False, 'message': 'Vui lòng chọn hoặc nhập tên nhánh.'}, 400)
                 return
 
             results = []
             all_ok = True
-            action_name = "Tạo nhánh" if create_new else "Chuyển nhánh"
+            action_name = "Tạo nhánh & chuyển" if (create_new and switch_branch) else ("Tạo nhánh" if create_new else "Chuyển nhánh")
 
             if target in ('fe', 'both'):
-                ok, msg = switch_git_branch(get_fe_workspace(), branch, create_new=create_new, base_branch=base_branch)
+                ok, msg = switch_git_branch(get_fe_workspace(), branch, create_new=create_new, base_branch=base_branch, switch_branch=switch_branch)
                 results.append(f"Frontend: {msg}")
                 add_work_log('GIT_SWITCH', f"{action_name} Frontend sang '{branch}'", msg, 'SUCCESS' if ok else 'ERROR', target='fe')
                 if not ok: all_ok = False
 
             if target in ('be', 'both'):
-                ok, msg = switch_git_branch(get_be_workspace(), branch, create_new=create_new, base_branch=base_branch)
+                ok, msg = switch_git_branch(get_be_workspace(), branch, create_new=create_new, base_branch=base_branch, switch_branch=switch_branch)
                 results.append(f"Backend: {msg}")
                 add_work_log('GIT_SWITCH', f"{action_name} Backend sang '{branch}'", msg, 'SUCCESS' if ok else 'ERROR', target='be')
                 if not ok: all_ok = False
@@ -3847,6 +4067,39 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'success': all_ok,
                 'message': '\n'.join(results)
             })
+
+        elif path == '/api/git/rename-branch':
+            target = body.get('target', 'fe')
+            old_branch = body.get('old_branch', '').strip()
+            new_branch = body.get('new_branch', '').strip()
+            if not new_branch:
+                self.send_json({'success': False, 'message': 'Vui lòng nhập tên nhánh mới.'}, 400)
+                return
+
+            results = []
+            all_ok = True
+
+            if target in ('fe', 'both'):
+                ok, msg = rename_git_branch(get_fe_workspace(), new_branch, old_name=old_branch)
+                results.append(f"Frontend: {msg}")
+                add_work_log('GIT_RENAME', f"Đổi tên nhánh Frontend thành '{new_branch}'", msg, 'SUCCESS' if ok else 'ERROR', target='fe')
+                if not ok: all_ok = False
+
+            if target in ('be', 'both'):
+                ok, msg = rename_git_branch(get_be_workspace(), new_branch, old_name=old_branch)
+                results.append(f"Backend: {msg}")
+                add_work_log('GIT_RENAME', f"Đổi tên nhánh Backend thành '{new_branch}'", msg, 'SUCCESS' if ok else 'ERROR', target='be')
+                if not ok: all_ok = False
+
+            # Xóa cache sơ đồ
+            with state_lock:
+                app_state['diagram_cache'] = None
+                app_state['diagram_cache_key'] = None
+
+            self.send_json({
+                'success': all_ok,
+                'message': '\n'.join(results)
+            }, 200 if all_ok else 400)
 
         elif path == '/api/git/fetch':
             target = body.get('target', 'both')
@@ -3937,6 +4190,44 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 app_state['diagram_cache'] = None
                 app_state['diagram_cache_key'] = None
             self.send_json(res)
+
+        elif path == '/api/git/checkout-switch':
+            data = body or {}
+            current_branch = (data.get('current_branch') or '').strip()
+            target_branch = (data.get('target_branch') or '').strip()
+            target_workspace = (data.get('target_workspace') or 'both').strip()
+
+            if not current_branch or not target_branch:
+                self.send_json({'success': False, 'message': 'Thiếu thông tin nhánh current/target.'}, 400)
+                return
+
+            if current_branch.lower() == target_branch.lower():
+                self.send_json({'success': False, 'message': 'Nhánh đích không được giống nhánh hiện tại.'}, 400)
+                return
+
+            results = []
+            all_ok = True
+
+            ws_fe = get_workspace('fe')
+            ws_be = get_workspace('be')
+
+            # Checkout Frontend
+            if target_workspace in ('fe', 'both'):
+                ok, msg = switch_git_branch(ws_fe, target_branch, base_branch=current_branch)
+                label = 'Frontend' if target_workspace in ('fe', 'both') else ''
+                results.append(f"{label}: {msg}")
+                add_work_log('GIT_SWITCH', f'Checkout FE sang "{target_branch}" từ "{current_branch}"', msg, 'SUCCESS' if ok else 'ERROR', target='fe')
+                if not ok: all_ok = False
+
+            # Checkout Backend
+            if target_workspace in ('be', 'both'):
+                ok, msg = switch_git_branch(ws_be, target_branch, base_branch=current_branch)
+                label = 'Backend' if target_workspace in ('be', 'both') else ''
+                results.append(f"{label}: {msg}")
+                add_work_log('GIT_SWITCH', f'Checkout BE sang "{target_branch}" từ "{current_branch}"', msg, 'SUCCESS' if ok else 'ERROR', target='be')
+                if not ok: all_ok = False
+
+            self.send_json({'success': all_ok, 'message': '\n'.join(results)})
 
         elif path == '/api/git/push':
             target = body.get('target', 'fe')
@@ -4029,6 +4320,22 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'results': results,
                 'message': '\n'.join([f"{'Frontend' if k=='fe' else 'Backend'}: {v.get('message')}" for k, v in results.items()])
             })
+
+        elif path == '/api/git/stash/pop':
+            target = body.get('target', 'fe')
+            stash_index = body.get('stash_index', None)
+            ws = get_workspace(target)
+            repo_label = 'Frontend' if target == 'fe' else 'Backend'
+            res = execute_git_stash_pop(ws, stash_index=stash_index)
+            stash_ref = stash_index or 'stash@{0}'
+            add_work_log(
+                'GIT_STASH_POP',
+                f"Lấy code từ Stash {repo_label} ({stash_ref})",
+                res.get('message', ''),
+                'SUCCESS' if res.get('success') else 'ERROR',
+                target=target
+            )
+            self.send_json(res)
 
         elif path == '/api/git/merge/abort':
             target = body.get('target', 'fe')
@@ -4180,6 +4487,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     window.GIT_SUBTAB_ROUTES = {
       'pull_sync': '/git-control',
       'branch': '/git-control/checkout-branch',
+      'switch': '/git-control/switch-branch',
       'cherry_pick': '/git-control/cherry-pick',
       'merge': '/git-control/merge'
     };
@@ -4190,13 +4498,19 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       '/git-control/pull-sync': 'pull_sync',
       '/git-control/sync': 'pull_sync',
       '/git-control/checkout-branch': 'branch',
+      '/git-control/create-branch': 'branch',
       '/git-control/branch': 'branch',
       '/git-control/branches': 'branch',
+      '/git-control/switch-branch': 'switch',
+      '/git-control/switch': 'switch',
+      '/git-control/checkout': 'switch',
       '/git-control/cherry-pick': 'cherry_pick',
       '/git-control/cherry': 'cherry_pick',
       '/git-control/merge': 'merge',
       '/branch': 'branch',
       '/branches': 'branch',
+      '/switch': 'switch',
+      '/switch-branch': 'switch',
       '/cherry-pick': 'cherry_pick',
       '/cherry': 'cherry_pick',
       '/git/cherry-pick': 'cherry_pick',
@@ -6114,17 +6428,19 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       border: 1px solid #b7eb8f !important;
       color: #389e0d !important;
     }
-    .notif-title-done {
-      color: #389e0d !important;
-    }
-    .notif-title-running {
-      color: #d48806 !important;
-    }
-    .notif-title-stopped {
+    .notif-item.is-unread .notif-item-title,
+    .notif-item.is-unread .notif-title-done,
+    .notif-item.is-unread .notif-title-running,
+    .notif-item.is-unread .notif-title-stopped,
+    .notif-item.is-unread .notif-title-default {
       color: #1677ff !important;
     }
-    .notif-title-default {
-      color: #0f172a !important;
+    .notif-item .notif-item-title,
+    .notif-item .notif-title-done,
+    .notif-item .notif-title-running,
+    .notif-item .notif-title-stopped,
+    .notif-item .notif-title-default {
+      color: #94a3b8 !important;
     }
 
     /* Modal Dialog */
@@ -6576,7 +6892,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
               <span id="notifDropdownBadge" class="text-xs text-slate-400 font-normal hidden">0 chưa đọc</span>
             </div>
             <div class="flex items-center gap-2">
-              <button type="button" onclick="markAllNotificationsAsRead()" class="text-[11px] font-semibold text-[#199cff] hover:text-blue-700 transition cursor-pointer" title="Đánh dấu tất cả thông báo là đã đọc">Đọc tất cả</button>
+              <button type="button" id="btnMarkAllNotifsAsRead" onclick="markAllNotificationsAsRead()" class="text-[11px] font-semibold text-[#199cff] hover:text-blue-700 transition cursor-pointer" title="Đánh dấu tất cả thông báo là đã đọc">Đọc tất cả</button>
               <button type="button" onclick="checkSyncPullUpdates(true)" class="text-[11px] font-semibold text-slate-600 hover:text-black transition flex items-center gap-1 cursor-pointer" title="Kiểm tra remote ngay">
                 <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
                 <span>Quét</span>
@@ -6679,7 +6995,17 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
         <!-- Nội dung task / Hiện tượng lỗi -->
         <div class="space-y-1">
-          <label id="taskPromptLabel" class="text-xs font-medium text-slate-300">Yêu cầu / Mô tả chi tiết:</label>
+          <div class="flex items-center justify-between">
+            <label id="taskPromptLabel" class="text-xs font-medium text-slate-300">Yêu cầu / Mô tả chi tiết:</label>
+            <button type="button" onclick="formatTaskPromptInput()"
+              class="text-[11px] text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer select-none transition hover:underline"
+              title="Định dạng lại nội dung theo chuẩn BDD / Gherkin và phân đoạn dễ nhìn">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h10M4 18h16" />
+              </svg>
+              <span>Định dạng lại</span>
+            </button>
+          </div>
           <textarea id="taskPromptInput" rows="4" oninput="onTaskPromptInput()"
             placeholder="Ví dụ: Thêm API và Component hiển thị trạng thái giường cho BedRoomPosition..."
             class="w-full bg-[#0e192c] border border-[#244170] focus:border-[#38bdf8] rounded-md p-2.5 text-xs text-slate-100 placeholder-slate-400 focus:outline-none transition resize-none leading-relaxed"></textarea>
@@ -6875,6 +7201,26 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
                 <span id="fePullBtnText">Pull nhánh này</span>
               </button>
             </div>
+
+            <!-- Stash của nhánh Frontend -->
+            <div id="feStashSection" style="display: none;"
+              class="hidden pt-2 border-t border-[#244170] flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0 flex-1">
+                <span class="text-slate-400 text-[11px] whitespace-nowrap">Code trong Stash:</span>
+                <span id="feStashBadge"
+                  class="text-[11px] font-mono text-cyan-300 bg-cyan-950/70 px-2 py-0.5 rounded border border-cyan-800/80 truncate max-w-[220px] sm:max-w-[280px]"
+                  title="">Đang kiểm tra...</span>
+              </div>
+              <button id="btnPopStashFe" type="button" onclick="doPopStash('fe')"
+                class="ant-btn text-xs h-[28px] px-3 inline-flex items-center gap-1.5 bg-[#1677ff] hover:bg-[#4096ff] text-white font-sans font-medium rounded border border-[#1677ff] shadow-sm cursor-pointer select-none transition"
+                title="Khôi phục mã nguồn đã cất từ git stash (git stash pop)">
+                <svg class="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span id="fePopStashBtnText">Lấy code từ stash</span>
+              </button>
+            </div>
           </div>
 
           <!-- Khu vực chọn và chuyển nhánh -->
@@ -6947,6 +7293,26 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
               <button id="btnPullBe" onclick="doPullBranch('be')" class="hidden ant-btn text-xs h-[28px] px-3 flex items-center gap-1.5 bg-[#182c4f] border-[#2e528f] text-emerald-300 hover:bg-[#244170]">
                 <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
                 <span id="bePullBtnText">Pull nhánh này</span>
+              </button>
+            </div>
+
+            <!-- Stash của nhánh Backend -->
+            <div id="beStashSection" style="display: none;"
+              class="hidden pt-2 border-t border-[#244170] flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0 flex-1">
+                <span class="text-slate-400 text-[11px] whitespace-nowrap">Code trong Stash:</span>
+                <span id="beStashBadge"
+                  class="text-[11px] font-mono text-emerald-300 bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-800/80 truncate max-w-[220px] sm:max-w-[280px]"
+                  title="">Đang kiểm tra...</span>
+              </div>
+              <button id="btnPopStashBe" type="button" onclick="doPopStash('be')"
+                class="ant-btn text-xs h-[28px] px-3 inline-flex items-center gap-1.5 bg-[#1677ff] hover:bg-[#4096ff] text-white font-sans font-medium rounded border border-[#1677ff] shadow-sm cursor-pointer select-none transition"
+                title="Khôi phục mã nguồn đã cất từ git stash (git stash pop)">
+                <svg class="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span id="bePopStashBtnText">Lấy code từ stash</span>
               </button>
             </div>
           </div>
@@ -7717,12 +8083,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
           <!-- Tùy chọn Merge & Commit message -->
           <div class="space-y-2 text-xs pt-1">
-            <div class="flex flex-wrap items-center justify-between gap-3 text-slate-300">
-              <label class="flex items-center gap-2 cursor-pointer hover:text-white select-none">
+            <div class="flex flex-wrap items-center justify-between gap-3 text-slate-200">
+              <label class="flex items-center gap-2 cursor-pointer select-none text-slate-200 font-medium">
                 <input type="checkbox" id="feMergeNoFF" class="w-3.5 h-3.5 rounded border-[#244170] accent-sky-500 cursor-pointer" />
                 <span>Tạo commit riêng (--no-ff)</span>
               </label>
-              <label class="flex items-center gap-2 cursor-pointer hover:text-white select-none">
+              <label class="flex items-center gap-2 cursor-pointer select-none text-slate-200 font-medium">
                 <input type="checkbox" id="feMergeReturnCurrent" class="w-3.5 h-3.5 rounded border-[#244170] accent-sky-500 cursor-pointer" />
                 <span>Quay về nhánh cũ sau khi merge</span>
               </label>
@@ -7808,10 +8174,54 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             </div>
             <div class="flex items-center justify-between gap-2 pt-1 border-t border-emerald-800/60">
               <span class="text-[11px] text-slate-400">Đẩy nhánh đích vừa merge lên Remote:</span>
-              <button id="btnFeMergePush" type="button" onclick="doMergePush('fe')" class="ant-btn ant-btn-primary h-[28px] px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 border-emerald-500 flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-                <span>Push nhánh đích</span>
-              </button>
+              <div class="flex items-center gap-2">
+                <button id="btnFeMergeViewDiff" type="button" onclick="toggleMergeDiffView('fe')"
+                  title="Xem chi tiết các thay đổi vừa được merge (Diff / Files)"
+                  class="ant-btn h-[28px] px-2.5 text-xs font-semibold bg-[#10223d] hover:bg-[#1a3660] text-sky-300 hover:text-sky-200 border border-sky-500/50 flex items-center gap-1.5 transition cursor-pointer">
+                  <svg class="w-3.5 h-3.5 shrink-0 fill-none stroke-current" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span>Xem thay đổi đã merge</span>
+                </button>
+                <button id="btnFeMergePush" type="button" onclick="doMergePush('fe')" class="ant-btn ant-btn-primary h-[28px] px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 border-emerald-500 flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                  <span>Push nhánh đích</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Khu vực hiển thị Diff & File đã merge khi bấm icon con mắt -->
+            <div id="feMergeDiffContainer" class="hidden pt-2 border-t border-emerald-800/60 space-y-2">
+              <div class="flex items-center justify-between text-[11px] text-slate-300">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-sky-400 flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 stroke-current fill-none" viewBox="0 0 24 24" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                    <span>Nội dung thay đổi đã merge (Diff):</span>
+                  </span>
+                  <span id="feMergeDiffStat" class="text-[10px] text-slate-400 font-mono"></span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button id="btnFeCopyMergeDiff" type="button" onclick="copyMergeDiff('fe')"
+                    class="text-[10px] text-sky-400 hover:text-sky-300 font-sans px-2 py-0.5 rounded border border-sky-500/30 hover:bg-sky-500/10 transition cursor-pointer">
+                    Sao chép diff
+                  </button>
+                  <button id="btnFeCollapseMergeDiff" type="button" onclick="toggleMergeDiffView('fe')"
+                    class="text-[10px] text-slate-400 hover:text-white font-sans px-2 py-0.5 rounded hover:bg-white/5 transition cursor-pointer">
+                    Thu gọn
+                  </button>
+                </div>
+              </div>
+
+              <!-- Danh sách file thay đổi -->
+              <div id="feMergeDiffFiles" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto"></div>
+
+              <!-- Khung code diff cuộn được -->
+              <div id="feMergeDiffBody" class="sync-diff-wrapper rounded-md bg-[#1e1e1e] border border-[#333333] max-h-[380px] min-h-[100px] overflow-auto text-[11.5px] font-mono leading-relaxed shadow-inner">
+                <div class="text-slate-400 text-xs p-3 text-center">Chưa có dữ liệu diff.</div>
+              </div>
             </div>
             <!-- Nút quay về nhánh cũ sau khi push thành công -->
             <div id="feMergeReturnBranchWrap" class="hidden pt-2 border-t border-emerald-800/60 flex flex-wrap items-center justify-between gap-2">
@@ -7949,12 +8359,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
           <!-- Tùy chọn Merge & Commit message -->
           <div class="space-y-2 text-xs pt-1">
-            <div class="flex flex-wrap items-center justify-between gap-3 text-slate-300">
-              <label class="flex items-center gap-2 cursor-pointer hover:text-white select-none">
+            <div class="flex flex-wrap items-center justify-between gap-3 text-slate-200">
+              <label class="flex items-center gap-2 cursor-pointer select-none text-slate-200 font-medium">
                 <input type="checkbox" id="beMergeNoFF" class="w-3.5 h-3.5 rounded border-[#244170] accent-emerald-500 cursor-pointer" />
                 <span>Tạo commit riêng (--no-ff)</span>
               </label>
-              <label class="flex items-center gap-2 cursor-pointer hover:text-white select-none">
+              <label class="flex items-center gap-2 cursor-pointer select-none text-slate-200 font-medium">
                 <input type="checkbox" id="beMergeReturnCurrent" class="w-3.5 h-3.5 rounded border-[#244170] accent-emerald-500 cursor-pointer" />
                 <span>Quay về nhánh cũ sau khi merge</span>
               </label>
@@ -8040,10 +8450,54 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             </div>
             <div class="flex items-center justify-between gap-2 pt-1 border-t border-emerald-800/60">
               <span class="text-[11px] text-slate-400">Đẩy nhánh đích vừa merge lên Remote:</span>
-              <button id="btnBeMergePush" type="button" onclick="doMergePush('be')" class="ant-btn ant-btn-primary h-[28px] px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 border-emerald-500 flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-                <span>Push nhánh đích</span>
-              </button>
+              <div class="flex items-center gap-2">
+                <button id="btnBeMergeViewDiff" type="button" onclick="toggleMergeDiffView('be')"
+                  title="Xem chi tiết các thay đổi vừa được merge (Diff / Files)"
+                  class="ant-btn h-[28px] px-2.5 text-xs font-semibold bg-[#10223d] hover:bg-[#1a3660] text-emerald-300 hover:text-emerald-200 border border-emerald-500/50 flex items-center gap-1.5 transition cursor-pointer">
+                  <svg class="w-3.5 h-3.5 shrink-0 fill-none stroke-current" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span>Xem thay đổi đã merge</span>
+                </button>
+                <button id="btnBeMergePush" type="button" onclick="doMergePush('be')" class="ant-btn ant-btn-primary h-[28px] px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 border-emerald-500 flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                  <span>Push nhánh đích</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Khu vực hiển thị Diff & File đã merge khi bấm icon con mắt -->
+            <div id="beMergeDiffContainer" class="hidden pt-2 border-t border-emerald-800/60 space-y-2">
+              <div class="flex items-center justify-between text-[11px] text-slate-300">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-emerald-400 flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 stroke-current fill-none" viewBox="0 0 24 24" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                    <span>Nội dung thay đổi đã merge (Diff):</span>
+                  </span>
+                  <span id="beMergeDiffStat" class="text-[10px] text-slate-400 font-mono"></span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button id="btnBeCopyMergeDiff" type="button" onclick="copyMergeDiff('be')"
+                    class="text-[10px] text-emerald-400 hover:text-emerald-300 font-sans px-2 py-0.5 rounded border border-emerald-500/30 hover:bg-emerald-500/10 transition cursor-pointer">
+                    Sao chép diff
+                  </button>
+                  <button id="btnBeCollapseMergeDiff" type="button" onclick="toggleMergeDiffView('be')"
+                    class="text-[10px] text-slate-400 hover:text-white font-sans px-2 py-0.5 rounded hover:bg-white/5 transition cursor-pointer">
+                    Thu gọn
+                  </button>
+                </div>
+              </div>
+
+              <!-- Danh sách file thay đổi -->
+              <div id="beMergeDiffFiles" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto"></div>
+
+              <!-- Khung code diff cuộn được -->
+              <div id="beMergeDiffBody" class="sync-diff-wrapper rounded-md bg-[#1e1e1e] border border-[#333333] max-h-[380px] min-h-[100px] overflow-auto text-[11.5px] font-mono leading-relaxed shadow-inner">
+                <div class="text-slate-400 text-xs p-3 text-center">Chưa có dữ liệu diff.</div>
+              </div>
             </div>
             <!-- Nút quay về nhánh cũ sau khi push thành công -->
             <div id="beMergeReturnBranchWrap" class="hidden pt-2 border-t border-emerald-800/60 flex flex-wrap items-center justify-between gap-2">
@@ -8641,7 +9095,16 @@ function switchTab(tab, updateHistory = true) {
     if (typeof setTaskActionType === 'function') setTaskActionType(actionType);
   }
   if (!TABS.includes(tab)) tab = 'task';
+
+  // Nếu bấm vào đúng tab đang active (và không có subtab mới cần chuyển)
+  if (activeTab === tab &&
+      (!window.initGitSubTab || window.initGitSubTab === activeGitSubTab) &&
+      (!window.initSettingsSubTab || window.initSettingsSubTab === activeSettingsSubTab)) {
+    return;
+  }
+
   activeTab = tab;
+  window.activeTab = tab;
   try { localStorage.setItem('activeAgentStudioTab', tab); } catch (e) { }
 
   // Xóa style tạm thời ở <head> nếu có
@@ -8659,6 +9122,7 @@ function switchTab(tab, updateHistory = true) {
     const subRoutes = window.GIT_SUBTAB_ROUTES || {
       'pull_sync': '/git-control',
       'branch': '/git-control/checkout-branch',
+      'switch': '/git-control/switch-branch',
       'cherry_pick': '/git-control/cherry-pick',
       'merge': '/git-control/merge'
     };
@@ -8676,44 +9140,76 @@ function switchTab(tab, updateHistory = true) {
   TABS.forEach(t => {
     const viewEl = document.getElementById('view_' + t);
     const btnEl = document.getElementById('tabBtn_' + t);
-    if (viewEl) {
-      viewEl.classList.add('hidden');
-      viewEl.style.setProperty('display', 'none', 'important');
-    }
-    if (btnEl) {
-      btnEl.className = 'px-3.5 py-1.5 rounded-md text-slate-200 hover:text-white hover:bg-white/10 font-medium transition text-xs cursor-pointer select-none';
+    if (t === tab) {
+      if (viewEl) {
+        viewEl.classList.remove('hidden');
+        if (tab === 'task') {
+          viewEl.style.setProperty('display', 'grid', 'important');
+        } else if (tab === 'jira') {
+          viewEl.style.setProperty('display', 'flex', 'important');
+          viewEl.style.setProperty('flex-direction', 'column', 'important');
+        } else {
+          viewEl.style.setProperty('display', 'block', 'important');
+        }
+      }
+      if (btnEl) {
+        btnEl.className = 'px-3.5 py-1.5 rounded-md bg-[#ffffff] text-[#182c4f] font-bold shadow-sm transition text-xs cursor-pointer select-none';
+      }
+    } else {
+      if (viewEl && (!viewEl.classList.contains('hidden') || viewEl.style.display !== 'none')) {
+        viewEl.classList.add('hidden');
+        viewEl.style.setProperty('display', 'none', 'important');
+      }
+      if (btnEl) {
+        btnEl.className = 'px-3.5 py-1.5 rounded-md text-slate-200 hover:text-white hover:bg-white/10 font-medium transition text-xs cursor-pointer select-none';
+      }
     }
   });
 
-  const activeView = document.getElementById('view_' + tab);
-  const activeBtn = document.getElementById('tabBtn_' + tab);
-  if (activeView) {
-    activeView.classList.remove('hidden');
-    if (tab === 'task') {
-      activeView.style.setProperty('display', 'grid', 'important');
-    } else {
-      activeView.style.setProperty('display', 'block', 'important');
+  if (window.scrollY > 0) {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+
+  if (tab === 'branch') {
+    const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+    const urlSub = window.ROUTE_TO_GIT_SUBTAB && window.ROUTE_TO_GIT_SUBTAB[currentPath];
+    const sub = window.initGitSubTab || urlSub || activeGitSubTab || 'pull_sync';
+    activeGitSubTab = sub;
+    window.initGitSubTab = sub;
+    if (typeof switchGitSubTab === 'function') {
+      switchGitSubTab(sub, false);
     }
   }
-  if (activeBtn) {
-    activeBtn.className = 'px-3.5 py-1.5 rounded-md bg-[#ffffff] text-[#182c4f] font-bold shadow-sm transition text-xs cursor-pointer select-none';
+
+  if (tab !== 'jira' && typeof stopJiraAutoSync === 'function') {
+    stopJiraAutoSync();
   }
 
-  window.scrollTo({ top: 0, behavior: 'instant' });
+  if (!updateHistory) {
+    executeTabCallback(tab);
+  } else {
+    clearTimeout(window._tabCallbackTimer);
+    window._tabCallbackTimer = setTimeout(() => {
+      if (activeTab !== tab) return;
+      executeTabCallback(tab);
+    }, 40);
+  }
+}
 
+function executeTabCallback(tab) {
   try {
     if (tab === 'task') {
       if (typeof pollStatus === 'function') pollStatus();
     } else if (tab === 'branch') {
-      const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
-      const urlSub = window.ROUTE_TO_GIT_SUBTAB && window.ROUTE_TO_GIT_SUBTAB[currentPath];
-      const sub = window.initGitSubTab || urlSub || activeGitSubTab || 'pull_sync';
-      activeGitSubTab = sub;
-      window.initGitSubTab = sub;
-      if (typeof switchGitSubTab === 'function') {
-        switchGitSubTab(sub, false);
-      } else if (typeof loadPullSyncInfo === 'function') {
-        loadPullSyncInfo();
+      const sub = activeGitSubTab || 'pull_sync';
+      if (sub === 'pull_sync') {
+        if (typeof loadPullSyncInfo === 'function') loadPullSyncInfo();
+      } else if (sub === 'switch') {
+        if (typeof loadGitBranchInfo === 'function') loadGitBranchInfo();
+      } else if (sub === 'cherry_pick') {
+        if (typeof loadCherryPickInfo === 'function') loadCherryPickInfo();
+      } else if (sub === 'merge') {
+        if (typeof loadMergeInfo === 'function') loadMergeInfo();
       }
     } else if (tab === 'log') {
       if (typeof loadWorkLogs === 'function') loadWorkLogs();
@@ -8729,7 +9225,7 @@ window.switchTab = switchTab;
 let activeGitSubTab = 'pull_sync';
 
 function switchGitSubTab(subTab, updateHistory = true) {
-  if (!['branch', 'cherry_pick', 'pull_sync', 'merge'].includes(subTab)) subTab = 'pull_sync';
+  if (!['branch', 'switch', 'cherry_pick', 'pull_sync', 'merge'].includes(subTab)) subTab = 'pull_sync';
   activeGitSubTab = subTab;
   window.initGitSubTab = subTab;
 
@@ -8740,6 +9236,7 @@ function switchGitSubTab(subTab, updateHistory = true) {
   const subRoutes = window.GIT_SUBTAB_ROUTES || {
     'pull_sync': '/git-control',
     'branch': '/git-control/checkout-branch',
+    'switch': '/git-control/switch-branch',
     'cherry_pick': '/git-control/cherry-pick',
     'merge': '/git-control/merge'
   };
@@ -8752,11 +9249,13 @@ function switchGitSubTab(subTab, updateHistory = true) {
   try { localStorage.setItem('activeGitSubTab', subTab); } catch(e) {}
 
   const btnBranch = document.getElementById('gitSubTabBtn_branch');
+  const btnSwitch = document.getElementById('gitSubTabBtn_switch');
   const btnCherry = document.getElementById('gitSubTabBtn_cherry_pick');
   const btnSync = document.getElementById('gitSubTabBtn_pull_sync');
   const btnMerge = document.getElementById('gitSubTabBtn_merge');
 
   const viewBranch = document.getElementById('gitSubView_branch');
+  const viewSwitch = document.getElementById('gitSubView_switch');
   const viewCherry = document.getElementById('gitSubView_cherry_pick');
   const viewSync = document.getElementById('gitSubView_pull_sync');
   const viewMerge = document.getElementById('gitSubView_merge');
@@ -8768,11 +9267,13 @@ function switchGitSubTab(subTab, updateHistory = true) {
     : 'px-3.5 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-white/10 font-medium text-xs transition cursor-pointer select-none';
 
   if (viewBranch) viewBranch.classList.add('hidden');
+  if (viewSwitch) viewSwitch.classList.add('hidden');
   if (viewCherry) viewCherry.classList.add('hidden');
   if (viewSync) viewSync.classList.add('hidden');
   if (viewMerge) viewMerge.classList.add('hidden');
 
   if (btnBranch) btnBranch.className = inactiveCls;
+  if (btnSwitch) btnSwitch.className = inactiveCls;
   if (btnCherry) btnCherry.className = inactiveCls;
   if (btnSync) btnSync.className = inactiveCls;
   if (btnMerge) btnMerge.className = inactiveCls;
@@ -8780,6 +9281,9 @@ function switchGitSubTab(subTab, updateHistory = true) {
   if (subTab === 'branch') {
     if (viewBranch) viewBranch.classList.remove('hidden');
     if (btnBranch) btnBranch.className = activeCls;
+  } else if (subTab === 'switch') {
+    if (viewSwitch) viewSwitch.classList.remove('hidden');
+    if (btnSwitch) btnSwitch.className = activeCls;
     if (typeof loadGitBranchInfo === 'function') loadGitBranchInfo();
   } else if (subTab === 'cherry_pick') {
     if (viewCherry) viewCherry.classList.remove('hidden');
@@ -10448,6 +10952,58 @@ function promptRenameTask(taskId) {
   startInlineEditTask(taskId);
 }
 
+function formatJiraText(text) {
+  if (!text) return '';
+  let s = String(text).trim();
+  s = s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  s = s.replace(/(?:^|\n|\s+)(Acceptance Criteria[^\n]*?|Tiêu chí chấp nhận[^\n]*?)(?=(?:\s+(?:AC\s*\d+|Kịch bản|Scenario)|$|\n))/gi, '\n\n### $1\n');
+  s = s.replace(/(?:^|\n|\s+)((?:AC\s*\d+|Kịch bản\s*\d+|Scenario\s*\d+)[\s:\-]+[^\n]*?)(?=(?:\s+(?:Given|When|Then|And|But)\b|$|\n))/g, '\n\n#### $1\n');
+  s = s.replace(/(?:^|\n|\s+)\b(Given)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:When|Then|And|But|AC\s*\d+|Kịch bản|Scenario)\b|$|\n))/g, '\n- **Given**: $2');
+  s = s.replace(/(?:^|\n|\s+)\b(When)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:Then|And|But|AC\s*\d+|Given|Kịch bản|Scenario)\b|$|\n))/g, '\n- **When**: $2');
+  s = s.replace(/(?:^|\n|\s+)\b(Then)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:And|But|AC\s*\d+|Given|When|Kịch bản|Scenario)\b|$|\n))/g, '\n- **Then**: $2');
+  s = s.replace(/(?:^|\n|\s+)\b(And)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:And|But|AC\s*\d+|Given|When|Then|Kịch bản|Scenario)\b|$|\n))/g, '\n  - **And**: $2');
+  s = s.replace(/(?:^|\n|\s+)\b(But)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:And|But|AC\s*\d+|Given|When|Then|Kịch bản|Scenario)\b|$|\n))/g, '\n  - **But**: $2');
+  const headings = [
+    'Hiện tượng lỗi', 'Mô tả lỗi', 'Bug description',
+    'Các bước tái hiện', 'Steps to reproduce',
+    'Kết quả thực tế', 'Actual result',
+    'Kết quả mong muốn', 'Expected result',
+    'Môi trường', 'Environment',
+    'Mục tiêu', 'Objective',
+    'Yêu cầu chức năng', 'Functional requirements'
+  ];
+  headings.forEach(h => {
+    const re = new RegExp(`(?:^|\\n|(?:(?<=[.!?])\\s+))(${h})\\s*:\\s*`, 'gi');
+    s = s.replace(re, '\n\n### $1:\n');
+  });
+  const lines = s.split('\n').map(line => line.replace(/[ \t]+/g, ' ').trimEnd());
+  s = lines.join('\n');
+  s = s.replace(/\n{3,}/g, '\n\n');
+  return s.trim();
+}
+window.formatJiraText = formatJiraText;
+
+function formatTaskPromptInput() {
+  const promptInput = document.getElementById('taskPromptInput');
+  if (!promptInput) return;
+  const val = promptInput.value;
+  if (!val || !val.trim()) {
+    showToast('Khung yêu cầu đang trống!', 'info');
+    return;
+  }
+  const formatted = formatJiraText(val);
+  if (formatted === val) {
+    showToast('Nội dung đã ở định dạng chuẩn tối ưu!', 'info');
+    return;
+  }
+  promptInput.value = formatted;
+  if (typeof onTaskPromptInput === 'function') {
+    onTaskPromptInput();
+  }
+  showToast('Đã định dạng lại nội dung theo chuẩn BDD & đề mục!', 'success');
+}
+window.formatTaskPromptInput = formatTaskPromptInput;
+
 function onTaskPromptInput() {
   updateFixBugPromptPreview();
   syncFormToCurrentTask();
@@ -11823,18 +12379,15 @@ function renderFeedView(data) {
     }
 
     sessHeader.innerHTML = `
-          <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-            <div class="flex items-center gap-2">
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${badgeLabel}</span>
-              <span class="text-xs font-bold text-white">${escapeHtml(titleBadge)}</span>
+          <div class="flex items-center justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${badgeClass}">${badgeLabel}</span>
+              <span class="text-xs font-bold text-white truncate">${escapeHtml(titleBadge)}</span>
             </div>
-            <div class="flex items-center gap-2 text-[10px] font-mono text-slate-400">
-              <span class="px-1.5 py-0.5 rounded bg-[#182c4f] border border-[#244170]">Phạm vi: ${scopeBadge}</span>
-              <span class="px-1.5 py-0.5 rounded bg-[#182c4f] border border-[#244170]">Skill: ${escapeHtml(skillBadge)}</span>
+            <div class="flex items-center gap-2 text-[10px] font-sans text-white/90 shrink-0">
               ${statusHtml}
-              <button type="button" onclick="removeParallelTask('${sess._taskId || sess.task_id || sess.id}', event)" class="px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 hover:text-white border border-rose-500/40 text-[10px] font-medium flex items-center gap-1 transition cursor-pointer" title="Xóa tác vụ này khỏi Diễn biến thực thi">
-                <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-                <span>Xóa tác vụ</span>
+              <button type="button" onclick="removeParallelTask('${sess._taskId || sess.task_id || sess.id}', event)" class="p-1 rounded bg-white/15 hover:bg-white/25 text-white border border-white/25 text-[10px] flex items-center justify-center transition cursor-pointer" title="Xóa tác vụ này khỏi Diễn biến thực thi">
+                <svg class="w-3.5 h-3.5 fill-current text-white" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
               </button>
             </div>
           </div>
@@ -12777,6 +13330,47 @@ function renderGitBranchCard(role, info) {
     }
   }
 
+  // Hiển thị khu vực Stash và nút Lấy code từ stash nếu nhánh hiện tại có stash
+  const stashSection = document.getElementById(isFe ? 'feStashSection' : 'beStashSection');
+  const stashBadge = document.getElementById(isFe ? 'feStashBadge' : 'beStashBadge');
+  const popStashBtnText = document.getElementById(isFe ? 'fePopStashBtnText' : 'bePopStashBtnText');
+
+  const branchStashes = info.branch_stashes || [];
+  const hasBranchStash = Boolean(info.has_branch_stash && branchStashes.length > 0);
+
+  if (stashSection) {
+    if (hasBranchStash) {
+      const topStash = branchStashes[0];
+      const count = branchStashes.length;
+      stashSection.classList.remove('hidden');
+      stashSection.style.display = 'flex';
+      stashSection.dataset.stashRef = topStash.index;
+
+      if (stashBadge) {
+        const timeAgo = topStash.date ? ` (${formatRelativeDate(topStash.date)})` : '';
+        const desc = topStash.message || topStash.raw_subject || 'Bản cất code';
+        if (count > 1) {
+          stashBadge.textContent = `${topStash.index}: ${desc}${timeAgo} (+${count - 1} bản khác)`;
+          stashBadge.title = `Nhánh này có ${count} bản stash:\n` + branchStashes.map(s => `${s.index}: ${s.message || s.raw_subject} (${s.date})`).join('\n');
+        } else {
+          stashBadge.textContent = `${topStash.index}: ${desc}${timeAgo}`;
+          stashBadge.title = `${topStash.index}: ${desc} (${topStash.date})`;
+        }
+      }
+
+      if (popStashBtnText) {
+        popStashBtnText.textContent = count > 1 ? `Lấy code từ stash (${topStash.index})` : 'Lấy code từ stash';
+      }
+    } else {
+      stashSection.classList.add('hidden');
+      stashSection.style.display = 'none';
+      if (stashBadge) {
+        stashBadge.textContent = '';
+        stashBadge.title = '';
+      }
+    }
+  }
+
   filterBranchList(role);
 }
 
@@ -12789,6 +13383,8 @@ function filterBranchList(role) {
   const filterText = (input?.value || '').toLowerCase().trim();
   const branches = gitInfoData[role].branches || [];
   const currentBranch = gitInfoData[role].current_branch;
+  const stashList = gitInfoData[role].stash_list || [];
+  const branchesWithStash = new Set(stashList.map(s => s.branch).filter(Boolean));
 
   select.innerHTML = '';
   const filtered = branches.filter(b => b.name.toLowerCase().includes(filterText));
@@ -12806,7 +13402,8 @@ function filterBranchList(role) {
     opt.value = b.name;
     const prefix = b.name === currentBranch ? '[Hiện tại] ' : '';
     const dateStr = b.date ? ` [${formatRelativeDate(b.date)}]` : '';
-    opt.textContent = `${prefix}${b.name}${dateStr}`;
+    const stashStr = branchesWithStash.has(b.name) ? ' [Có stash]' : '';
+    opt.textContent = `${prefix}${b.name}${dateStr}${stashStr}`;
     if (b.name === currentBranch) {
       opt.className = 'font-bold text-cyan-300 bg-cyan-950/40';
     }
@@ -12950,6 +13547,12 @@ async function doCheckout(target) {
     // 1. Cập nhật lại thông tin thẻ git
     await loadGitBranchInfo();
 
+    const roleInfo = gitInfoData?.[target];
+    if (roleInfo && roleInfo.has_branch_stash && roleInfo.branch_stashes?.length > 0) {
+      const topStash = roleInfo.branch_stashes[0];
+      showToast(`Nhánh "${selectedBranch}" có code đã cất trong ${topStash.index}. Bấm "Lấy code từ stash" để khôi phục.`);
+    }
+
     // 2. TỰ ĐỘNG CẬP NHẬT LẠI TOÀN BỘ SƠ ĐỒ LIÊN KẾT FE ↔ BE THEO NHÁNH VỪA CHECKOUT
     await fetchDiagramData(true);
 
@@ -13023,6 +13626,13 @@ async function doCheckoutPrevious(target) {
     showToast(data.message || (data.success ? 'Đã quay về nhánh trước đó.' : 'Lỗi khi quay lại nhánh trước.'));
 
     await loadGitBranchInfo();
+
+    const roleInfo = gitInfoData?.[target];
+    if (roleInfo && roleInfo.has_branch_stash && roleInfo.branch_stashes?.length > 0) {
+      const topStash = roleInfo.branch_stashes[0];
+      showToast(`Nhánh "${roleInfo.current_branch || prevBranch}" có code đã cất trong ${topStash.index}. Bấm "Lấy code từ stash" để khôi phục.`);
+    }
+
     await fetchDiagramData(true);
     if (activeTab === 'log') loadWorkLogs();
   } catch (err) {
@@ -13033,6 +13643,76 @@ async function doCheckoutPrevious(target) {
   } finally {
     if (btn) {
       btn.disabled = false;
+    }
+  }
+}
+
+async function doPopStash(role) {
+  const isFe = role === 'fe';
+  const repoName = isFe ? 'Frontend' : 'Backend';
+  const roleInfo = gitInfoData?.[role];
+  const branchStashes = roleInfo?.branch_stashes || [];
+  const stash = branchStashes[0] || roleInfo?.stash_list?.[0];
+  const stashRef = stash?.index || 'stash@{0}';
+  const stashMsg = stash?.message || stash?.raw_subject || '';
+  const currentBranch = roleInfo?.current_branch || 'nhánh hiện tại';
+
+  const confirmed = await antdConfirm({
+    title: 'Xác nhận lấy code từ Git Stash',
+    content: `Bạn có muốn lấy và áp dụng mã nguồn từ ${stashRef}${stashMsg ? ` ("${stashMsg}")` : ''} vào nhánh "${currentBranch}" (${repoName}) không?`
+  });
+  if (!confirmed) return;
+
+  const btn = document.getElementById(isFe ? 'btnPopStashFe' : 'btnPopStashBe');
+  const origHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `
+      <svg class="animate-spin -ml-1 mr-1.5 h-3.5 w-3.5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <span>Đang lấy code...</span>
+    `;
+  }
+
+  try {
+    const res = await fetch('/api/git/stash/pop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        target: role,
+        stash_index: stashRef
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || `Đã lấy code từ ${stashRef} thành công.`);
+    } else {
+      if (data.conflict) {
+        await antdAlert({
+          title: 'Xảy ra xung đột khi lấy code từ Stash',
+          content: `${data.message}\n\nCác file xung đột đã được giữ lại trên working tree. Bạn có thể mở tab Xung đột Git để xử lý.`,
+          type: 'warning'
+        });
+      } else {
+        await antdAlert({
+          title: 'Không thể lấy code từ Stash',
+          content: data.message || 'Lỗi không xác định khi thực hiện git stash pop.',
+          type: 'error'
+        });
+      }
+    }
+    await loadGitBranchInfo();
+    if (typeof activeTab !== 'undefined' && activeTab === 'log' && typeof loadWorkLogs === 'function') {
+      loadWorkLogs();
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối khi lấy code từ stash: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
     }
   }
 }
@@ -13325,6 +14005,7 @@ function updateNotifBadgeUI() {
 
   const badge = document.getElementById('notifBadge');
   const dropdownBadge = document.getElementById('notifDropdownBadge');
+  const btnMarkAll = document.getElementById('btnMarkAllNotifsAsRead');
 
   if (badge) {
     if (unreadCount > 0) {
@@ -13336,14 +14017,27 @@ function updateNotifBadgeUI() {
   }
 
   if (dropdownBadge) {
+    dropdownBadge.classList.remove('hidden');
     if (unreadCount > 0) {
-      dropdownBadge.classList.remove('hidden');
       dropdownBadge.textContent = `${unreadCount} chưa đọc`;
-      dropdownBadge.className = 'text-xs text-slate-500 font-normal';
+      dropdownBadge.className = 'text-xs text-blue-600 font-semibold';
     } else {
-      dropdownBadge.classList.remove('hidden');
       dropdownBadge.textContent = '0 chưa đọc';
       dropdownBadge.className = 'text-xs text-slate-400 font-normal';
+    }
+  }
+
+  if (btnMarkAll) {
+    if (unreadCount > 0) {
+      btnMarkAll.className = 'text-[11px] font-semibold text-[#199cff] hover:text-blue-700 transition cursor-pointer';
+      btnMarkAll.style.color = '#199cff';
+      btnMarkAll.disabled = false;
+      btnMarkAll.title = 'Đánh dấu tất cả thông báo là đã đọc';
+    } else {
+      btnMarkAll.className = 'text-[11px] font-semibold text-slate-400 cursor-default select-none transition';
+      btnMarkAll.style.color = '#94a3b8';
+      btnMarkAll.disabled = true;
+      btnMarkAll.title = 'Đã đọc tất cả thông báo';
     }
   }
 }
@@ -13474,13 +14168,13 @@ function renderNotificationList() {
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2 flex-wrap min-w-0 flex-1">
             ${tagBadge}
-            <span class="font-bold text-xs ${titleClass} transition truncate" style="${titleStyle}">
+            <span class="font-bold text-xs ${titleClass} notif-item-title transition truncate" style="${isUnread ? 'color: #1677ff !important;' : 'color: #94a3b8 !important;'}">
               ${escapeHtml(item.title)}
             </span>
           </div>
           ${isUnread ? '<span class="w-2 h-2 rounded-full bg-[#199cff] shrink-0" title="Chưa đọc"></span>' : ''}
         </div>
-        <p class="text-[11.5px] text-slate-700 leading-relaxed truncate" title="${escapeHtml(item.desc)}">
+        <p class="text-[11.5px] ${isUnread ? 'text-slate-700' : 'text-slate-400'} leading-relaxed truncate" title="${escapeHtml(item.desc)}">
           ${item.hash ? `<span class="font-mono text-blue-600 font-bold">${escapeHtml(item.hash)}: </span>` : ''}${escapeHtml(item.desc)}
         </p>
         ${(item.author || item.date) ? `
@@ -16180,6 +16874,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const subRoutes = window.GIT_SUBTAB_ROUTES || {
       'pull_sync': '/git-control',
       'branch': '/git-control/checkout-branch',
+      'switch': '/git-control/switch-branch',
       'cherry_pick': '/git-control/cherry-pick',
       'merge': '/git-control/merge'
     };
@@ -16239,6 +16934,7 @@ def main():
     class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         daemon_threads = True
         allow_reuse_address = True
+        request_queue_size = 128
 
     try:
         server = ThreadedHTTPServer((host, port), AgentStudioHandler)

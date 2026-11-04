@@ -50,7 +50,24 @@ def load_env_file(filepath=ENV_FILE):
 load_env_file()
 
 
-SETTINGS_FILE = os.path.join(BASE_DIR, 'settings.json')
+STORAGE_DIR = os.path.join(BASE_DIR, 'storage')
+os.makedirs(STORAGE_DIR, exist_ok=True)
+
+
+def _resolve_storage_file(filename: str) -> str:
+    """Trả về đường dẫn file trong thư mục storage/. Nếu file tồn tại ở root mà chưa có trong storage/, tự động di chuyển vào storage/."""
+    storage_path = os.path.join(STORAGE_DIR, filename)
+    root_path = os.path.join(BASE_DIR, filename)
+    if not os.path.exists(storage_path) and os.path.exists(root_path):
+        try:
+            import shutil
+            shutil.move(root_path, storage_path)
+        except Exception:
+            return root_path
+    return storage_path
+
+
+SETTINGS_FILE = _resolve_storage_file('settings.json')
 
 
 def _read_json_settings():

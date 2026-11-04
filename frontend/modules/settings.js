@@ -335,16 +335,24 @@ function updateEngineUI(engine, isOnline) {
       }
     }
 
-    // Panel 1 Quick Engine Cards (Effort tab)
+    // Panel 1 Quick Engine Cards (Effort tab - Read-only display of currently active engine)
     const quickCard = document.getElementById('quick_card_engine_' + eid);
     const quickRadio = document.querySelector(`input[name="quick_engine"][value="${eid}"]`);
     if (quickCard) {
       if (eid === eng) {
-        if (quickRadio) quickRadio.checked = true;
+        if (quickRadio) {
+          quickRadio.checked = true;
+          quickRadio.disabled = true;
+        }
         quickCard.classList.add('is-active');
+        quickCard.classList.remove('opacity-50', 'cursor-not-allowed');
       } else {
-        if (quickRadio) quickRadio.checked = false;
+        if (quickRadio) {
+          quickRadio.checked = false;
+          quickRadio.disabled = true;
+        }
         quickCard.classList.remove('is-active');
+        quickCard.classList.add('opacity-50', 'cursor-not-allowed');
       }
     }
   });
@@ -401,15 +409,44 @@ function updateEngineUI(engine, isOnline) {
   if (eng === 'opencode') {
     fetchOpenCodeModels(false);
   }
+  updateQuickOpencodeDisplay(currentStudioSettings.effort);
 }
 
 function onPageEngineChange(newEngine) {
   currentStudioSettings.engine = newEngine;
   updateEngineUI(newEngine, nineRouterOnline);
-  markSettingsDirty(true);
+  renderModelSelectForCurrentEngine();
+  updateEffortUI(currentStudioSettings.effort);
+  markSettingsDirty(true, 'engine');
 }
 
 let _loadedOpenCodeModels = false;
+let _cachedOpenCodeModels = [];
+
+let _loadedGeminiCliModels = false;
+let _cachedGeminiCliModels = [];
+
+async function fetchGeminiCliModels(forceRefresh = false) {
+  if (_loadedGeminiCliModels && !forceRefresh) return;
+  try {
+    const res = await fetch('/api/gemini/models');
+    const data = await res.json();
+    if (data && Array.isArray(data.models)) {
+      _loadedGeminiCliModels = true;
+      _cachedGeminiCliModels = data.models;
+      if (data.current_model && !currentStudioSettings.model) {
+        currentStudioSettings.model = data.current_model;
+      }
+      if (currentStudioSettings.engine === 'gemini_cli') {
+        renderModelSelectForCurrentEngine();
+      }
+    }
+  } catch (err) {
+    console.error('Lỗi khi tải danh sách mô hình Gemini CLI:', err);
+  }
+}
+window.fetchGeminiCliModels = fetchGeminiCliModels;
+
 async function fetchOpenCodeModels(forceRefresh = false) {
   if (_loadedOpenCodeModels && !forceRefresh) return;
   const quickSelect = document.getElementById('quickOpencodeModelSelect');
@@ -427,15 +464,60 @@ async function fetchOpenCodeModels(forceRefresh = false) {
     const data = await res.json();
     if (data && Array.isArray(data.models)) {
       _loadedOpenCodeModels = true;
+      _cachedOpenCodeModels = data.models;
       if (data.nine_router_online !== undefined) {
         nineRouterOnline = !!data.nine_router_online;
         updateEngineUI(currentStudioSettings.engine, nineRouterOnline);
       }
-      populateOpenCodeModelSelects(data.models);
+      const modelFromServer = data.detected_model || data.current_model;
+      if (modelFromServer) {
+        const isFree = /free/i.test(modelFromServer);
+        const cleanDetected = isFree ? modelFromServer : modelFromServer.replace(/-(low|medium|high|xhigh|max)$/i, '');
+        if (cleanDetected && (!currentStudioSettings.opencode_model || cleanDetected !== currentStudioSettings.opencode_model)) {
+          currentStudioSettings.opencode_model = cleanDetected;
+        }
+      }
+      if (currentStudioSettings.engine === 'opencode') {
+        renderModelSelectForCurrentEngine();
+      } else {
+        populateOpenCodeModelSelects(data.models);
+      }
+      updateQuickOpencodeDisplay(currentStudioSettings.effort);
     }
   } catch (err) {
     console.error('Lỗi khi tải danh sách mô hình OpenCode:', err);
   }
+}
+window.fetchOpenCodeModels = fetchOpenCodeModels;
+
+async function refreshCurrentEngineModels() {
+  if (currentStudioSettings.engine === 'opencode') {
+    await fetchOpenCodeModels(true);
+    showToast('Đã làm mới danh sách mô hình từ 9router proxy', 'success');
+  } else {
+    await fetchGeminiCliModels(true);
+    showToast('Đã làm mới danh sách mô hình từ Gemini CLI', 'success');
+  }
+}
+window.refreshCurrentEngineModels = refreshCurrentEngineModels;
+
+function formatOpenCodeModelTitle(id, name) {
+  const clean = String(id || '').replace(/^(9router|opencode)\//i, '');
+  if (clean === 'ag/gemini-3.8-flash') return 'Gemini 3.8 Flash (ag/gemini-3.8-flash)';
+  if (clean === 'ag/gemini-3.7-flash') return 'Gemini 3.7 Flash (ag/gemini-3.7-flash)';
+  if (clean === 'ag/gemini-3.6-flash') return 'Gemini 3.6 Flash (ag/gemini-3.6-flash)';
+  if (clean === 'ag/gemini-4-argon') return 'Gemini 4 Argon (ag/gemini-4-argon)';
+  if (clean === 'ag/gemini-3.1-pro') return 'Gemini 3.1 Pro (ag/gemini-3.1-pro)';
+  if (clean === 'ag/gemini-pro-agent') return 'Gemini Pro Agent (ag/gemini-pro-agent)';
+  if (clean === 'ag/claude-sonnet-5-5') return 'Claude Sonnet 5.5 (ag/claude-sonnet-5-5)';
+  if (clean === 'ag/claude-opus-5-5') return 'Claude Opus 5.5 (ag/claude-opus-5-5)';
+  if (clean === 'ag/claude-sonnet-4-6') return 'Claude Sonnet 4.6 (ag/claude-sonnet-4-6)';
+  if (clean === 'ag/claude-opus-4-6-thinking') return 'Claude Opus 4.6 Thinking (ag/claude-opus-4-6-thinking)';
+  if (clean === 'ag/gpt-oss-120b') return 'GPT OSS 120B (ag/gpt-oss-120b)';
+  if (clean === 'mmf/mimo-auto') return 'Mimo Auto (mmf/mimo-auto)';
+  if (clean === 'oc/deepseek-v4.1-flash-free') return 'DeepSeek v4.1 Flash Free (oc/deepseek-v4.1-flash-free)';
+  if (clean === 'oc/jev-1.13-free') return 'JEV 1.13 Free (oc/jev-1.13-free)';
+  return name || clean || id;
 }
 
 function populateOpenCodeModelSelects(models) {
@@ -443,17 +525,23 @@ function populateOpenCodeModelSelects(models) {
   const pageSelect = document.getElementById('pageSettingsOpencodeModelSelect');
   if (!quickSelect && !pageSelect) return;
 
-  let currentVal = (currentStudioSettings.opencode_model || '9router/ag/gemini-3.8-flash').replace(/-(low|medium|high)$/i, '');
+  let currentVal = currentStudioSettings.opencode_model || '9router/ag/gemini-3.8-flash';
+  if (!/free/i.test(currentVal)) {
+    currentVal = currentVal.replace(/-(low|medium|high|xhigh|max)$/i, '');
+  }
   currentStudioSettings.opencode_model = currentVal;
 
   const geminiModels = [];
+  const claudeModels = [];
+  const freeModels = [];
   const otherModels = [];
   const seenIds = new Set();
   const variantMap = {};
 
   (models || []).forEach(m => {
     const rawId = m.id || '';
-    const cleanId = rawId.replace(/-(low|medium|high|xhigh|max)$/i, '');
+    const isFree = /free/i.test(rawId) || Boolean(m.is_free);
+    const cleanId = isFree ? rawId : rawId.replace(/-(low|medium|high|xhigh|max)$/i, '');
     if (!cleanId) return;
     if (Array.isArray(m.raw_variants) && m.raw_variants.length) {
       variantMap[cleanId] = m.raw_variants;
@@ -463,107 +551,414 @@ function populateOpenCodeModelSelects(models) {
 
   (models || []).forEach(m => {
     const rawId = m.id || '';
-    const cleanId = rawId.replace(/-(low|medium|high|xhigh|max)$/i, '');
-    const cleanName = (m.name || cleanId).replace(/-(low|medium|high|xhigh|max)$/i, '');
+    const isFree = /free/i.test(rawId) || Boolean(m.is_free);
+    const cleanId = isFree ? rawId : rawId.replace(/-(low|medium|high|xhigh|max)$/i, '');
+    const cleanName = isFree ? (m.name || cleanId) : (m.name || cleanId).replace(/-(low|medium|high|xhigh|max)$/i, '');
     if (!cleanId || seenIds.has(cleanId)) return;
     seenIds.add(cleanId);
+
+    const isGemini = Boolean(m.is_gemini || cleanId.toLowerCase().includes('gemini') || cleanId.toLowerCase().includes('argon')) && !isFree;
+    const isClaude = cleanId.toLowerCase().includes('claude') && !isFree;
 
     const normModel = {
       id: cleanId,
       name: cleanName,
-      is_gemini: Boolean(m.is_gemini || cleanId.toLowerCase().includes('gemini'))
+      is_free: isFree,
+      is_gemini: isGemini,
+      is_claude: isClaude
     };
 
-    if (normModel.is_gemini) {
+    if (normModel.is_free) {
+      freeModels.push(normModel);
+    } else if (normModel.is_gemini) {
       geminiModels.push(normModel);
+    } else if (normModel.is_claude) {
+      claudeModels.push(normModel);
     } else {
       otherModels.push(normModel);
     }
   });
 
+  const isModelSelected = (id, target) => {
+    if (!id || !target) return false;
+    if (id === target) return true;
+    const strip = s => s.replace(/^(9router|opencode)\//i, '').replace(/-(low|medium|high|xhigh|max)$/i, '');
+    return strip(id) === strip(target);
+  };
+
+  let matchedVal = currentVal;
+  for (const m of [...geminiModels, ...claudeModels, ...freeModels, ...otherModels]) {
+    if (isModelSelected(m.id, currentVal)) {
+      matchedVal = m.id;
+      break;
+    }
+  }
+
+  if (matchedVal && !seenIds.has(matchedVal)) {
+    const isFree = /free/i.test(matchedVal);
+    const isGem = (matchedVal.toLowerCase().includes('gemini') || matchedVal.toLowerCase().includes('argon')) && !isFree;
+    const isClaude = matchedVal.toLowerCase().includes('claude') && !isFree;
+    const item = {
+      id: matchedVal,
+      name: matchedVal,
+      is_free: isFree,
+      is_gemini: isGem,
+      is_claude: isClaude
+    };
+    if (isFree) {
+      freeModels.unshift(item);
+    } else if (isGem) {
+      geminiModels.unshift(item);
+    } else if (isClaude) {
+      claudeModels.unshift(item);
+    } else {
+      otherModels.unshift(item);
+    }
+    seenIds.add(matchedVal);
+  }
+  currentStudioSettings.opencode_model = matchedVal;
+
   let html = '';
   if (geminiModels.length > 0) {
-    html += '<optgroup label="Mô hình Google Gemini (Khuyên dùng)">';
+    html += '<optgroup label="Google Gemini qua 9router (Khuyên dùng)">';
     geminiModels.forEach(m => {
-      const isSel = (m.id === currentVal) ? 'selected' : '';
-      html += `<option value="${escapeHtml(m.id)}" ${isSel}>${escapeHtml(m.id)} (${escapeHtml(m.name || m.id)})</option>`;
+      const isSel = (m.id === matchedVal) ? 'selected' : '';
+      html += `<option value="${escapeHtml(m.id)}" ${isSel}>${escapeHtml(formatOpenCodeModelTitle(m.id, m.name))}</option>`;
+    });
+    html += '</optgroup>';
+  }
+  if (claudeModels.length > 0) {
+    html += '<optgroup label="Anthropic Claude qua 9router">';
+    claudeModels.forEach(m => {
+      const isSel = (m.id === matchedVal) ? 'selected' : '';
+      html += `<option value="${escapeHtml(m.id)}" ${isSel}>${escapeHtml(formatOpenCodeModelTitle(m.id, m.name))}</option>`;
+    });
+    html += '</optgroup>';
+  }
+  if (freeModels.length > 0) {
+    html += '<optgroup label="Mô hình Miễn phí / Free qua 9router">';
+    freeModels.forEach(m => {
+      const isSel = (m.id === matchedVal) ? 'selected' : '';
+      html += `<option value="${escapeHtml(m.id)}" ${isSel}>${escapeHtml(formatOpenCodeModelTitle(m.id, m.name))}</option>`;
     });
     html += '</optgroup>';
   }
   if (otherModels.length > 0) {
     html += '<optgroup label="Các mô hình khác qua 9router">';
     otherModels.forEach(m => {
-      const isSel = (m.id === currentVal) ? 'selected' : '';
-      html += `<option value="${escapeHtml(m.id)}" ${isSel}>${escapeHtml(m.id)} (${escapeHtml(m.name || m.id)})</option>`;
+      const isSel = (m.id === matchedVal) ? 'selected' : '';
+      html += `<option value="${escapeHtml(m.id)}" ${isSel}>${escapeHtml(formatOpenCodeModelTitle(m.id, m.name))}</option>`;
     });
     html += '</optgroup>';
   }
 
   if (quickSelect) {
     quickSelect.innerHTML = html;
-    quickSelect.value = currentVal;
+    quickSelect.value = matchedVal;
   }
-  if (pageSelect) {
+  if (pageSelect && currentStudioSettings.engine === 'opencode') {
     pageSelect.innerHTML = html;
-    pageSelect.value = currentVal;
+    pageSelect.value = matchedVal;
   }
   updateQuickOpencodeDisplay(currentStudioSettings.effort);
 }
 
+function populateGeminiCliModelSelect(models) {
+  const pageSelect = document.getElementById('pageSettingsOpencodeModelSelect');
+  if (!pageSelect) return;
+
+  const list = (Array.isArray(models) && models.length > 0) ? models : [
+    { id: 'gemini-3.8-flash-high', name: 'Gemini 3.8 Flash (High)', is_gemini: true },
+    { id: 'gemini-3.8-flash-medium', name: 'Gemini 3.8 Flash (Medium)', is_gemini: true },
+    { id: 'gemini-3.8-flash-low', name: 'Gemini 3.8 Flash (Low)', is_gemini: true },
+    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6 (Thinking)', is_claude: true },
+    { id: 'claude-opus-4-6-thinking', name: 'Claude Opus 4.6 (Thinking)', is_claude: true },
+    { id: 'gpt-oss-120b-medium', name: 'GPT-OSS 120B (Medium)', is_openai: true }
+  ];
+
+  let currentVal = currentStudioSettings.model || 'gemini-3.8-flash-high';
+
+  const geminiModels = [];
+  const claudeModels = [];
+  const otherModels = [];
+
+  list.forEach(m => {
+    const isGemini = Boolean(m.is_gemini || (m.id && m.id.toLowerCase().includes('gemini')));
+    const isClaude = Boolean(m.is_claude || (m.id && m.id.toLowerCase().includes('claude')));
+    if (isGemini) geminiModels.push(m);
+    else if (isClaude) claudeModels.push(m);
+    else otherModels.push(m);
+  });
+
+  let html = '';
+  if (geminiModels.length > 0) {
+    html += '<optgroup label="Google Gemini (Gemini CLI - Khuyên dùng)">';
+    geminiModels.forEach(m => {
+      const isSel = (m.id === currentVal) ? 'selected' : '';
+      html += `<option value="${escapeHtml(m.id)}" ${isSel}>${escapeHtml(m.name || m.id)}</option>`;
+    });
+    html += '</optgroup>';
+  }
+  if (claudeModels.length > 0) {
+    html += '<optgroup label="Anthropic Claude (Gemini CLI)">';
+    claudeModels.forEach(m => {
+      const isSel = (m.id === currentVal) ? 'selected' : '';
+      html += `<option value="${escapeHtml(m.id)}" ${isSel}>${escapeHtml(m.name || m.id)}</option>`;
+    });
+    html += '</optgroup>';
+  }
+  if (otherModels.length > 0) {
+    html += '<optgroup label="OpenAI & Khác (Gemini CLI)">';
+    otherModels.forEach(m => {
+      const isSel = (m.id === currentVal) ? 'selected' : '';
+      html += `<option value="${escapeHtml(m.id)}" ${isSel}>${escapeHtml(m.name || m.id)}</option>`;
+    });
+    html += '</optgroup>';
+  }
+
+  pageSelect.innerHTML = html;
+  pageSelect.value = currentVal;
+}
+
+function renderModelSelectForCurrentEngine() {
+  const isOpencode = (currentStudioSettings.engine === 'opencode');
+
+  const pageLabel = document.getElementById('pageModelSelectLabel');
+  if (pageLabel) {
+    pageLabel.textContent = 'Chọn mô hình:';
+  }
+
+  const subHeader = document.getElementById('pageModelTabSubHeader');
+  if (subHeader) {
+    subHeader.textContent = isOpencode
+      ? 'Chọn mô hình AI kết nối qua proxy 9router nội bộ (127.0.0.1:20128) để thực thi lập trình qua OpenCode.'
+      : 'Chọn mô hình AI thực thi qua Gemini CLI (Antigravity CLI).';
+  }
+
+  const epText = document.getElementById('pageModelEndpointText');
+  if (epText) {
+    epText.textContent = isOpencode ? '127.0.0.1:20128' : 'Gemini CLI';
+  }
+
+  const epBadge = document.getElementById('pageModelEndpointBadge');
+  if (epBadge) {
+    epBadge.className = isOpencode
+      ? 'inline-flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1 rounded-md bg-[#0c1628] border border-[#244170] text-emerald-400 font-medium'
+      : 'inline-flex items-center gap-1.5 text-[11px] font-sans px-2.5 py-1 rounded-md bg-[#0c1628] border border-[#244170] text-sky-400 font-medium';
+  }
+
+  const engineBadge = document.getElementById('activeModelEngineBadge');
+  if (engineBadge) {
+    engineBadge.textContent = isOpencode ? 'OpenCode (9router)' : 'Gemini CLI';
+  }
+
+  const pageHint = document.getElementById('pageModelSelectHint');
+  if (pageHint) {
+    pageHint.textContent = isOpencode
+      ? 'Mức độ suy luận (Reasoning Effort: Low / Medium / High) sẽ tự động chuyển đổi sang biến thể mô hình tương ứng (ví dụ: ag/gemini-3.8-flash-medium) ở tab Mức độ suy luận.'
+      : 'Trên Gemini CLI, cờ tham số --model và --effort (hoặc lệnh tương tác /model và /effort) sẽ được tự động áp dụng khi thực thi tác vụ.';
+  }
+
+  if (isOpencode) {
+    if (_cachedOpenCodeModels && _cachedOpenCodeModels.length > 0) {
+      populateOpenCodeModelSelects(_cachedOpenCodeModels);
+    } else {
+      fetchOpenCodeModels(false);
+    }
+    updateQuickOpencodeDisplay(currentStudioSettings.effort);
+  } else {
+    // gemini_cli
+    if (_cachedGeminiCliModels && _cachedGeminiCliModels.length > 0) {
+      populateGeminiCliModelSelect(_cachedGeminiCliModels);
+    } else {
+      populateGeminiCliModelSelect([]);
+      fetchGeminiCliModels(false);
+    }
+
+    const curModel = currentStudioSettings.model || 'gemini-3.8-flash-high';
+    const curEff = String(currentStudioSettings.effort || 'high').toUpperCase();
+
+    const displayBadge = document.getElementById('activeModelDisplayBadge');
+    if (displayBadge) {
+      displayBadge.textContent = curModel;
+    }
+
+    const effortBadge = document.getElementById('activeModelEffortBadge');
+    if (effortBadge) {
+      effortBadge.textContent = `Suy luận: ${curEff}`;
+      effortBadge.className = 'text-[10px] font-sans font-medium px-2.5 py-0.5 rounded bg-blue-900/60 text-blue-200 border border-blue-700/60';
+    }
+
+    const fullIdEl = document.getElementById('activeModelOpencodeFullId');
+    if (fullIdEl) {
+      fullIdEl.textContent = 'gemini-cli';
+    }
+
+    const descEl = document.getElementById('pageModelActiveDesc');
+    if (descEl) {
+      descEl.textContent = `Thực thi qua Gemini CLI (Antigravity CLI) • Cờ tham số: --model ${curModel} --effort ${currentStudioSettings.effort || 'high'} • Trong phiên tương tác: /effort ${currentStudioSettings.effort || 'high'} và /model ${curModel}`;
+    }
+
+    const masterSelect = document.getElementById('pageSettingsModelSelect');
+    if (masterSelect) {
+      masterSelect.value = curModel;
+    }
+
+    updateDynamicEffortPanel({ supportsEffort: true, isFree: false, baseModel: curModel });
+  }
+}
+window.renderModelSelectForCurrentEngine = renderModelSelectForCurrentEngine;
+
 function resolveEffectiveOpenCodeModel(baseModel, effort) {
-  const raw = String(baseModel || currentStudioSettings.opencode_model || '9router/ag/gemini-3.8-flash').trim();
+  let raw = String(baseModel || currentStudioSettings.opencode_model || '9router/ag/gemini-3.8-flash').trim();
   const eff = String(effort || currentStudioSettings.effort || 'high').trim().toLowerCase();
 
-  const prefixMatch = raw.match(/^(9router\/|opencode\/)/);
-  const prefix = prefixMatch ? prefixMatch[1] : '';
-  const rawId = prefix ? raw.slice(prefix.length) : raw;
+  const isFree = /free/i.test(raw);
+  const isAgent = /-agent$/i.test(raw);
 
-  if (/-agent$/i.test(rawId)) {
-    return { effective: raw, supportsEffort: false, baseModel: raw };
+  if (isAgent || isFree) {
+    const cleanRaw = raw.replace(/-(low|medium|high|xhigh|max)$/i, '');
+    return {
+      effective: cleanRaw,
+      supportsEffort: false,
+      isFree: isFree,
+      baseModel: cleanRaw
+    };
   }
+
+  const prefixMatch = raw.match(/^(9router\/|opencode\/)/i);
+  const prefix = prefixMatch ? prefixMatch[0] : '';
+  const rawId = prefix ? raw.slice(prefix.length) : raw;
 
   const baseId = rawId.replace(/-(low|medium|high|xhigh|max)$/i, '');
   const lower = baseId.toLowerCase();
-  const heuristics = lower.includes('gemini') || lower.includes('argon') || lower.includes('claude');
+  const heuristics = (lower.includes('gemini') || lower.includes('argon') || lower.includes('claude') || lower.includes('gpt-') || lower.includes('grok')) && !lower.includes('free');
 
   // Đối chiếu với danh sách biến thể thật do /api/opencode/models trả về (raw_variants)
   const variantMap = window._openCodeVariantMap || {};
-  const variants = variantMap[prefix + baseId] || variantMap[baseId] || null;
+  const variants = variantMap[prefix + baseId] || variantMap[baseId] || variantMap['9router/ag/' + baseId] || variantMap['ag/' + baseId] || null;
 
   let effectiveId = `${baseId}-${eff}`;
   let supportsEffort = heuristics;
 
   if (Array.isArray(variants) && variants.length) {
-    supportsEffort = variants.some(v => v !== baseId);
+    const hasEffortVariant = variants.some(v => v !== baseId && /-(low|medium|high|xhigh|max)$/i.test(v));
+    supportsEffort = heuristics || hasEffortVariant;
     if (variants.includes(`${baseId}-${eff}`)) {
       effectiveId = `${baseId}-${eff}`;
+    } else if (variants.includes(`ag/${baseId}-${eff}`)) {
+      effectiveId = `ag/${baseId}-${eff}`;
     } else if (variants.includes(baseId)) {
-      effectiveId = baseId;
+      effectiveId = supportsEffort ? `${baseId}-${eff}` : baseId;
     } else {
       effectiveId = ['high', 'medium', 'low', 'xhigh', 'max']
         .map(e => `${baseId}-${e}`)
-        .find(v => variants.includes(v)) || baseId;
+        .find(v => variants.includes(v)) || (supportsEffort ? `${baseId}-${eff}` : baseId);
     }
   } else if (!heuristics) {
     effectiveId = baseId;
   }
 
-  return { effective: prefix + effectiveId, supportsEffort, baseModel: prefix + baseId };
+  return {
+    effective: prefix + effectiveId,
+    supportsEffort,
+    isFree: false,
+    baseModel: prefix + baseId
+  };
 }
 window.resolveEffectiveOpenCodeModel = resolveEffectiveOpenCodeModel;
+
+function updateDynamicEffortPanel(res) {
+  const titleEl = document.getElementById('pageEffortSectionTitle');
+  const cardsGrid = document.getElementById('pageEffortCardsGrid');
+  const noticeEl = document.getElementById('pageEffortNotSupportedNotice');
+  const noticeTitle = document.getElementById('pageEffortNoticeTitle');
+  const noticeDesc = document.getElementById('pageEffortNoticeDesc');
+
+  const isOpencode = (currentStudioSettings.engine === 'opencode');
+
+  if (isOpencode) {
+    if (res && res.supportsEffort) {
+      if (titleEl) {
+        const isGemini = (res.baseModel || '').toLowerCase().includes('gemini') || (res.baseModel || '').toLowerCase().includes('argon');
+        titleEl.textContent = isGemini ? 'Mức độ suy luận cho Gemini (OpenCode):' : `Mức độ suy luận cho ${escapeHtml(res.baseModel)}:`;
+      }
+      if (cardsGrid) cardsGrid.classList.remove('hidden');
+      if (noticeEl) noticeEl.classList.add('hidden');
+    } else {
+      const modelName = (res && res.baseModel) || currentStudioSettings.opencode_model || 'Mô hình cố định';
+      const isFree = (res && res.isFree) || (/free/i.test(modelName));
+      if (titleEl) {
+        titleEl.textContent = isFree
+          ? `Mô hình Miễn phí (${modelName}): Tiêu chuẩn (Không áp dụng mức suy luận)`
+          : `Mô hình tiêu chuẩn (${modelName}): Không áp dụng mức suy luận`;
+      }
+      if (cardsGrid) cardsGrid.classList.add('hidden');
+      if (noticeEl) {
+        noticeEl.classList.remove('hidden');
+        if (noticeTitle) {
+          noticeTitle.textContent = isFree
+            ? `Mô hình Miễn phí ${modelName} (Free - Không tốn token)`
+            : `Mô hình ${modelName} hoạt động ở chế độ tiêu chuẩn`;
+        }
+        if (noticeDesc) {
+          noticeDesc.textContent = isFree
+            ? `Mô hình này là mô hình miễn phí (Free model) từ OpenCode / 9router, hoạt động cố định ở mức suy luận tiêu chuẩn và không hỗ trợ chọn Low / Medium / High. Mọi tác vụ được xử lý phản hồi trực tiếp nhanh nhất.`
+            : `Mô hình này hoạt động ở chế độ tiêu chuẩn mặc định, không hỗ trợ phân mức suy luận Low / Medium / High.`;
+        }
+      }
+    }
+  } else {
+    // gemini_cli
+    if (titleEl) titleEl.textContent = 'Mức độ suy luận cho Gemini CLI:';
+    if (cardsGrid) cardsGrid.classList.remove('hidden');
+    if (noticeEl) noticeEl.classList.add('hidden');
+  }
+}
+window.updateDynamicEffortPanel = updateDynamicEffortPanel;
 
 function updateQuickOpencodeDisplay(effort) {
   const eff = String(effort || currentStudioSettings.effort || 'high').trim().toLowerCase();
   const res = resolveEffectiveOpenCodeModel(currentStudioSettings.opencode_model, eff);
 
+  // Hiển thị model ID tinh gọn rõ ràng cho người dùng (ví dụ: ag/gemini-3.8-flash-high)
+  const displayModelId = (res.effective || '').replace(/^9router\//i, '');
+
   const activeModelEl = document.getElementById('quickOpencodeActiveModel');
   if (activeModelEl) {
-    activeModelEl.textContent = res.effective;
+    activeModelEl.textContent = displayModelId;
+  }
+
+  const activeModelDisplayBadge = document.getElementById('activeModelDisplayBadge');
+  if (activeModelDisplayBadge) {
+    activeModelDisplayBadge.textContent = displayModelId;
+  }
+
+  const activeModelOpencodeFullId = document.getElementById('activeModelOpencodeFullId');
+  if (activeModelOpencodeFullId) {
+    activeModelOpencodeFullId.textContent = res.effective;
+  }
+
+  const activeModelEffortBadge = document.getElementById('activeModelEffortBadge');
+  if (activeModelEffortBadge) {
+    if (res.isFree) {
+      activeModelEffortBadge.textContent = 'Mô hình Miễn phí / Tiêu chuẩn';
+      activeModelEffortBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/60';
+    } else if (res.supportsEffort) {
+      activeModelEffortBadge.textContent = `Suy luận: ${eff.toUpperCase()}`;
+      activeModelEffortBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-blue-900/60 text-blue-200 border border-blue-700/60';
+    } else {
+      activeModelEffortBadge.textContent = 'Mô hình Tiêu chuẩn';
+      activeModelEffortBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700';
+    }
   }
 
   const badgeEl = document.getElementById('quickOpencodeEffortBadge');
   if (badgeEl) {
-    if (res.supportsEffort) {
+    if (res.isFree) {
+      badgeEl.textContent = 'Mô hình Miễn phí / Tiêu chuẩn (Không tốn token)';
+      badgeEl.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/60';
+    } else if (res.supportsEffort) {
       const effLabels = {
         'low': 'Suy luận: Low (Tốc độ cao)',
         'medium': 'Suy luận: Medium (Cân bằng)',
@@ -574,8 +969,30 @@ function updateQuickOpencodeDisplay(effort) {
       badgeEl.textContent = effLabels[eff] || `Suy luận: ${eff.toUpperCase()}`;
       badgeEl.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-blue-900/60 text-blue-200 border border-blue-700/60';
     } else {
-      badgeEl.textContent = 'Mô hình cố định (Không phân mức suy luận)';
+      badgeEl.textContent = 'Mô hình Tiêu chuẩn (Không áp dụng suy luận)';
       badgeEl.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700';
+    }
+  }
+
+  const descEl = document.getElementById('quickOpencodeActiveDesc');
+  if (descEl) {
+    if (res.isFree) {
+      descEl.textContent = 'Mô hình miễn phí (Free) không tốn token và hoạt động ở chế độ tiêu chuẩn, không chia mức suy luận.';
+    } else if (res.supportsEffort) {
+      descEl.textContent = 'Mô hình thực thi tự động áp dụng mức suy luận đã chọn (Low / Medium / High) bên dưới.';
+    } else {
+      descEl.textContent = 'Mô hình cố định không hỗ trợ chia mức suy luận.';
+    }
+  }
+
+  const pageDescEl = document.getElementById('pageModelActiveDesc');
+  if (pageDescEl) {
+    if (res.isFree) {
+      pageDescEl.textContent = 'Mô hình miễn phí (Free) không tốn token và hoạt động ở chế độ tiêu chuẩn, không chia mức suy luận.';
+    } else if (res.supportsEffort) {
+      pageDescEl.textContent = `Mô hình thực thi tự động áp dụng mức suy luận đã chọn (${eff.toUpperCase()}) trong tab Effort.`;
+    } else {
+      pageDescEl.textContent = 'Mô hình cố định không hỗ trợ chia mức suy luận.';
     }
   }
 
@@ -583,20 +1000,84 @@ function updateQuickOpencodeDisplay(effort) {
   if (quickSelect && res.baseModel) {
     quickSelect.value = res.baseModel;
   }
+
+  const pageSelect = document.getElementById('pageSettingsOpencodeModelSelect');
+  if (pageSelect && res.baseModel) {
+    pageSelect.value = res.baseModel;
+  }
+
+  updateDynamicEffortPanel(res);
 }
 window.updateQuickOpencodeDisplay = updateQuickOpencodeDisplay;
 
-function onOpenCodeModelChange(newModel) {
+async function onOpenCodeModelChange(newModel) {
   if (!newModel) return;
-  const cleanModel = newModel.replace(/-(low|medium|high)$/i, '');
+  const isFree = /free/i.test(newModel);
+  const cleanModel = isFree ? newModel : newModel.replace(/-(low|medium|high|xhigh|max)$/i, '');
   currentStudioSettings.opencode_model = cleanModel;
   const quickSelect = document.getElementById('quickOpencodeModelSelect');
   const pageSelect = document.getElementById('pageSettingsOpencodeModelSelect');
   if (quickSelect && quickSelect.value !== cleanModel) quickSelect.value = cleanModel;
   if (pageSelect && pageSelect.value !== cleanModel) pageSelect.value = cleanModel;
   updateQuickOpencodeDisplay(currentStudioSettings.effort);
-  markSettingsDirty(true);
+  renderModelSelectForCurrentEngine();
+  const tab = (activeSettingsSubTab === 'effort') ? 'effort' : 'model';
+  markSettingsDirty(true, tab);
 }
+window.onOpenCodeModelChange = onOpenCodeModelChange;
+
+async function onModelDropdownChange(newVal) {
+  if (!newVal) return;
+  if (currentStudioSettings.engine === 'opencode') {
+    await onOpenCodeModelChange(newVal);
+  } else {
+    currentStudioSettings.model = newVal;
+    const masterSelect = document.getElementById('pageSettingsModelSelect');
+    if (masterSelect) masterSelect.value = newVal;
+
+    const effMatch = newVal.match(/-(low|medium|high|xhigh|max)$/i);
+    if (effMatch) {
+      currentStudioSettings.effort = effMatch[1].toLowerCase();
+      updateEffortUI(currentStudioSettings.effort);
+    }
+    renderModelSelectForCurrentEngine();
+    markSettingsDirty(true, 'model');
+  }
+}
+window.onModelDropdownChange = onModelDropdownChange;
+
+function selectModelPreset(presetKey) {
+  const pageSelect = document.getElementById('pageSettingsOpencodeModelSelect');
+  if (!pageSelect || !pageSelect.options.length) {
+    showToast('Danh sách mô hình chưa sẵn sàng. Đang tải lại...', 'info');
+    refreshCurrentEngineModels();
+    return;
+  }
+
+  let targetVal = '';
+  const opts = Array.from(pageSelect.options);
+
+  if (presetKey === 'flash') {
+    const opt = opts.find(o => /gemini-3\.8-flash/i.test(o.value)) || opts.find(o => /flash/i.test(o.value) && !/free/i.test(o.value));
+    if (opt) targetVal = opt.value;
+  } else if (presetKey === 'pro') {
+    const opt = opts.find(o => /gemini-3\.8-pro/i.test(o.value)) || opts.find(o => /pro/i.test(o.value) && !/free/i.test(o.value));
+    if (opt) targetVal = opt.value;
+  } else if (presetKey === 'free') {
+    const opt = opts.find(o => /free/i.test(o.value));
+    if (opt) targetVal = opt.value;
+  }
+
+  if (targetVal) {
+    pageSelect.value = targetVal;
+    onModelDropdownChange(targetVal);
+    markSettingsDirty(true, 'model');
+    showToast(`Đã chuyển nhanh sang mô hình: ${targetVal}`, 'success');
+  } else {
+    showToast(`Không tìm thấy mô hình phù hợp cho gợi ý "${presetKey}".`, 'warning');
+  }
+}
+window.selectModelPreset = selectModelPreset;
 
 async function startGeminiCliBackground(btn) {
   if (btn) {
@@ -685,7 +1166,7 @@ function switchModelFamilyTab(family) {
   }
 
   updateEffortUI(currentStudioSettings.effort);
-  markSettingsDirty(true);
+  markSettingsDirty(true, 'effort');
 }
 window.switchModelFamilyTab = switchModelFamilyTab;
 
@@ -696,7 +1177,7 @@ function onModelFamilySubModelChange(family, newModel) {
     masterSelect.value = newModel;
   }
   updateEffortUI(currentStudioSettings.effort);
-  markSettingsDirty(true);
+  markSettingsDirty(true, 'effort');
 }
 window.onModelFamilySubModelChange = onModelFamilySubModelChange;
 
@@ -785,9 +1266,13 @@ function updateEffortUI(effort) {
     modelSelect.value = currentStudioSettings.model;
   }
   const opencodeModelSelect = document.getElementById('pageSettingsOpencodeModelSelect');
-  const cleanOpencodeModel = (currentStudioSettings.opencode_model || '').replace(/-(low|medium|high)$/i, '');
-  if (opencodeModelSelect && cleanOpencodeModel) {
-    opencodeModelSelect.value = cleanOpencodeModel;
+  const cleanOpencodeModel = (currentStudioSettings.opencode_model || '').replace(/-(low|medium|high|xhigh|max)$/i, '');
+  if (opencodeModelSelect) {
+    if (currentStudioSettings.engine === 'opencode' && cleanOpencodeModel) {
+      opencodeModelSelect.value = cleanOpencodeModel;
+    } else if (currentStudioSettings.engine === 'gemini_cli' && currentStudioSettings.model) {
+      opencodeModelSelect.value = currentStudioSettings.model;
+    }
   }
   const quickOpencodeSelect = document.getElementById('quickOpencodeModelSelect');
   if (quickOpencodeSelect && cleanOpencodeModel) {
@@ -798,15 +1283,23 @@ function updateEffortUI(effort) {
 window.updateEffortUI = updateEffortUI;
 
 function onPageEffortChange(newEffort) {
-
-  if (currentModelFamily === 'gemini') {
-    if (currentStudioSettings.model && currentStudioSettings.model.startsWith('gemini-3.8-flash')) {
-      currentStudioSettings.model = `gemini-3.8-flash-${newEffort}`;
-    }
-  }
   currentStudioSettings.effort = newEffort;
+
+  if (currentStudioSettings.engine === 'gemini_cli') {
+    if (currentModelFamily === 'gemini' || !currentModelFamily) {
+      if (currentStudioSettings.model && currentStudioSettings.model.startsWith('gemini-3.8-flash')) {
+        currentStudioSettings.model = `gemini-3.8-flash-${newEffort}`;
+      }
+    }
+    renderModelSelectForCurrentEngine();
+  } else {
+    // OpenCode: auto switch effective model variant to reflect the selected reasoning effort
+    updateQuickOpencodeDisplay(newEffort);
+    renderModelSelectForCurrentEngine();
+  }
+
   updateEffortUI(newEffort);
-  markSettingsDirty(true);
+  markSettingsDirty(true, 'effort');
 }
 window.onPageEffortChange = onPageEffortChange;
 
@@ -827,13 +1320,13 @@ document.addEventListener('keydown', (e) => {
     const nextIdx = (curIdx + 1) % levels.length;
     pendingEffortSelection = levels[nextIdx];
     updateEffortUI(pendingEffortSelection);
-    markSettingsDirty(true);
+    markSettingsDirty(true, 'effort');
   } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
     e.preventDefault();
     const prevIdx = (curIdx - 1 + levels.length) % levels.length;
     pendingEffortSelection = levels[prevIdx];
     updateEffortUI(pendingEffortSelection);
-    markSettingsDirty(true);
+    markSettingsDirty(true, 'effort');
   } else if (e.key === 'Enter') {
     e.preventDefault();
     const targetEffort = pendingEffortSelection || currentStudioSettings.effort || 'high';
@@ -857,30 +1350,70 @@ document.addEventListener('keydown', (e) => {
 
 let isSettingsDirty = false;
 
-function markSettingsDirty(dirty = true) {
-  isSettingsDirty = dirty;
+const dirtySubTabs = {
+  engine: false,
+  model: false,
+  effort: false,
+  mcp: false,
+  api: false,
+  env: false,
+  account: false
+};
+
+function updateSaveButtonState() {
   const btn = document.getElementById('btnSaveSettingsPage');
-  if (!btn) return;
-  if (dirty) {
-    btn.classList.add('is-dirty');
-    btn.classList.remove('cursor-not-allowed', 'bg-slate-700/60', 'text-slate-400');
-    btn.removeAttribute('disabled');
-  } else {
-    btn.classList.remove('is-dirty');
-    btn.classList.add('cursor-not-allowed', 'bg-slate-700/60', 'text-slate-400');
+  const isCurrentTabDirty = Boolean(dirtySubTabs[activeSettingsSubTab]);
+  if (btn) {
+    if (isCurrentTabDirty) {
+      btn.classList.add('is-dirty');
+      btn.classList.remove('cursor-not-allowed', 'bg-slate-700/60', 'text-slate-400');
+      btn.removeAttribute('disabled');
+      btn.disabled = false;
+    } else {
+      btn.classList.remove('is-dirty');
+      btn.classList.add('cursor-not-allowed', 'bg-slate-700/60', 'text-slate-400');
+      btn.setAttribute('disabled', 'true');
+      btn.disabled = true;
+    }
   }
+
+  // Cập nhật chấm tròn vàng hiển thị tab có thay đổi chưa lưu
+  ['engine', 'model', 'effort', 'api', 'env'].forEach(t => {
+    const dot = document.getElementById('settingsNavDirty_' + t);
+    if (dot) {
+      if (dirtySubTabs[t]) dot.classList.remove('hidden');
+      else dot.classList.add('hidden');
+    }
+  });
+}
+window.updateSaveButtonState = updateSaveButtonState;
+
+function markSettingsDirty(dirty = true, tab = null) {
+  const targetTab = tab || activeSettingsSubTab || 'engine';
+  if (!dirty) {
+    if (tab) {
+      dirtySubTabs[tab] = false;
+    } else {
+      Object.keys(dirtySubTabs).forEach(k => { dirtySubTabs[k] = false; });
+    }
+    isSettingsDirty = Object.values(dirtySubTabs).some(Boolean);
+  } else {
+    dirtySubTabs[targetTab] = true;
+    isSettingsDirty = true;
+  }
+  updateSaveButtonState();
 }
 window.markSettingsDirty = markSettingsDirty;
 
-function onSettingsOptionChanged() {
-  markSettingsDirty(true);
+function onSettingsOptionChanged(tab = null) {
+  markSettingsDirty(true, tab);
 }
 window.onSettingsOptionChanged = onSettingsOptionChanged;
 
-let activeSettingsSubTab = 'effort';
+let activeSettingsSubTab = 'engine';
 
 function switchSettingsSidebarTab(tab, updateHistory = true) {
-  if (!['effort', 'engine', 'mcp', 'api', 'env'].includes(tab)) tab = 'effort';
+  if (!['engine', 'model', 'effort', 'mcp', 'api', 'env', 'account'].includes(tab)) tab = 'engine';
   activeSettingsSubTab = tab;
   window.initSettingsSubTab = tab;
   try {
@@ -891,20 +1424,22 @@ function switchSettingsSidebarTab(tab, updateHistory = true) {
   if (initStyle) initStyle.remove();
 
   const subRoutes = window.SETTINGS_SUBTAB_ROUTES || {
-    'effort': '/settings/effort',
     'engine': '/settings/engine',
+    'model': '/settings/model',
+    'effort': '/settings/effort',
     'mcp': '/settings/mcp',
+    'account': '/settings/account',
     'api': '/settings/api',
     'env': '/settings/env'
   };
-  const targetPath = subRoutes[tab] || '/settings/effort';
+  const targetPath = subRoutes[tab] || '/settings/engine';
   if (updateHistory && activeTab === 'settings' && window.location.pathname !== targetPath) {
     try {
       window.history.pushState({ tab: 'settings', settingsSubTab: tab }, '', targetPath);
     } catch (e) { }
   }
 
-  const tabs = ['effort', 'engine', 'mcp', 'api', 'env'];
+  const tabs = ['engine', 'model', 'effort', 'mcp', 'api', 'env'];
   tabs.forEach(t => {
     const navBtn = document.getElementById('settingsNav_' + t);
     const panel = document.getElementById('settingsPanel_' + t);
@@ -927,10 +1462,22 @@ function switchSettingsSidebarTab(tab, updateHistory = true) {
   });
 
   if (tab === 'mcp') {
+    reorderMcpPresetCards(_cachedMcpServers || window.currentMcpServers || []);
     fetchMcpServers(false);
   }
+  if (tab === 'effort' || tab === 'model' || tab === 'engine') {
+    if (currentStudioSettings.engine === 'opencode') {
+      fetchOpenCodeModels(true);
+    } else {
+      fetchGeminiCliModels(true);
+    }
+    renderModelSelectForCurrentEngine();
+    updateQuickOpencodeDisplay(currentStudioSettings.effort);
+  }
+  updateSaveButtonState();
 }
 window.switchSettingsSidebarTab = switchSettingsSidebarTab;
+window.switchSettingsTab = switchSettingsSidebarTab;
 
 /* ============================================================
    MCP (MODEL CONTEXT PROTOCOL) MANAGEMENT
@@ -1184,9 +1731,12 @@ function renderMcpServers(servers) {
     }
     if (cardPresetMysql) cardPresetMysql.classList.remove('is-unconfigured');
     const urlInput = document.getElementById('input_mysql_url');
-    if (urlInput && !urlInput.value && Array.isArray(mysqlServer.args) && mysqlServer.args.length > 0) {
+    if (Array.isArray(mysqlServer.args) && mysqlServer.args.length > 0) {
       const connStr = mysqlServer.args.find(a => typeof a === 'string' && a.startsWith('mysql'));
-      if (connStr) urlInput.value = connStr;
+      if (connStr) {
+        if (urlInput && !urlInput.value) urlInput.value = connStr;
+        syncMysqlUrlToFields(connStr);
+      }
     }
   } else {
     if (btnToggleMysqlFooter) btnToggleMysqlFooter.classList.add('hidden');
@@ -1318,6 +1868,9 @@ function renderMcpServers(servers) {
       customBadge.className = 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400';
     }
   }
+
+  // Tự động sắp xếp đưa các thẻ dịch vụ MCP đang active/kết nối lên đầu
+  reorderMcpPresetCards(servers);
 
   if (!container) return;
 
@@ -1531,6 +2084,7 @@ async function saveJiraMcp(btn) {
     const d = await res.json();
     if (d && d.success) {
       showToast('Đã lưu & kích hoạt Atlassian Jira MCP thành công!');
+      window.jiraWorkspaceLoaded = false;
       fetchMcpServers(true);
     } else {
       showToast((d && d.message) || 'Không thể lưu Jira MCP', 'error');
@@ -1690,6 +2244,21 @@ async function removeMcpServer(name) {
 
 async function toggleMcpServer(name, enabled) {
   if (!name) return;
+  const actionTitle = enabled ? 'Bật MCP Server' : 'Tắt MCP Server';
+  const actionContent = enabled
+    ? `Bạn có chắc chắn muốn kích hoạt và bật hoạt động của MCP server '${name}'?`
+    : `Bạn có chắc chắn muốn tạm dừng hoạt động của MCP server '${name}'?`;
+  const okText = enabled ? 'Bật MCP' : 'Tắt MCP';
+
+  const ok = await antdConfirm({
+    title: actionTitle,
+    content: actionContent,
+    okText: okText,
+    cancelText: 'Hủy',
+    danger: !enabled
+  });
+  if (!ok) return;
+
   try {
     const res = await fetch('/api/mcp/toggle', {
       method: 'POST',
@@ -1699,6 +2268,12 @@ async function toggleMcpServer(name, enabled) {
     const d = await res.json();
     if (d && d.success) {
       showToast(d.message || `Đã cập nhật trạng thái MCP server '${name}'.`, 'success');
+      if (name.toLowerCase().includes('jira')) {
+        window.jiraWorkspaceLoaded = false;
+        window.jiraStatus = null;
+        window.currentJiraIssues = [];
+        window.activeJiraIssue = null;
+      }
       fetchMcpServers(true);
     } else {
       showToast((d && d.message) || 'Lỗi cập nhật', 'error');
@@ -1713,15 +2288,6 @@ async function togglePresetMcp(preset) {
   const servers = window.currentMcpServers || [];
   const s = servers.find(item => item.name === preset || item.preset === preset);
   const isStopped = s ? !!s.disabled : false;
-  if (!isStopped) {
-    const conf = await antdConfirm({
-      title: 'Tắt MCP Server',
-      content: `Bạn có chắc chắn muốn tạm dừng hoạt động của MCP server '${preset}'?`,
-      okText: 'Tắt MCP',
-      danger: true
-    });
-    if (!conf) return;
-  }
   await toggleMcpServer(preset, isStopped);
 }
 
@@ -1744,6 +2310,7 @@ async function removePresetMcp(preset) {
     const d = await res.json();
     if (d && d.success) {
       showToast(d.message || `Đã xóa cấu hình MCP '${preset}'.`, 'success');
+      if (preset === 'jira') window.jiraWorkspaceLoaded = false;
       fetchMcpServers(true);
     } else {
       showToast((d && d.message) || 'Lỗi khi xóa MCP server', 'error');
@@ -1780,6 +2347,7 @@ async function removeJiraServer() {
     const d = await res.json();
     if (d && d.success) {
       showToast(d.message || `Đã xóa cấu hình Jira MCP.`, 'success');
+      window.jiraWorkspaceLoaded = false;
       const hostInput = document.getElementById('input_jira_host');
       const emailInput = document.getElementById('input_jira_email');
       const tokenInput = document.getElementById('input_jira_token');
@@ -1795,6 +2363,66 @@ async function removeJiraServer() {
   } catch (err) {
     showToast('Lỗi kết nối khi xóa: ' + err.message, 'error');
   }
+}
+
+function reorderMcpPresetCards(servers = _cachedMcpServers || window.currentMcpServers || []) {
+  const grid = document.getElementById('mcpPresetCardsGrid');
+  if (!grid) return;
+
+  const defaultPresets = ['jira', 'github', 'postgres', 'mysql', 'gitlab', 'slack', 'custom'];
+  const sList = Array.isArray(servers) ? servers : (_cachedMcpServers || window.currentMcpServers || []);
+
+  const getRank = (key) => {
+    // 1. Ưu tiên kiểm tra trực tiếp badge trạng thái hiển thị trên DOM
+    const badge = document.getElementById(`badgePreset_${key}`);
+    if (badge) {
+      const text = (badge.textContent || '').trim();
+      if (text === 'Đã kết nối' || badge.classList.contains('is-connected')) return 0;
+      if (text === 'Đã dừng' || badge.classList.contains('mcp-status-stopped')) return 1;
+      if (text === 'Chưa cấu hình' || text === 'Chưa kết nối' || text === 'Tùy biến') return 2;
+    }
+
+    // 2. Dự phòng dựa trên danh sách servers từ backend
+    if (key === 'custom') {
+      const customs = sList.filter(x => !['jira', 'github', 'postgres', 'postgresql', 'mysql', 'gitlab', 'slack'].includes(x.name) && x.preset !== 'jira');
+      if (customs.some(x => !x.disabled && x.live_status !== 'failed')) return 0;
+      if (customs.length > 0) return 1;
+      return 2;
+    }
+
+    let s;
+    if (key === 'jira') {
+      s = sList.find(x => x.name === 'jira' || x.preset === 'jira');
+    } else if (key === 'github') {
+      s = sList.find(x => x.name === 'github' || x.preset === 'github');
+    } else if (key === 'postgres') {
+      s = sList.find(x => x.name === 'postgres' || x.name === 'postgresql' || x.preset === 'postgres');
+    } else if (key === 'mysql') {
+      s = sList.find(x => x.name === 'mysql' || x.preset === 'mysql');
+    } else if (key === 'gitlab') {
+      s = sList.find(x => x.name === 'gitlab' || x.preset === 'gitlab');
+    } else if (key === 'slack') {
+      s = sList.find(x => x.name === 'slack' || x.preset === 'slack');
+    }
+
+    if (!s) return 2;
+    if (!s.disabled && s.live_status !== 'failed') return 0;
+    return 1;
+  };
+
+  const sortedPresets = [...defaultPresets].sort((a, b) => {
+    const rankA = getRank(a);
+    const rankB = getRank(b);
+    if (rankA !== rankB) return rankA - rankB;
+    return defaultPresets.indexOf(a) - defaultPresets.indexOf(b);
+  });
+
+  sortedPresets.forEach(preset => {
+    const card = document.getElementById(`cardPreset_${preset}`);
+    if (card && card.parentElement === grid) {
+      grid.appendChild(card);
+    }
+  });
 }
 
 function selectMcpPreset(preset) {
@@ -1832,8 +2460,8 @@ function selectMcpPreset(preset) {
     const urlInput = document.getElementById('input_postgres_url');
     if (urlInput && !urlInput.value) setTimeout(() => urlInput.focus(), 50);
   } else if (target === 'mysql') {
-    const urlInput = document.getElementById('input_mysql_url');
-    if (urlInput && !urlInput.value) setTimeout(() => urlInput.focus(), 50);
+    const hostInput = document.getElementById('input_mysql_host') || document.getElementById('input_mysql_url');
+    if (hostInput && !hostInput.value) setTimeout(() => hostInput.focus(), 50);
   } else if (target === 'gitlab') {
     const hostInput = document.getElementById('input_gitlab_host');
     if (hostInput && !hostInput.value) setTimeout(() => hostInput.focus(), 50);
@@ -2100,10 +2728,199 @@ async function saveGitlabMcp(btn) {
   }
 }
 
-async function saveMysqlMcp(btn) {
-  const url = document.getElementById('input_mysql_url')?.value?.trim() || '';
+function parseMysqlUrl(urlStr) {
+  if (!urlStr || typeof urlStr !== 'string') return null;
+  const trimmed = urlStr.trim();
+  if (!trimmed) return null;
+  const m = trimmed.match(/^mysql:\/\/(?:([^:@]+)(?::([^@]*))?@)?([^:\/\?#]+)(?::(\d+))?(?:\/([^?#]*))?/i);
+  if (!m) return null;
+  return {
+    user: m[1] ? decodeURIComponent(m[1]) : '',
+    password: m[2] ? decodeURIComponent(m[2]) : '',
+    host: m[3] ? m[3] : '',
+    port: m[4] ? m[4] : '3306',
+    database: m[5] ? decodeURIComponent(m[5]) : ''
+  };
+}
+
+function buildMysqlUrl(opts) {
+  if (!opts) return '';
+  const host = (opts.host || '').trim();
+  const port = (opts.port || '').toString().trim() || '3306';
+  const user = (opts.user || '').trim();
+  const password = opts.password || '';
+  const database = (opts.database || '').trim();
+
+  if (!host && !user) return '';
+
+  const h = host || '127.0.0.1';
+  const u = user || 'root';
+  let auth = encodeURIComponent(u);
+  if (password) {
+    auth += ':' + encodeURIComponent(password);
+  }
+  let url = `mysql://${auth}@${h}:${port}`;
+  if (database) {
+    url += `/${encodeURIComponent(database)}`;
+  }
+  return url;
+}
+
+function handleMysqlFieldChange() {
+  const host = document.getElementById('input_mysql_host')?.value?.trim() || '';
+  const port = document.getElementById('input_mysql_port')?.value?.trim() || '3306';
+  const user = document.getElementById('input_mysql_user')?.value?.trim() || '';
+  const password = document.getElementById('input_mysql_password')?.value || '';
+  const database = document.getElementById('input_mysql_database')?.value?.trim() || '';
+
+  const urlInput = document.getElementById('input_mysql_url');
+  if (urlInput) {
+    urlInput.value = buildMysqlUrl({ host, port, user, password, database });
+  }
+}
+
+function handleMysqlUrlChange() {
+  const urlInput = document.getElementById('input_mysql_url');
+  const url = urlInput?.value?.trim() || '';
+  if (!url) return;
+  const parsed = parseMysqlUrl(url);
+  if (!parsed) return;
+
+  const hostEl = document.getElementById('input_mysql_host');
+  const portEl = document.getElementById('input_mysql_port');
+  const userEl = document.getElementById('input_mysql_user');
+  const passEl = document.getElementById('input_mysql_password');
+  const dbEl = document.getElementById('input_mysql_database');
+
+  if (hostEl && parsed.host) hostEl.value = parsed.host;
+  if (portEl && parsed.port) portEl.value = parsed.port;
+  if (userEl && parsed.user !== undefined) userEl.value = parsed.user;
+  if (passEl && parsed.password !== undefined) passEl.value = parsed.password;
+  if (dbEl && parsed.database !== undefined) dbEl.value = parsed.database;
+}
+
+function syncMysqlUrlToFields(connStr) {
+  if (!connStr) return;
+  const parsed = parseMysqlUrl(connStr);
+  if (!parsed) return;
+
+  const hostEl = document.getElementById('input_mysql_host');
+  const portEl = document.getElementById('input_mysql_port');
+  const userEl = document.getElementById('input_mysql_user');
+  const passEl = document.getElementById('input_mysql_password');
+  const dbEl = document.getElementById('input_mysql_database');
+
+  if (hostEl && !hostEl.value) hostEl.value = parsed.host || '127.0.0.1';
+  if (portEl && (!portEl.value || portEl.value === '3306')) portEl.value = parsed.port || '3306';
+  if (userEl && !userEl.value) userEl.value = parsed.user || 'root';
+  if (passEl && !passEl.value) passEl.value = parsed.password || '';
+  if (dbEl && !dbEl.value) dbEl.value = parsed.database || '';
+}
+
+async function testMysqlConnection(btn) {
+  let url = document.getElementById('input_mysql_url')?.value?.trim() || '';
+  const host = document.getElementById('input_mysql_host')?.value?.trim() || '';
+  const port = document.getElementById('input_mysql_port')?.value?.trim() || '3306';
+  const user = document.getElementById('input_mysql_user')?.value?.trim() || '';
+  const password = document.getElementById('input_mysql_password')?.value || '';
+  const database = document.getElementById('input_mysql_database')?.value?.trim() || '';
+  const resultBox = document.getElementById('mysqlTestStatusResult');
+
+  if (!url && !host && !user) {
+    showToast('Vui lòng nhập Hostname hoặc MySQL Connection String URL.', 'warning');
+    return;
+  }
   if (!url) {
-    showToast('Vui lòng nhập MySQL Connection String URL (ví dụ: mysql://user:pass@localhost:3306/dbname).', 'warning');
+    url = buildMysqlUrl({ host, port, user, password, database });
+    const urlInput = document.getElementById('input_mysql_url');
+    if (urlInput) urlInput.value = url;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">↻</span> Đang kết nối...';
+  }
+  if (resultBox) {
+    resultBox.classList.remove('hidden');
+    resultBox.className = 'jira-alert-box is-loading';
+    resultBox.innerHTML = `
+      <div class="jira-alert-icon">↻</div>
+      <div class="jira-alert-content">
+        <div class="jira-alert-title">Đang kiểm tra kết nối MySQL...</div>
+        <div class="jira-alert-desc">Hệ thống đang kiểm tra kết nối tới ${escapeHtml(host || 'máy chủ MySQL')}:${escapeHtml(port || '3306')}...</div>
+      </div>
+    `;
+  }
+
+  try {
+    const res = await fetch('/api/mcp/test-mysql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, host, port, user, password, database })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-success';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">✓</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Kết nối MySQL thành công!</div>
+            <div class="jira-alert-desc">${escapeHtml(d.message || '')}</div>
+          </div>
+        `;
+      }
+      showToast(d.message || 'Kết nối MySQL thành công!', 'success');
+    } else {
+      const errMsg = (d && d.message) || 'Kiểm tra kết nối MySQL thất bại.';
+      if (resultBox) {
+        resultBox.className = 'jira-alert-box is-error';
+        resultBox.innerHTML = `
+          <div class="jira-alert-icon">!</div>
+          <div class="jira-alert-content">
+            <div class="jira-alert-title">Lỗi kết nối MySQL</div>
+            <div class="jira-alert-desc">${escapeHtml(errMsg)}</div>
+          </div>
+        `;
+      }
+      showToast(errMsg, 'error');
+    }
+  } catch (err) {
+    if (resultBox) {
+      resultBox.className = 'jira-alert-box is-error';
+      resultBox.innerHTML = `
+        <div class="jira-alert-icon">!</div>
+        <div class="jira-alert-content">
+          <div class="jira-alert-title">Lỗi kết nối</div>
+          <div class="jira-alert-desc">${escapeHtml(err.message)}</div>
+        </div>
+      `;
+    }
+    showToast('Lỗi khi kiểm tra MySQL: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Kiểm tra kết nối MySQL';
+    }
+  }
+}
+
+async function saveMysqlMcp(btn) {
+  let url = document.getElementById('input_mysql_url')?.value?.trim() || '';
+  const host = document.getElementById('input_mysql_host')?.value?.trim() || '';
+  const port = document.getElementById('input_mysql_port')?.value?.trim() || '3306';
+  const user = document.getElementById('input_mysql_user')?.value?.trim() || '';
+  const password = document.getElementById('input_mysql_password')?.value || '';
+  const database = document.getElementById('input_mysql_database')?.value?.trim() || '';
+
+  if (!url && (host || user)) {
+    url = buildMysqlUrl({ host, port, user, password, database });
+    const urlInput = document.getElementById('input_mysql_url');
+    if (urlInput) urlInput.value = url;
+  }
+
+  if (!url) {
+    showToast('Vui lòng nhập thông tin kết nối MySQL (Hostname, Port, User...) hoặc Connection String URL.', 'warning');
     return;
   }
   if (btn) {
@@ -2114,7 +2931,7 @@ async function saveMysqlMcp(btn) {
     const res = await fetch('/api/mcp/add-mysql', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, name: 'mysql' })
+      body: JSON.stringify({ url, host, port, user, password, database, name: 'mysql' })
     });
     const d = await res.json();
     if (d && d.success) {
@@ -2273,7 +3090,7 @@ async function autoDetectWorkspace(type) {
           badgeEl.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-800 font-medium';
         }
       }
-      onSettingsOptionChanged();
+      onSettingsOptionChanged('env');
       showToast(`Đã tự động điền đường dẫn ${type === 'fe' ? 'Frontend' : 'Backend'}: ${d.path}`, 'success');
     } else {
       showToast(`Không tự động tìm thấy thư mục '${defaultFolder}'`, 'warning');
@@ -2289,7 +3106,7 @@ function setWorkspaceValue(type, path) {
   if (inputEl) {
     inputEl.value = path;
     onWorkspaceInputChanged(type, path);
-    onSettingsOptionChanged();
+    onSettingsOptionChanged('env');
     showToast(`Đã chọn đường dẫn: ${path}`, 'success');
   }
 }
@@ -2338,7 +3155,7 @@ async function autoDetectCli(type) {
       const suggestBtn = document.getElementById(isAgy ? 'btn_suggest_agy_bin' : 'btn_suggest_opencode_bin');
       if (suggestBtn) suggestBtn.textContent = d.path;
 
-      onSettingsOptionChanged();
+      onSettingsOptionChanged('env');
       const osName = d.platform === 'windows' ? 'Windows' : 'Linux/Unix';
       if (d.exists) {
         showToast(`Đã tự động nhận diện ${nameLabel} trên ${osName}: ${d.path}`, 'success');
@@ -2361,7 +3178,7 @@ function setCliValue(type, path) {
   if (inputEl) {
     inputEl.value = path.trim();
     onCliInputChanged(type, path.trim());
-    onSettingsOptionChanged();
+    onSettingsOptionChanged('env');
     showToast(`Đã chọn đường dẫn CLI: ${path.trim()}`, 'success');
   }
 }
@@ -2382,6 +3199,7 @@ function onCliInputChanged(type, val) {
 
 window.fetchMcpServers = fetchMcpServers;
 window.renderMcpServers = renderMcpServers;
+window.reorderMcpPresetCards = reorderMcpPresetCards;
 window.selectMcpPreset = selectMcpPreset;
 window.togglePresetMcp = togglePresetMcp;
 window.removePresetMcp = removePresetMcp;
@@ -2389,6 +3207,12 @@ window.testGithubConnection = testGithubConnection;
 window.saveGithubMcp = saveGithubMcp;
 window.savePostgresMcp = savePostgresMcp;
 window.saveMysqlMcp = saveMysqlMcp;
+window.testMysqlConnection = testMysqlConnection;
+window.handleMysqlFieldChange = handleMysqlFieldChange;
+window.handleMysqlUrlChange = handleMysqlUrlChange;
+window.parseMysqlUrl = parseMysqlUrl;
+window.buildMysqlUrl = buildMysqlUrl;
+window.syncMysqlUrlToFields = syncMysqlUrlToFields;
 window.testGitlabConnection = testGitlabConnection;
 window.saveGitlabMcp = saveGitlabMcp;
 window.testSlackConnection = testSlackConnection;
@@ -2433,14 +3257,19 @@ function selectActiveApiProvider(provider) {
     tag.textContent = labels[provider] || provider.toUpperCase();
   }
 
-  markSettingsDirty(true);
+  markSettingsDirty(true, 'api');
 }
 window.selectActiveApiProvider = selectActiveApiProvider;
 
-function togglePasswordVisibility(inputId) {
+function togglePasswordVisibility(inputId, btnEl) {
   const el = document.getElementById(inputId);
   if (!el) return;
-  el.type = el.type === 'password' ? 'text' : 'password';
+  const isPass = el.type === 'password';
+  el.type = isPass ? 'text' : 'password';
+  const btn = btnEl || (typeof event !== 'undefined' && event && event.currentTarget) || el.parentElement?.querySelector('button');
+  if (btn) {
+    btn.textContent = isPass ? 'Ẩn' : 'Hiện';
+  }
 }
 window.togglePasswordVisibility = togglePasswordVisibility;
 
@@ -2560,6 +3389,7 @@ function updateApiKeyBadges(settings) {
 }
 
 async function handleSaveSettingsClick() {
+  if (!dirtySubTabs[activeSettingsSubTab]) return;
   await saveSettingsFromPage();
 }
 window.handleSaveSettingsClick = handleSaveSettingsClick;
@@ -2568,9 +3398,23 @@ async function saveSettingsFromPage() {
   const selectedEngineRadio = document.querySelector('input[name="page_engine"]:checked');
   const engine = selectedEngineRadio ? selectedEngineRadio.value : (currentStudioSettings.engine || 'gemini_cli');
   const effort = currentStudioSettings.effort || 'high';
-  const model = currentStudioSettings.model || 'gemini-3.8-flash-high';
-  const opencodeModelSelect = document.getElementById('pageSettingsOpencodeModelSelect');
-  const opencode_model = (opencodeModelSelect ? opencodeModelSelect.value : (currentStudioSettings.opencode_model || '9router/ag/gemini-3.8-flash')).replace(/-(low|medium|high)$/i, '');
+  const pageModelSelect = document.getElementById('pageSettingsOpencodeModelSelect');
+  let model = currentStudioSettings.model || 'gemini-3.8-flash-high';
+  if (engine === 'gemini_cli' && pageModelSelect && pageModelSelect.value) {
+    model = pageModelSelect.value;
+  }
+  const quickOpencodeSelect = document.getElementById('quickOpencodeModelSelect');
+  const rawOpencodeModel = (quickOpencodeSelect && quickOpencodeSelect.value)
+    || (engine === 'opencode' && pageModelSelect && pageModelSelect.value)
+    || currentStudioSettings.opencode_model
+    || '9router/ag/gemini-3.8-flash';
+  let opencode_model = rawOpencodeModel.replace(/-(low|medium|high|xhigh|max)$/i, '');
+  if (opencode_model.startsWith('9router/') && !opencode_model.startsWith('9router/ag/') && !opencode_model.startsWith('9router/oc/') && !opencode_model.startsWith('9router/mmf/')) {
+    const raw = opencode_model.replace('9router/', '');
+    if (raw.startsWith('gemini-') || raw.startsWith('claude-') || raw.startsWith('gpt-oss-')) {
+      opencode_model = '9router/ag/' + raw;
+    }
+  }
   const api_provider = currentStudioSettings.api_provider || 'gemini';
 
   const gemini_api_key = document.getElementById('input_gemini_api_key')?.value?.trim() ?? (currentStudioSettings.gemini_api_key || '');
@@ -2733,7 +3577,16 @@ function switchTab(tab, updateHistory = true) {
     if (typeof setTaskActionType === 'function') setTaskActionType(actionType);
   }
   if (!TABS.includes(tab)) tab = 'task';
+
+  // Nếu bấm vào đúng tab đang active (và không có subtab mới cần chuyển)
+  if (activeTab === tab &&
+      (!window.initGitSubTab || window.initGitSubTab === activeGitSubTab) &&
+      (!window.initSettingsSubTab || window.initSettingsSubTab === activeSettingsSubTab)) {
+    return;
+  }
+
   activeTab = tab;
+  window.activeTab = tab;
   try { localStorage.setItem('activeAgentStudioTab', tab); } catch (e) { }
 
   const initStyle = document.getElementById('initialTabStyle');
@@ -2756,20 +3609,22 @@ function switchTab(tab, updateHistory = true) {
   } else if (tab === 'settings') {
     const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
     const urlSub = window.ROUTE_TO_SETTINGS_SUBTAB && window.ROUTE_TO_SETTINGS_SUBTAB[currentPath];
-    const sub = window.initSettingsSubTab || urlSub || activeSettingsSubTab || 'effort';
+    const sub = window.initSettingsSubTab || urlSub || activeSettingsSubTab || 'engine';
     const subRoutes = window.SETTINGS_SUBTAB_ROUTES || {
-      'effort': '/settings/effort',
       'engine': '/settings/engine',
+      'model': '/settings/model',
+      'effort': '/settings/effort',
+      'mcp': '/settings/mcp',
       'account': '/settings/account',
       'api': '/settings/api',
       'env': '/settings/env'
     };
-    targetPath = subRoutes[sub] || '/settings/effort';
+    targetPath = subRoutes[sub] || '/settings/engine';
   }
   if (updateHistory && window.location.pathname !== targetPath) {
     try {
       const gitSub = window.initGitSubTab || activeGitSubTab || 'pull_sync';
-      const settingsSub = window.initSettingsSubTab || activeSettingsSubTab || 'effort';
+      const settingsSub = window.initSettingsSubTab || activeSettingsSubTab || 'engine';
       window.history.pushState({
         tab: tab,
         subTab: tab === 'branch' ? gitSub : null,
@@ -2778,90 +3633,142 @@ function switchTab(tab, updateHistory = true) {
     } catch (e) { }
   }
 
+  // Cập nhật DOM hiển thị tab ngay tức thì
   TABS.forEach(t => {
     const viewEl = document.getElementById('view_' + t);
     const btnEl = document.getElementById('tabBtn_' + t);
-    if (viewEl) {
-      viewEl.classList.add('hidden');
-      viewEl.style.setProperty('display', 'none', 'important');
-    }
-    if (btnEl) {
-      btnEl.className = 'px-3.5 py-1.5 rounded-md text-slate-200 hover:text-white hover:bg-white/10 font-medium transition text-xs cursor-pointer select-none';
+    if (t === tab) {
+      if (viewEl) {
+        viewEl.classList.remove('hidden');
+        if (tab === 'task') {
+          viewEl.style.setProperty('display', 'grid', 'important');
+        } else if (tab === 'jira' || tab === 'notes') {
+          viewEl.style.setProperty('display', 'flex', 'important');
+          viewEl.style.setProperty('flex-direction', 'column', 'important');
+        } else {
+          viewEl.style.setProperty('display', 'block', 'important');
+        }
+      }
+      if (btnEl) {
+        btnEl.className = 'px-3.5 py-1.5 rounded-md bg-[#ffffff] text-[#182c4f] font-bold shadow-sm transition text-xs cursor-pointer select-none';
+      }
+    } else {
+      if (viewEl && (!viewEl.classList.contains('hidden') || viewEl.style.display !== 'none')) {
+        viewEl.classList.add('hidden');
+        viewEl.style.setProperty('display', 'none', 'important');
+      }
+      if (btnEl) {
+        btnEl.className = 'px-3.5 py-1.5 rounded-md text-slate-200 hover:text-white hover:bg-white/10 font-medium transition text-xs cursor-pointer select-none';
+      }
     }
   });
 
-  const activeView = document.getElementById('view_' + tab);
-  const activeBtn = document.getElementById('tabBtn_' + tab);
-  if (activeView) {
-    activeView.classList.remove('hidden');
-    if (tab === 'task') {
-      activeView.style.setProperty('display', 'grid', 'important');
-    } else {
-      activeView.style.setProperty('display', 'block', 'important');
+  if (window.scrollY > 0) {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+
+  // Quản lý subtabs tức thì trên giao diện
+  if (tab === 'branch') {
+    const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+    const urlSub = window.ROUTE_TO_GIT_SUBTAB && window.ROUTE_TO_GIT_SUBTAB[currentPath];
+    const sub = window.initGitSubTab || urlSub || activeGitSubTab || 'pull_sync';
+    activeGitSubTab = sub;
+    window.initGitSubTab = sub;
+    if (typeof switchGitSubTab === 'function') {
+      switchGitSubTab(sub, false);
+    }
+  } else if (tab === 'settings') {
+    const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+    const urlSub = window.ROUTE_TO_SETTINGS_SUBTAB && window.ROUTE_TO_SETTINGS_SUBTAB[currentPath];
+    const sub = window.initSettingsSubTab || urlSub || activeSettingsSubTab || 'engine';
+    window.initSettingsSubTab = null;
+    if (typeof switchSettingsSidebarTab === 'function') {
+      switchSettingsSidebarTab(sub, false);
     }
   }
-  if (activeBtn) {
-    activeBtn.className = 'px-3.5 py-1.5 rounded-md bg-[#ffffff] text-[#182c4f] font-bold shadow-sm transition text-xs cursor-pointer select-none';
+
+  if (tab !== 'jira' && typeof stopJiraAutoSync === 'function') {
+    stopJiraAutoSync();
   }
 
-  window.scrollTo({ top: 0, behavior: 'instant' });
+  // Nếu tải ban đầu (updateHistory = false) chạy ngay; nếu người dùng click nhanh thì debounce tránh lag
+  if (!updateHistory) {
+    executeTabCallback(tab);
+  } else {
+    clearTimeout(window._tabCallbackTimer);
+    window._tabCallbackTimer = setTimeout(() => {
+      if (activeTab !== tab) return;
+      executeTabCallback(tab);
+    }, 40);
+  }
+}
 
+function executeTabCallback(tab) {
   try {
-    if (tab === 'task') {
+    if (tab === 'jira') {
+      if (typeof loadJiraWorkspace === 'function') loadJiraWorkspace();
+      if (typeof startJiraAutoSync === 'function') startJiraAutoSync();
+    } else if (tab === 'task') {
       if (typeof pollStatus === 'function') pollStatus();
     } else if (tab === 'branch') {
-      const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
-      const urlSub = window.ROUTE_TO_GIT_SUBTAB && window.ROUTE_TO_GIT_SUBTAB[currentPath];
-      const sub = window.initGitSubTab || urlSub || activeGitSubTab || 'pull_sync';
-      activeGitSubTab = sub;
-      window.initGitSubTab = sub;
-      if (typeof switchGitSubTab === 'function') {
-        switchGitSubTab(sub, false);
-      } else if (typeof loadPullSyncInfo === 'function') {
-        loadPullSyncInfo();
+      const sub = activeGitSubTab || 'pull_sync';
+      if (sub === 'pull_sync') {
+        if (typeof loadPullSyncInfo === 'function') loadPullSyncInfo();
+      } else if (sub === 'switch') {
+        if (typeof loadGitBranchInfo === 'function') loadGitBranchInfo();
+      } else if (sub === 'cherry_pick') {
+        if (typeof loadCherryPickInfo === 'function') loadCherryPickInfo();
+      } else if (sub === 'merge') {
+        if (typeof loadMergeInfo === 'function') loadMergeInfo();
       }
     } else if (tab === 'log') {
       if (typeof loadWorkLogs === 'function') loadWorkLogs();
+    } else if (tab === 'notes') {
+      if (typeof loadNotesWorkspace === 'function') loadNotesWorkspace();
     } else if (tab === 'diagram') {
       if (typeof renderDiagram === 'function') renderDiagram();
     } else if (tab === 'settings') {
-      const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
-      const urlSub = window.ROUTE_TO_SETTINGS_SUBTAB && window.ROUTE_TO_SETTINGS_SUBTAB[currentPath];
-      const sub = window.initSettingsSubTab || urlSub || activeSettingsSubTab || 'effort';
-      window.initSettingsSubTab = null;
-      switchSettingsSidebarTab(sub, false);
-      fetch('/api/settings')
-        .then(r => r.json())
-        .then(d => {
-          if (d && d.settings) {
-            currentStudioSettings = Object.assign({}, currentStudioSettings, d.settings);
-          }
-          if (d && d.nine_router_online !== undefined) {
-            nineRouterOnline = !!d.nine_router_online;
-          }
-          if (d && d.gemini_cli_status) {
-            updateGeminiCliUI(d.gemini_cli_status);
-          }
-          updateEngineUI(currentStudioSettings.engine, nineRouterOnline);
-          updateEffortUI(currentStudioSettings.effort);
-          updateApiUI(currentStudioSettings);
-          updateEnvUI(currentStudioSettings, d.env_info);
-          if (currentStudioSettings.jira_host) {
-            const jiHost = document.getElementById('input_jira_host');
-            if (jiHost && !jiHost.value) jiHost.value = currentStudioSettings.jira_host;
-          }
-          if (currentStudioSettings.jira_email) {
-            const jiEmail = document.getElementById('input_jira_email');
-            if (jiEmail && !jiEmail.value) jiEmail.value = currentStudioSettings.jira_email;
-          }
-          if (currentStudioSettings.jira_api_token) {
-            const jiToken = document.getElementById('input_jira_token');
-            if (jiToken && !jiToken.value) jiToken.value = currentStudioSettings.jira_api_token;
-          }
-          fetchMcpServers(false);
-          markSettingsDirty(false);
-        })
-        .catch(() => {});
+      const now = Date.now();
+      if (!window._lastSettingsFetchTime || (now - window._lastSettingsFetchTime > 30000)) {
+        window._lastSettingsFetchTime = now;
+        fetch('/api/settings')
+          .then(r => r.json())
+          .then(d => {
+            if (activeTab !== 'settings') return;
+            if (d && d.settings) {
+              currentStudioSettings = Object.assign({}, currentStudioSettings, d.settings);
+            }
+            if (d && d.nine_router_online !== undefined) {
+              nineRouterOnline = !!d.nine_router_online;
+            }
+            if (d && d.gemini_cli_status) {
+              updateGeminiCliUI(d.gemini_cli_status);
+            }
+            updateEngineUI(currentStudioSettings.engine, nineRouterOnline);
+            renderModelSelectForCurrentEngine();
+            updateEffortUI(currentStudioSettings.effort);
+            updateQuickOpencodeDisplay(currentStudioSettings.effort);
+            fetchOpenCodeModels(false);
+            fetchGeminiCliModels(false);
+            updateApiUI(currentStudioSettings);
+            updateEnvUI(currentStudioSettings, d.env_info);
+            if (currentStudioSettings.jira_host) {
+              const jiHost = document.getElementById('input_jira_host');
+              if (jiHost && !jiHost.value) jiHost.value = currentStudioSettings.jira_host;
+            }
+            if (currentStudioSettings.jira_email) {
+              const jiEmail = document.getElementById('input_jira_email');
+              if (jiEmail && !jiEmail.value) jiEmail.value = currentStudioSettings.jira_email;
+            }
+            if (currentStudioSettings.jira_api_token) {
+              const jiToken = document.getElementById('input_jira_token');
+              if (jiToken && !jiToken.value) jiToken.value = currentStudioSettings.jira_api_token;
+            }
+            fetchMcpServers(false);
+            markSettingsDirty(false);
+          })
+          .catch(() => {});
+      }
     }
   } catch (err) {
     console.error('Lỗi khi kích hoạt callback của tab:', tab, err);
@@ -2872,7 +3779,7 @@ window.switchTab = switchTab;
 let activeGitSubTab = 'pull_sync';
 
 function switchGitSubTab(subTab, updateHistory = true) {
-  if (!['branch', 'cherry_pick', 'pull_sync', 'merge'].includes(subTab)) subTab = 'pull_sync';
+  if (!['branch', 'switch', 'cherry_pick', 'pull_sync', 'merge'].includes(subTab)) subTab = 'pull_sync';
   activeGitSubTab = subTab;
   window.initGitSubTab = subTab;
 
@@ -2882,6 +3789,7 @@ function switchGitSubTab(subTab, updateHistory = true) {
   const subRoutes = window.GIT_SUBTAB_ROUTES || {
     'pull_sync': '/git-control',
     'branch': '/git-control/checkout-branch',
+    'switch': '/git-control/switch-branch',
     'cherry_pick': '/git-control/cherry-pick',
     'merge': '/git-control/merge'
   };
@@ -2894,11 +3802,13 @@ function switchGitSubTab(subTab, updateHistory = true) {
   try { localStorage.setItem('activeGitSubTab', subTab); } catch(e) {}
 
   const btnBranch = document.getElementById('gitSubTabBtn_branch');
+  const btnSwitch = document.getElementById('gitSubTabBtn_switch');
   const btnCherry = document.getElementById('gitSubTabBtn_cherry_pick');
   const btnSync = document.getElementById('gitSubTabBtn_pull_sync');
   const btnMerge = document.getElementById('gitSubTabBtn_merge');
 
   const viewBranch = document.getElementById('gitSubView_branch');
+  const viewSwitch = document.getElementById('gitSubView_switch');
   const viewCherry = document.getElementById('gitSubView_cherry_pick');
   const viewSync = document.getElementById('gitSubView_pull_sync');
   const viewMerge = document.getElementById('gitSubView_merge');
@@ -2910,11 +3820,13 @@ function switchGitSubTab(subTab, updateHistory = true) {
     : 'px-3.5 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-white/10 font-medium text-xs transition cursor-pointer select-none';
 
   if (viewBranch) viewBranch.classList.add('hidden');
+  if (viewSwitch) viewSwitch.classList.add('hidden');
   if (viewCherry) viewCherry.classList.add('hidden');
   if (viewSync) viewSync.classList.add('hidden');
   if (viewMerge) viewMerge.classList.add('hidden');
 
   if (btnBranch) btnBranch.className = inactiveCls;
+  if (btnSwitch) btnSwitch.className = inactiveCls;
   if (btnCherry) btnCherry.className = inactiveCls;
   if (btnSync) btnSync.className = inactiveCls;
   if (btnMerge) btnMerge.className = inactiveCls;
@@ -2922,6 +3834,9 @@ function switchGitSubTab(subTab, updateHistory = true) {
   if (subTab === 'branch') {
     if (viewBranch) viewBranch.classList.remove('hidden');
     if (btnBranch) btnBranch.className = activeCls;
+  } else if (subTab === 'switch') {
+    if (viewSwitch) viewSwitch.classList.remove('hidden');
+    if (btnSwitch) btnSwitch.className = activeCls;
     if (typeof loadGitBranchInfo === 'function') loadGitBranchInfo();
   } else if (subTab === 'cherry_pick') {
     if (viewCherry) viewCherry.classList.remove('hidden');
@@ -2954,7 +3869,7 @@ async function refreshCurrentGitView() {
       if (typeof loadPullSyncInfo === 'function') await loadPullSyncInfo();
     } else if (activeGitSubTab === 'merge') {
       if (typeof loadMergeInfo === 'function') await loadMergeInfo();
-    } else {
+    } else if (activeGitSubTab === 'switch' || activeGitSubTab === 'branch') {
       if (typeof loadGitBranchInfo === 'function') await loadGitBranchInfo();
     }
     showToast('Đã làm mới dữ liệu Git.');

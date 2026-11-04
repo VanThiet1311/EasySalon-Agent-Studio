@@ -7,14 +7,17 @@
    GIT SUBTAB BUTTONS (Active background #1677ff, text white)
    ==================================================================== */
 #gitSubTabBtn_branch.active-git-subtab,
+#gitSubTabBtn_switch.active-git-subtab,
 #gitSubTabBtn_cherry_pick.active-git-subtab,
 #gitSubTabBtn_pull_sync.active-git-subtab,
 #gitSubTabBtn_merge.active-git-subtab,
 body.light-mode #gitSubTabBtn_branch.active-git-subtab,
+body.light-mode #gitSubTabBtn_switch.active-git-subtab,
 body.light-mode #gitSubTabBtn_cherry_pick.active-git-subtab,
 body.light-mode #gitSubTabBtn_pull_sync.active-git-subtab,
 body.light-mode #gitSubTabBtn_merge.active-git-subtab,
 body.dark-mode #gitSubTabBtn_branch.active-git-subtab,
+body.dark-mode #gitSubTabBtn_switch.active-git-subtab,
 body.dark-mode #gitSubTabBtn_cherry_pick.active-git-subtab,
 body.dark-mode #gitSubTabBtn_pull_sync.active-git-subtab,
 body.dark-mode #gitSubTabBtn_merge.active-git-subtab {
@@ -24,14 +27,17 @@ body.dark-mode #gitSubTabBtn_merge.active-git-subtab {
   font-weight: 700 !important;
 }
 #gitSubTabBtn_branch.active-git-subtab *,
+#gitSubTabBtn_switch.active-git-subtab *,
 #gitSubTabBtn_cherry_pick.active-git-subtab *,
 #gitSubTabBtn_pull_sync.active-git-subtab *,
 #gitSubTabBtn_merge.active-git-subtab *,
 body.light-mode #gitSubTabBtn_branch.active-git-subtab *,
+body.light-mode #gitSubTabBtn_switch.active-git-subtab *,
 body.light-mode #gitSubTabBtn_cherry_pick.active-git-subtab *,
 body.light-mode #gitSubTabBtn_pull_sync.active-git-subtab *,
 body.light-mode #gitSubTabBtn_merge.active-git-subtab *,
 body.dark-mode #gitSubTabBtn_branch.active-git-subtab *,
+body.dark-mode #gitSubTabBtn_switch.active-git-subtab *,
 body.dark-mode #gitSubTabBtn_cherry_pick.active-git-subtab *,
 body.dark-mode #gitSubTabBtn_pull_sync.active-git-subtab *,
 body.dark-mode #gitSubTabBtn_merge.active-git-subtab * {
@@ -39,6 +45,7 @@ body.dark-mode #gitSubTabBtn_merge.active-git-subtab * {
 }
 
 body.light-mode #gitSubTabBtn_branch,
+body.light-mode #gitSubTabBtn_switch,
 body.light-mode #gitSubTabBtn_cherry_pick,
 body.light-mode #gitSubTabBtn_pull_sync,
 body.light-mode #gitSubTabBtn_merge {
@@ -455,6 +462,21 @@ body.light-mode #gitSubView_merge .text-slate-300,
 body.light-mode #gitSubView_merge .text-slate-400 {
   color: #475569 !important;
 }
+#feMergeReturnCurrent ~ span,
+#beMergeReturnCurrent ~ span,
+#feMergeNoFF ~ span,
+#beMergeNoFF ~ span {
+  color: #e2e8f0;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+body.light-mode #feMergeReturnCurrent ~ span,
+body.light-mode #beMergeReturnCurrent ~ span,
+body.light-mode #feMergeNoFF ~ span,
+body.light-mode #beMergeNoFF ~ span {
+  color: #1e293b !important;
+  font-weight: 500;
+}
 body.light-mode #gitSubView_merge input[type="text"],
 body.light-mode #gitSubView_merge select {
   background-color: #ffffff !important;
@@ -510,6 +532,37 @@ body.light-mode #feMergeSuccessTitle,
 body.light-mode #beMergeSuccessTitle { color: #166534 !important; }
 body.light-mode #feMergeSuccessText,
 body.light-mode #beMergeSuccessText { color: #1e293b !important; }
+body.light-mode #btnFeMergeViewDiff,
+body.light-mode #btnBeMergeViewDiff {
+  background-color: #f0f7ff !important;
+  border-color: #bae0ff !important;
+  color: #0958d9 !important;
+}
+body.light-mode #btnFeMergeViewDiff:hover,
+body.light-mode #btnBeMergeViewDiff:hover {
+  background-color: #e6f4ff !important;
+  border-color: #91caff !important;
+  color: #003eb3 !important;
+}
+body.light-mode #feMergeDiffContainer,
+body.light-mode #beMergeDiffContainer {
+  border-top-color: #dcfce7 !important;
+}
+body.light-mode #feMergeDiffStat,
+body.light-mode #beMergeDiffStat {
+  color: #475569 !important;
+}
+body.light-mode #feMergeDiffFiles button,
+body.light-mode #beMergeDiffFiles button {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #1e293b !important;
+}
+body.light-mode #feMergeDiffFiles button:hover,
+body.light-mode #beMergeDiffFiles button:hover {
+  background-color: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
+}
 body.light-mode #feMergeReturnBranchWrap,
 body.light-mode #beMergeReturnBranchWrap,
 body.light-mode #feCherryReturnBranchWrap,
@@ -649,6 +702,97 @@ body.light-mode #beCherryTopBranch {
   background-color: rgba(16, 185, 129, 0.1) !important;
   border-color: rgba(16, 185, 129, 0.35) !important;
   color: #059669 !important;
+}
+
+/* ============================================================
+   NÚT TẠO NHÁNH: HOVER CHỈ ĐỔI MÀU XANH NHẸ, KHÔNG ĐỔI GÌ KHÁC
+   ============================================================ */
+#btnSwitchBoth {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+}
+
+#btnSwitchBoth:hover,
+#btnSwitchBoth:focus {
+  background-color: #4096ff !important; /* Xanh nhẹ */
+  border-color: #4096ff !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+#btnSwitchBoth:active {
+  background-color: #0958d9 !important;
+  border-color: #0958d9 !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ============================================================
+   NÚT ĐỔI TÊN NHÁNH: HOVER CHỈ ĐỔI MÀU XANH NHẸ, KHÔNG ĐỔI GÌ KHÁC
+   ============================================================ */
+#btnRenameBranch {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+}
+
+#btnRenameBranch:hover,
+#btnRenameBranch:focus {
+  background-color: #4096ff !important; /* Xanh nhẹ */
+  border-color: #4096ff !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+#btnRenameBranch:active {
+  background-color: #0958d9 !important;
+  border-color: #0958d9 !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Light mode for Switch & Rename View */
+body.light-mode #gitSubView_switch input[type="text"],
+body.light-mode #gitSubView_switch select {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+body.light-mode #gitSubView_switch .bg-\[\#101e38\] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-mode #gitSubView_switch .bg-\[\#0e192c\] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.light-mode #gitSubView_switch .text-white {
+  color: #0f172a !important;
+}
+
+body.light-mode #gitSubView_switch .text-slate-300,
+body.light-mode #gitSubView_switch .text-slate-400 {
+  color: #475569 !important;
+}
+
+body.light-mode #gitSubView_switch .border-\[\#244170\] {
+  border-color: #e2e8f0 !important;
 }
 
 /* ====================================================================

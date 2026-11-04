@@ -1,4 +1,4 @@
-const TABS = ['task', 'branch', 'log', 'diagram', 'settings'];
+const TABS = ['task', 'jira', 'branch', 'log', 'notes', 'diagram', 'settings'];
 let activeTab = 'task';
 let renderedTurnCount = 0;
 let mermaidRendered = false;

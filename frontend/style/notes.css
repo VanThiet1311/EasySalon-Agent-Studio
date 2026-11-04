@@ -1,0 +1,581 @@
+/* ====================================================================
+   NOTES TAB STYLING (DARK MODE & LIGHT MODE)
+   ==================================================================== */
+
+/* --- Top Action Banner --- */
+#view_notes .notes-banner-icon {
+  background-color: #182c4f;
+  border: 1px solid #244170;
+  color: #60a5fa;
+}
+
+body.light-mode #view_notes .notes-banner-icon {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #1677ff !important;
+}
+
+/* Primary Button: Tạo ghi chú mới */
+#view_notes #btnNewNote {
+  background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%) !important;
+  border: 1px solid #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 4px rgba(22, 119, 255, 0.25) !important;
+}
+
+#view_notes #btnNewNote:hover {
+  background: linear-gradient(135deg, #4096ff 0%, #1677ff 100%) !important;
+  border-color: #4096ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 6px rgba(22, 119, 255, 0.35) !important;
+}
+
+#view_notes #btnNewNote:active {
+  background: #0958d9 !important;
+}
+
+/* Secondary Action Button: Đưa vào Tác vụ */
+#view_notes #btnSendNoteToTask {
+  background-color: #152c54 !important;
+  border: 1px solid #1d4ed8 !important;
+  color: #60a5fa !important;
+  font-weight: 600 !important;
+}
+
+#view_notes #btnSendNoteToTask:hover {
+  background-color: #1e3a8a !important;
+  border-color: #3b82f6 !important;
+  color: #93c5fd !important;
+}
+
+#view_notes #btnSendNoteToTask:active {
+  background-color: #172554 !important;
+}
+
+body.light-mode #view_notes #btnSendNoteToTask {
+  background-color: #eff6ff !important;
+  border: 1px solid #93c5fd !important;
+  color: #1677ff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(22, 119, 255, 0.08) !important;
+}
+
+body.light-mode #view_notes #btnSendNoteToTask:hover {
+  background-color: #dbeafe !important;
+  border-color: #1677ff !important;
+  color: #0958d9 !important;
+  box-shadow: 0 2px 4px rgba(22, 119, 255, 0.15) !important;
+}
+
+body.light-mode #view_notes #btnSendNoteToTask:active {
+  background-color: #bfdbfe !important;
+}
+
+/* Default Action Buttons: Sao chép, Tải .md */
+#view_notes #btnCopyNote,
+#view_notes #btnExportNote {
+  background-color: #182c4f !important;
+  border: 1px solid #2e528f !important;
+  color: #e2e8f0 !important;
+  font-weight: 500 !important;
+}
+
+#view_notes #btnCopyNote:hover,
+#view_notes #btnExportNote:hover {
+  background-color: #203a66 !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+}
+
+#view_notes #btnCopyNote:active,
+#view_notes #btnExportNote:active {
+  background-color: #152745 !important;
+}
+
+body.light-mode #view_notes #btnCopyNote,
+body.light-mode #view_notes #btnExportNote {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+body.light-mode #view_notes #btnCopyNote:hover,
+body.light-mode #view_notes #btnExportNote:hover {
+  background-color: #f8fafc !important;
+  border-color: #1677ff !important;
+  color: #1677ff !important;
+  box-shadow: 0 2px 4px rgba(22, 119, 255, 0.1) !important;
+}
+
+body.light-mode #view_notes #btnCopyNote:active,
+body.light-mode #view_notes #btnExportNote:active {
+  background-color: #f1f5f9 !important;
+}
+
+/* Danger Button: Xóa */
+#view_notes #btnDeleteNote {
+  background-color: rgba(127, 29, 29, 0.45) !important;
+  border: 1px solid rgba(239, 68, 68, 0.5) !important;
+  color: #fca5a5 !important;
+  font-weight: 500 !important;
+}
+
+#view_notes #btnDeleteNote:hover {
+  background-color: rgba(185, 28, 28, 0.65) !important;
+  border-color: #ef4444 !important;
+  color: #ffffff !important;
+}
+
+#view_notes #btnDeleteNote:active {
+  background-color: rgba(153, 27, 27, 0.8) !important;
+}
+
+body.light-mode #view_notes #btnDeleteNote {
+  background-color: #fff1f0 !important;
+  border: 1px solid #ffa39e !important;
+  color: #cf1322 !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 2px rgba(207, 19, 34, 0.06) !important;
+}
+
+body.light-mode #view_notes #btnDeleteNote:hover {
+  background-color: #ff4d4f !important;
+  border-color: #ff4d4f !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 4px rgba(255, 77, 79, 0.25) !important;
+}
+
+body.light-mode #view_notes #btnDeleteNote:active {
+  background-color: #d9363e !important;
+}
+
+/* --- Category Filter Pills --- */
+.notes-filter-pill {
+  background-color: #182c4f;
+  border: 1px solid #244170;
+  color: #cbd5e1;
+  font-weight: 500;
+  transition: all 0.15s ease-in-out;
+}
+
+.notes-filter-pill:hover {
+  background-color: #203a66;
+  border-color: #2e528f;
+  color: #ffffff;
+}
+
+.notes-filter-pill.is-active {
+  background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%) !important;
+  border: 1px solid #1677ff !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(22, 119, 255, 0.3) !important;
+}
+
+body.light-mode .notes-filter-pill {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+  font-weight: 500 !important;
+}
+
+body.light-mode .notes-filter-pill:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode .notes-filter-pill.is-active {
+  background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%) !important;
+  border: 1px solid #1677ff !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 4px rgba(22, 119, 255, 0.25) !important;
+}
+
+/* --- Markdown Formatting Toolbar --- */
+.notes-markdown-toolbar {
+  background-color: #0c1628;
+  border: 1px solid #244170;
+}
+
+.notes-toolbar-btn {
+  background-color: #142442;
+  border: 1px solid #244170;
+  color: #cbd5e1;
+  font-size: 11.5px;
+  transition: all 0.15s ease-in-out;
+}
+
+.notes-toolbar-btn:hover {
+  background-color: #1f3763;
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.notes-toolbar-btn:active {
+  background-color: #101e38;
+}
+
+.notes-toolbar-divider {
+  background-color: #244170;
+}
+
+body.light-mode .notes-markdown-toolbar {
+  background-color: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+body.light-mode .notes-toolbar-btn {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-mode .notes-toolbar-btn:hover {
+  background-color: #eff6ff !important;
+  border-color: #1677ff !important;
+  color: #1677ff !important;
+  box-shadow: 0 1px 3px rgba(22, 119, 255, 0.12) !important;
+}
+
+body.light-mode .notes-toolbar-btn:active {
+  background-color: #dbeafe !important;
+}
+
+body.light-mode .notes-toolbar-divider {
+  background-color: #cbd5e1 !important;
+}
+
+/* --- Note Item Cards in Left Panel --- */
+.note-item-card {
+  background-color: #0c1628;
+  border: 1px solid #244170;
+  color: #cbd5e1;
+  transition: all 0.15s ease-in-out;
+}
+
+.note-item-card:hover {
+  border-color: #1677ff;
+  background-color: #101e38;
+}
+
+.note-item-card .note-card-title {
+  color: #f1f5f9;
+}
+
+.note-item-card .note-card-time {
+  color: #94a3b8;
+}
+
+.note-item-card .note-card-snippet {
+  color: #94a3b8;
+}
+
+.note-item-card .note-card-badge {
+  background-color: #182c4f;
+  border-color: #244170;
+  color: #94a3b8;
+}
+
+.note-item-card .note-card-jira {
+  background-color: #172554;
+  border-color: #1e40af;
+  color: #93c5fd;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-item-card .note-card-delete-btn {
+  color: #94a3b8;
+  opacity: 0.6;
+  transition: all 0.15s ease-in-out;
+}
+
+.note-item-card:hover .note-card-delete-btn,
+.note-item-card .note-card-delete-btn:hover {
+  opacity: 1;
+}
+
+.note-item-card .note-card-delete-btn:hover {
+  color: #f43f5e;
+  background-color: rgba(244, 63, 94, 0.15);
+}
+
+.note-item-card.is-active .note-card-delete-btn {
+  color: #bfdbfe;
+  opacity: 0.8;
+}
+
+.note-item-card.is-active .note-card-delete-btn:hover {
+  color: #fda4af;
+  background-color: rgba(244, 63, 94, 0.25);
+}
+
+/* Active Note Card (Dark Mode) */
+.note-item-card.is-active {
+  background: linear-gradient(135deg, rgba(22, 119, 255, 0.22) 0%, rgba(9, 88, 217, 0.12) 100%) !important;
+  border: 1.5px solid #1677ff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.2) !important;
+}
+
+.note-item-card.is-active .note-card-title {
+  color: #60a5fa !important;
+  font-weight: 700 !important;
+}
+
+.note-item-card.is-active .note-card-time {
+  color: #93c5fd !important;
+}
+
+.note-item-card.is-active .note-card-snippet {
+  color: #cbd5e1 !important;
+}
+
+.note-item-card.is-active .note-card-badge {
+  background-color: #1e3a8a !important;
+  border-color: #2563eb !important;
+  color: #bfdbfe !important;
+}
+
+.note-item-card.is-active .note-card-jira {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+}
+
+/* Note Cards in Light Mode */
+body.light-mode #view_notes .note-item-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #1e293b !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-mode #view_notes .note-item-card:hover {
+  background-color: #f8fafc !important;
+  border-color: #93c5fd !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-mode #view_notes .note-item-card .note-card-title {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode #view_notes .note-item-card .note-card-time {
+  color: #64748b !important;
+}
+
+body.light-mode #view_notes .note-item-card .note-card-snippet {
+  color: #475569 !important;
+}
+
+body.light-mode #view_notes .note-item-card .note-card-badge {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+body.light-mode #view_notes .note-item-card .note-card-jira {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #1d4ed8 !important;
+  font-weight: 600 !important;
+}
+
+/* Active Note Card (Light Mode) */
+body.light-mode #view_notes .note-item-card.is-active {
+  background-color: #eff6ff !important;
+  border: 1.5px solid #1677ff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.15) !important;
+}
+
+body.light-mode #view_notes .note-item-card.is-active .note-card-title {
+  color: #1677ff !important;
+  font-weight: 700 !important;
+}
+
+body.light-mode #view_notes .note-item-card.is-active .note-card-time {
+  color: #2563eb !important;
+}
+
+body.light-mode #view_notes .note-item-card.is-active .note-card-snippet {
+  color: #334155 !important;
+}
+
+body.light-mode #view_notes .note-item-card.is-active .note-card-badge {
+  background-color: #dbeafe !important;
+  border-color: #93c5fd !important;
+  color: #1e40af !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode #view_notes .note-item-card.is-active .note-card-jira {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode #view_notes .note-item-card .note-card-delete-btn {
+  color: #8c8c8c;
+  opacity: 0.6;
+}
+
+body.light-mode #view_notes .note-item-card:hover .note-card-delete-btn,
+body.light-mode #view_notes .note-item-card .note-card-delete-btn:hover {
+  opacity: 1;
+}
+
+body.light-mode #view_notes .note-item-card .note-card-delete-btn:hover {
+  color: #ff4d4f;
+  background-color: #fff1f0;
+}
+
+body.light-mode #view_notes .note-item-card.is-active .note-card-delete-btn {
+  color: #2563eb;
+  opacity: 0.8;
+}
+
+body.light-mode #view_notes .note-item-card.is-active .note-card-delete-btn:hover {
+  color: #ff4d4f;
+  background-color: #fff1f0;
+}
+
+/* --- Panel & Banner Containers in Light Mode --- */
+body.light-mode #view_notes .bg-\[\#101e38\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-mode #view_notes .bg-\[\#0c1628\] {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #view_notes .notes-banner-title {
+  color: #0f172a !important;
+}
+
+body.light-mode #view_notes .notes-banner-desc {
+  color: #64748b !important;
+}
+
+body.light-mode #view_notes .notes-meta-label {
+  color: #475569 !important;
+}
+
+body.light-mode #view_notes .notes-meta-box {
+  border-color: #e2e8f0 !important;
+}
+
+body.light-mode #view_notes .notes-footer-stats {
+  border-color: #e2e8f0 !important;
+  color: #64748b !important;
+}
+
+body.light-mode #view_notes #noteLastModified {
+  color: #1e293b !important;
+}
+
+body.light-mode #view_notes .notes-search-icon {
+  color: #64748b !important;
+}
+
+/* --- Auto-save Badge in Light Mode --- */
+body.light-mode #view_notes #noteAutoSaveBadge.bg-emerald-950\/70 {
+  background-color: #ecfdf5 !important;
+  border-color: #6ee7b7 !important;
+  color: #047857 !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode #view_notes #noteAutoSaveBadge.bg-amber-950\/70 {
+  background-color: #fffbeb !important;
+  border-color: #fcd34d !important;
+  color: #b45309 !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode #view_notes #noteAutoSaveBadge.bg-blue-950\/70 {
+  background-color: #eff6ff !important;
+  border-color: #93c5fd !important;
+  color: #1d4ed8 !important;
+  font-weight: 600 !important;
+}
+
+/* --- Input & Textarea Elements in Light Mode --- */
+body.light-mode #view_notes textarea#noteContentInput {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #view_notes textarea#noteContentInput:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15) !important;
+}
+
+body.light-mode #view_notes input#noteTitleInput {
+  color: #0f172a !important;
+}
+
+body.light-mode #view_notes input#noteTitleInput::placeholder {
+  color: #94a3b8 !important;
+}
+
+body.light-mode #view_notes select#noteCategorySelect,
+body.light-mode #view_notes input#noteJiraKeyInput,
+body.light-mode #view_notes input#notesSearchInput {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #view_notes select#noteCategorySelect:focus,
+body.light-mode #view_notes input#noteJiraKeyInput:focus,
+body.light-mode #view_notes input#notesSearchInput:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15) !important;
+}
+
+body.light-mode #view_notes select#noteCategorySelect option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Jira Link Button beside Jira Key Input */
+#view_notes #noteJiraKeyLinkBtn {
+  background-color: rgba(22, 119, 255, 0.15) !important;
+  border: 1px solid rgba(59, 130, 246, 0.4) !important;
+  color: #60a5fa !important;
+  font-weight: 500 !important;
+}
+
+#view_notes #noteJiraKeyLinkBtn:hover {
+  background-color: rgba(22, 119, 255, 0.3) !important;
+  border-color: #3b82f6 !important;
+  color: #ffffff !important;
+}
+
+body.light-mode #view_notes #noteJiraKeyLinkBtn {
+  background-color: #eff6ff !important;
+  border: 1px solid #93c5fd !important;
+  color: #1677ff !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode #view_notes #noteJiraKeyLinkBtn:hover {
+  background-color: #dbeafe !important;
+  border-color: #1677ff !important;
+  color: #0958d9 !important;
+}

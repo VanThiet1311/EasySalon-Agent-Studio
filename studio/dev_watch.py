@@ -11,15 +11,19 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 MODULES_DIR = os.path.join(FRONTEND_DIR, "modules")
 STYLE_DIR = os.path.join(FRONTEND_DIR, "style")
+VIEWS_DIR = os.path.join(FRONTEND_DIR, "views")
 STUDIO_DIR = os.path.join(BASE_DIR, "studio")
 
 MODULE_ORDER = [
+    "common.js",
     "core.js",
     "settings.js",
     "task.js",
     "diagram.js",
     "git.js",
     "logs.js",
+    "jira.js",
+    "notes.js",
     "init.js",
 ]
 
@@ -30,6 +34,8 @@ STYLE_ORDER = [
     "diagram.css",
     "settings.css",
     "logs.css",
+    "jira.css",
+    "notes.css",
 ]
 
 _dev_watch_lock = threading.Lock()
@@ -51,6 +57,9 @@ def get_watched_python_files():
         os.path.join(BASE_DIR, "config.py"),
     ]
     py_files.extend(sorted(glob.glob(os.path.join(STUDIO_DIR, "*.py"))))
+    services_dir = os.path.join(STUDIO_DIR, "services")
+    if os.path.exists(services_dir):
+        py_files.extend(sorted(glob.glob(os.path.join(services_dir, "*.py"))))
     return [fp for fp in py_files if os.path.exists(fp)]
 
 
@@ -67,7 +76,9 @@ def get_dev_watch_state():
     style_fps = [os.path.join(STYLE_DIR, sf) for sf in STYLE_ORDER]
     existing_style_fps = [fp for fp in style_fps if os.path.exists(fp)]
 
-    watched_files = [html_fp, css_fp, js_fp, os.path.join(BASE_DIR, ".env")] + existing_module_fps + existing_style_fps + py_files
+    view_fps = sorted(glob.glob(os.path.join(VIEWS_DIR, "*.html"))) if os.path.exists(VIEWS_DIR) else []
+
+    watched_files = [html_fp, css_fp, js_fp, os.path.join(BASE_DIR, ".env")] + existing_module_fps + existing_style_fps + view_fps + py_files
     mtimes = []
     latest_mtime = 0.0
     for fp in watched_files:
@@ -92,6 +103,18 @@ def get_dev_watch_state():
             if os.path.exists(html_fp):
                 with open(html_fp, "r", encoding="utf-8") as f:
                     index_raw = f.read()
+
+            if os.path.exists(VIEWS_DIR):
+                for vfp in sorted(glob.glob(os.path.join(VIEWS_DIR, "*.html"))):
+                    vname = os.path.splitext(os.path.basename(vfp))[0]
+                    try:
+                        with open(vfp, "r", encoding="utf-8") as vf:
+                            vcontent = vf.read()
+                            index_raw = index_raw.replace(f"<!-- {{{{VIEW:{vname}}}}} -->\n", vcontent)
+                            index_raw = index_raw.replace(f"<!-- {{{{VIEW:{vname}}}}} -->", vcontent)
+                            index_raw = index_raw.replace(f"{{{{VIEW:{vname}}}}}", vcontent)
+                    except Exception:
+                        pass
 
             if existing_style_fps:
                 css_parts = []

@@ -9,7 +9,17 @@ let panZoomInitialized = false;
 
 function renderDiagram() {
   initDiagramPanZoom();
-  fetchDiagramData(false);
+  if (window._mermaidPendingCode) {
+    const code = window._mermaidPendingCode;
+    window._mermaidPendingCode = null;
+    renderDynamicMermaid(code);
+  } else if (!window.diagramData) {
+    fetchDiagramData(false);
+  } else {
+    requestAnimationFrame(() => {
+      diagramFitView();
+    });
+  }
 }
 
 function updateDiagramTransform() {
@@ -220,6 +230,9 @@ async function doManualRescanDiagram() {
 }
 
 async function fetchDiagramData(force = false) {
+  if (window._isFetchingDiagram && !force) return;
+  window._isFetchingDiagram = true;
+
   const spinner = document.getElementById('rescanSpinner');
   const btn = document.getElementById('btnRescanDiagram');
   if (force && spinner) spinner.classList.add('animate-spin');
@@ -245,13 +258,20 @@ async function fetchDiagramData(force = false) {
         if (scanTime) scanTime.innerText = data.scanned_at || '';
 
         if (data.mermaid_code) {
-          await renderDynamicMermaid(data.mermaid_code);
+          if (activeTab === 'diagram' || force) {
+            if (!mermaidRendered || force) {
+              await renderDynamicMermaid(data.mermaid_code);
+            }
+          } else {
+            window._mermaidPendingCode = data.mermaid_code;
+          }
         }
       }
     }
   } catch (err) {
     console.error('Lỗi khi nạp dữ liệu diagram:', err);
   } finally {
+    window._isFetchingDiagram = false;
     if (spinner) spinner.classList.remove('animate-spin');
     if (btn) btn.disabled = false;
     setTimeout(bindMermaidNodeClicks, 300);

@@ -1,0 +1,2100 @@
+  <!-- TAB 3: NHÁNH HIỆN TẠI (GIT BRANCH MANAGER) -->
+  <main id="view_branch" class="hidden flex-1 w-full max-w-[90%] mx-auto p-4 md:p-6 space-y-5">
+    <!-- Action Bar trên cùng -->
+    <div
+      class="flex flex-wrap items-center justify-between gap-4 bg-[#101e38] border border-[#244170] rounded-lg p-4 shadow-sm">
+      <div class="flex items-center gap-3">
+        <div
+          class="w-8 h-8 rounded bg-[#182c4f] border border-[#244170] flex items-center justify-center text-cyan-400">
+          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+            <path
+              d="M17 12c-1.1 0-2 .9-2 2 0 .74.4 1.38 1 1.72V17c0 1.1-.9 2-2 2H9c-1.1 0-2-.9-2-2v-4.28c.6-.34 1-.98 1-1.72 0-1.1-.9-2-2-2s-2 .9-2 2c0 .74.4 1.38 1 1.72V17c0 2.21 1.79 4 4 4h5c2.21 0 4-1.79 4-4v-1.28c.6-.34 1-.98 1-1.72 0-1.1-.9-2-2-2zm-11-1c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 4c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-sm font-semibold text-white">Điều khiển Git</h2>
+          <p class="text-xs text-slate-400">Kiểm tra thông tin commit, đồng bộ pull, working tree và chuyển nhánh cho
+            Frontend & Backend</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnRefreshGit" onclick="refreshCurrentGitView()"
+          class="ant-btn ant-btn-primary text-xs h-[32px] inline-flex items-center gap-1.5 transition-colors">
+          <span id="refreshGitSpinner" class="hidden">
+            <svg class="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none"
+              viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+              </path>
+            </svg>
+          </span>
+          <span id="refreshGitText">Làm mới</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Sub-Tabs bên trong Điều khiển Git -->
+    <div class="flex items-center gap-2 border-b border-[#244170] pb-2">
+      <button id="gitSubTabBtn_pull_sync" type="button" onclick="switchGitSubTab('pull_sync')"
+        class="active-git-subtab px-3.5 py-1.5 rounded-md bg-[rgb(25,156,255)] text-white font-bold text-xs shadow-sm transition cursor-pointer select-none">
+        Pull Staging / Master / Beta
+      </button>
+      <button id="gitSubTabBtn_branch" type="button" onclick="switchGitSubTab('branch')"
+        class="px-3.5 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-white/10 font-medium text-xs transition cursor-pointer select-none">
+        Tạo nhánh
+      </button>
+      <button id="gitSubTabBtn_switch" type="button" onclick="switchGitSubTab('switch')"
+        class="px-3.5 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-white/10 font-medium text-xs transition cursor-pointer select-none">
+        Chuyển &amp; Đổi tên nhánh
+      </button>
+      <button id="gitSubTabBtn_cherry_pick" type="button" onclick="switchGitSubTab('cherry_pick')"
+        class="px-3.5 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-white/10 font-medium text-xs transition cursor-pointer select-none">
+        Cherry-Pick
+      </button>
+      <button id="gitSubTabBtn_merge" type="button" onclick="switchGitSubTab('merge')"
+        class="px-3.5 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-white/10 font-medium text-xs transition cursor-pointer select-none">
+        Merge nhánh
+      </button>
+    </div>
+
+    <!-- SUB-VIEW 1: CHUYỂN & TẠO NHÁNH -->
+    <div id="gitSubView_branch" class="hidden space-y-5">
+      <!-- Card Tạo Nhánh (Frontend & Backend) -->
+      <div class="bg-[#101e38] border border-[#244170] rounded-lg p-4 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            <span class="font-semibold text-xs text-white">Tạo nhánh &amp; Checkout</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+          <div class="md:col-span-4">
+            <label class="text-[11px] text-slate-300 block mb-1">Tên nhánh mới (-b):</label>
+            <input type="text" id="bothBranchInput" placeholder="Ví dụ: feat/nvt/EAS-12373/booking-bed-room-management"
+              class="w-full bg-[#0e192c] border border-[#244170] rounded-md px-3 py-1.5 text-xs font-mono text-slate-100 placeholder-slate-400 focus:outline-none focus:border-[#38bdf8]" />
+          </div>
+          <div class="md:col-span-3">
+            <label class="text-[11px] text-slate-300 block mb-1">Áp dụng checkout:</label>
+            <select id="bothTargetWorkspaceSelect"
+              class="w-full bg-[#0e192c] border border-[#244170] rounded-md px-3 py-1.5 text-xs font-sans text-slate-100 focus:outline-none focus:border-[#38bdf8]">
+              <option value="both">Cả hai (Frontend &amp; Backend)</option>
+              <option value="fe">Chỉ Frontend (easysalon-webapp)</option>
+              <option value="be">Chỉ Backend (easysalon-api)</option>
+            </select>
+          </div>
+          <div class="md:col-span-3">
+            <label class="text-[11px] text-slate-300 block mb-1">Từ nhánh gốc:</label>
+            <select id="bothBaseBranchSelect"
+              class="w-full bg-[#0e192c] border border-[#244170] rounded-md px-3 py-1.5 text-xs font-mono text-slate-100 focus:outline-none focus:border-[#38bdf8]">
+              <option value="master" selected>master (khuyên dùng)</option>
+              <option value="staging">staging</option>
+              <option value="beta">beta</option>
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <button id="btnSwitchBoth" onclick="doCreateNewBranchBoth()"
+              class="ant-btn ant-btn-primary w-full h-[32px] text-xs font-medium whitespace-nowrap">
+              <svg class="w-3.5 h-3.5 fill-none stroke-current mr-1" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Tạo nhánh</span>
+            </button>
+          </div>
+        </div>
+        <div class="flex items-center justify-between pt-1 border-t border-[#244170]/60">
+          <label class="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-300 hover:text-white">
+            <input type="checkbox" id="bothSwitchAfterCreateCheckbox" checked
+              class="rounded border-[#244170] bg-[#0e192c] text-[#1677ff] focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-[#1677ff]" />
+            <span class="text-[11.5px] text-slate-300 font-sans">Tạo nhánh và switch qua nhánh đã tạo luôn</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUB-VIEW 2: CHUYỂN & ĐỔI TÊN NHÁNH -->
+    <div id="gitSubView_switch" class="hidden space-y-5">
+      <!-- Card Đổi tên nhánh (Frontend & Backend) -->
+      <div class="bg-[#101e38] border border-[#244170] rounded-lg p-4 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            <span class="font-semibold text-xs text-white">Đổi tên nhánh (Git branch rename -m)</span>
+          </div>
+          <span class="text-[11px] text-slate-400 font-sans hidden sm:inline">Hỗ trợ đổi tên nhánh hiện tại hoặc nhánh bất kỳ</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+          <div class="md:col-span-3">
+            <label for="renameTargetWorkspaceSelect" class="text-[11px] text-slate-300 block mb-1">Áp dụng cho:</label>
+            <select id="renameTargetWorkspaceSelect" onchange="onRenameTargetWorkspaceChange()"
+              class="w-full bg-[#0e192c] border border-[#244170] rounded-md px-3 py-1.5 text-xs font-sans text-slate-100 focus:outline-none focus:border-cyan-500">
+              <option value="both">Cả hai (Frontend &amp; Backend)</option>
+              <option value="fe">Chỉ Frontend (easysalon-webapp)</option>
+              <option value="be">Chỉ Backend (easysalon-api)</option>
+            </select>
+          </div>
+          <div class="md:col-span-3">
+            <label for="renameOldBranchSelect" class="text-[11px] text-slate-300 block mb-1">Nhánh cần đổi tên:</label>
+            <select id="renameOldBranchSelect" onchange="onRenameOldBranchChange()"
+              class="w-full bg-[#0e192c] border border-[#244170] rounded-md px-3 py-1.5 text-xs font-mono text-slate-100 focus:outline-none focus:border-cyan-500">
+              <option value="">Nhánh hiện tại (HEAD)</option>
+            </select>
+          </div>
+          <div class="md:col-span-4">
+            <label for="renameNewBranchInput" class="text-[11px] text-slate-300 block mb-1">Tên nhánh mới (-m):</label>
+            <input type="text" id="renameNewBranchInput"
+              onkeydown="if(event.key === 'Enter') doRenameBranch()"
+              placeholder="Ví dụ: feat/nvt/EAS-12373/booking-bed-room-management"
+              class="w-full bg-[#0e192c] border border-[#244170] rounded-md px-3 py-1.5 text-xs font-mono text-slate-100 placeholder-slate-400 focus:outline-none focus:border-cyan-500" />
+          </div>
+          <div class="md:col-span-2">
+            <button id="btnRenameBranch" onclick="doRenameBranch()"
+              class="ant-btn ant-btn-primary w-full h-[32px] text-xs font-medium whitespace-nowrap">
+              <svg class="w-3.5 h-3.5 fill-none stroke-current mr-1" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              <span>Đổi tên</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 Cột Quản lý Nhánh: Frontend & Backend -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <!-- CỘT 1: FRONTEND -->
+        <div class="bg-[#101e38] border border-[#244170] rounded-lg p-4 md:p-5 shadow-sm flex flex-col justify-between">
+          <div class="space-y-3.5">
+            <div class="flex items-center justify-between pb-2.5 border-b border-[#244170]">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                <span class="font-semibold text-xs text-cyan-400">Frontend (easysalon-webapp)</span>
+              </div>
+            </div>
+
+            <!-- Thông tin nhánh hiện tại -->
+            <div class="bg-[#0e192c] border border-[#244170] rounded-md p-3.5 space-y-2.5">
+              <div>
+                <div class="text-[11px] text-slate-400 mb-1 flex items-center justify-between">
+                  <span>Nhánh hiện tại:</span>
+                  <span id="feWorkingStatus" class="text-[11px] font-medium text-emerald-400"></span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="feCurrentBranch"
+                    class="font-mono text-cyan-300 font-semibold text-xs bg-cyan-950/80 px-2.5 py-1 rounded border border-cyan-800/60 truncate">
+                    Đang nạp...
+                  </span>
+                  <button type="button" onclick="copyToClipboard(document.getElementById('feCurrentBranch').textContent.trim())"
+                    class="p-1 hover:bg-[#182c4f] text-slate-400 hover:text-white rounded transition text-xs cursor-pointer select-none"
+                    title="Sao chép tên nhánh">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                  <button type="button" id="btnQuickRenameFe" onclick="quickFillRename('fe')"
+                    class="px-2 py-0.5 hover:bg-[#182c4f] text-cyan-400 hover:text-cyan-300 border border-cyan-800/60 rounded transition text-[11px] font-sans flex items-center gap-1 cursor-pointer select-none"
+                    title="Đổi tên nhánh Frontend hiện tại">
+                    <svg class="w-3 h-3 fill-none stroke-current" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    <span>Đổi tên</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-2 border-t border-[#244170]">
+                <div>
+                  <span class="text-slate-400 text-[11px]">Commit gần nhất:</span>
+                  <div id="feCommitInfo" class="font-mono text-slate-200 text-[11px] mt-0.5 truncate" title="...">...
+                  </div>
+                </div>
+                <div>
+                  <span class="text-slate-400 text-[11px]">Trạng thái:</span>
+                  <div id="feStatusInfo" class="text-slate-200 text-[11px] mt-0.5">...</div>
+                </div>
+              </div>
+
+              <div class="pt-2 border-t border-[#244170] flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-slate-400 text-[11px]">Đồng bộ Remote:</span>
+                  <span id="feSyncBadge" class="text-[11px] font-mono text-slate-300">Đang kiểm tra...</span>
+                </div>
+                <button id="btnPullFe" onclick="doPullBranch('fe')" style="display: none;"
+                  class="hidden ant-btn text-xs h-[28px] px-3 items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold border-amber-500 shadow-sm">
+                  <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24">
+                    <path
+                      d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z" />
+                  </svg>
+                  <span id="fePullBtnText">Pull ngay</span>
+                </button>
+              </div>
+
+              <!-- Stash của nhánh Frontend -->
+              <div id="feStashSection" style="display: none;"
+                class="hidden pt-2 border-t border-[#244170] flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0 flex-1">
+                  <span class="text-slate-400 text-[11px] whitespace-nowrap">Code trong Stash:</span>
+                  <span id="feStashBadge"
+                    class="text-[11px] font-mono text-cyan-300 bg-cyan-950/70 px-2 py-0.5 rounded border border-cyan-800/80 truncate max-w-[220px] sm:max-w-[280px]"
+                    title="">Đang kiểm tra...</span>
+                </div>
+                <button id="btnPopStashFe" type="button" onclick="doPopStash('fe')"
+                  class="ant-btn text-xs h-[28px] px-3 inline-flex items-center gap-1.5 bg-[#1677ff] hover:bg-[#4096ff] text-white font-sans font-medium rounded border border-[#1677ff] shadow-sm cursor-pointer select-none transition"
+                  title="Khôi phục mã nguồn đã cất từ git stash (git stash pop)">
+                  <svg class="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  <span id="fePopStashBtnText">Lấy code từ stash</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Khu vực chọn và chuyển nhánh -->
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-slate-200 block">Tên nhánh muốn checkout:</label>
+              <div class="flex items-center gap-2">
+                <input type="text" id="feBranchInput" oninput="filterBranchList('fe')"
+                  onkeydown="handleBranchInputKeyDown(event, 'fe')"
+                  placeholder="Gõ tên nhánh hoặc chọn trong danh sách..."
+                  class="flex-1 bg-[#0e192c] border border-[#244170] rounded-md px-3 py-1.5 text-xs font-mono text-slate-100 placeholder-slate-400 focus:outline-none focus:border-cyan-500" />
+                <button id="btnSwitchFe" onclick="doCheckout('fe')"
+                  class="ant-btn ant-btn-primary h-[31px] px-3 text-xs font-medium whitespace-nowrap">
+                  <span>Chuyển nhánh</span>
+                </button>
+              </div>
+              <select id="feBranchSelect" size="5" onchange="onSelectBranchOption('fe')"
+                oninput="onSelectBranchOption('fe')" onkeyup="onSelectBranchOption('fe')"
+                onkeydown="handleBranchSelectKeyDown(event, 'fe')"
+                ondblclick="onSelectBranchOption('fe'); doCheckout('fe');"
+                class="w-full bg-[#0e192c] border border-[#244170] rounded-md p-1.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500">
+                <option disabled>Đang tải danh sách nhánh...</option>
+              </select>
+              <div class="flex items-center justify-between text-[11px] text-slate-400 px-0.5 min-h-[24px]">
+                <button type="button" id="btnPrevFe" onclick="doCheckoutPrevious('fe')"
+                  class="hidden items-center gap-1.5 px-2 py-0.5 rounded bg-[#182c4f] hover:bg-[#244170] text-cyan-300 hover:text-white border border-[#2e528f] transition text-[11px] font-medium"
+                  title="Quay về nhánh trước đó (git checkout -)">
+                  <svg class="w-3 h-3 fill-none stroke-current" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                  </svg>
+                  <span>Quay về: <b id="fePrevBranchLabel" class="font-mono text-cyan-200">--</b></span>
+                </button>
+                <div class="flex items-center gap-2 ml-auto">
+                  <button type="button" id="btnRenameSelectedFe" onclick="quickFillRenameSelected('fe')"
+                    class="hover:text-cyan-400 transition text-[11px] font-sans cursor-pointer flex items-center gap-1"
+                    title="Đổi tên nhánh đang được chọn trong danh sách">
+                    <svg class="w-3 h-3 fill-none stroke-current" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    <span>Đổi tên nhánh chọn</span>
+                  </button>
+                  <span class="text-slate-500 text-[11px]">• Nhấn đúp để chọn</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CỘT 2: BACKEND -->
+        <div class="bg-[#101e38] border border-[#244170] rounded-lg p-4 md:p-5 shadow-sm flex flex-col justify-between">
+          <div class="space-y-3.5">
+            <div class="flex items-center justify-between pb-2.5 border-b border-[#244170]">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="font-semibold text-xs text-emerald-400">Backend (easysalon-api)</span>
+              </div>
+            </div>
+
+            <!-- Thông tin nhánh hiện tại -->
+            <div class="bg-[#0e192c] border border-[#244170] rounded-md p-3.5 space-y-2.5">
+              <div>
+                <div class="text-[11px] text-slate-400 mb-1 flex items-center justify-between">
+                  <span>Nhánh hiện tại:</span>
+                  <span id="beWorkingStatus" class="text-[11px] font-medium text-emerald-400"></span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="beCurrentBranch"
+                    class="font-mono text-emerald-300 font-semibold text-xs bg-emerald-950/80 px-2.5 py-1 rounded border border-emerald-800/60 truncate">
+                    Đang nạp...
+                  </span>
+                  <button type="button" onclick="copyToClipboard(document.getElementById('beCurrentBranch').textContent.trim())"
+                    class="p-1 hover:bg-[#182c4f] text-slate-400 hover:text-white rounded transition text-xs cursor-pointer select-none"
+                    title="Sao chép tên nhánh">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                  <button type="button" id="btnQuickRenameBe" onclick="quickFillRename('be')"
+                    class="px-2 py-0.5 hover:bg-[#182c4f] text-emerald-400 hover:text-emerald-300 border border-emerald-800/60 rounded transition text-[11px] font-sans flex items-center gap-1 cursor-pointer select-none"
+                    title="Đổi tên nhánh Backend hiện tại">
+                    <svg class="w-3 h-3 fill-none stroke-current" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    <span>Đổi tên</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-2 border-t border-[#244170]">
+                <div>
+                  <span class="text-slate-400 text-[11px]">Commit gần nhất:</span>
+                  <div id="beCommitInfo" class="font-mono text-slate-200 text-[11px] mt-0.5 truncate" title="...">...
+                  </div>
+                </div>
+                <div>
+                  <span class="text-slate-400 text-[11px]">Trạng thái:</span>
+                  <div id="beStatusInfo" class="text-slate-200 text-[11px] mt-0.5">...</div>
+                </div>
+              </div>
+
+              <div class="pt-2 border-t border-[#244170] flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-slate-400 text-[11px]">Đồng bộ Remote:</span>
+                  <span id="beSyncBadge" class="text-[11px] font-mono text-slate-300">Đang kiểm tra...</span>
+                </div>
+                <button id="btnPullBe" onclick="doPullBranch('be')" style="display: none;"
+                  class="hidden ant-btn text-xs h-[28px] px-3 items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold border-amber-500 shadow-sm">
+                  <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24">
+                    <path
+                      d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z" />
+                  </svg>
+                  <span id="bePullBtnText">Pull ngay</span>
+                </button>
+              </div>
+
+              <!-- Stash của nhánh Backend -->
+              <div id="beStashSection" style="display: none;"
+                class="hidden pt-2 border-t border-[#244170] flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0 flex-1">
+                  <span class="text-slate-400 text-[11px] whitespace-nowrap">Code trong Stash:</span>
+                  <span id="beStashBadge"
+                    class="text-[11px] font-mono text-emerald-300 bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-800/80 truncate max-w-[220px] sm:max-w-[280px]"
+                    title="">Đang kiểm tra...</span>
+                </div>
+                <button id="btnPopStashBe" type="button" onclick="doPopStash('be')"
+                  class="ant-btn text-xs h-[28px] px-3 inline-flex items-center gap-1.5 bg-[#1677ff] hover:bg-[#4096ff] text-white font-sans font-medium rounded border border-[#1677ff] shadow-sm cursor-pointer select-none transition"
+                  title="Khôi phục mã nguồn đã cất từ git stash (git stash pop)">
+                  <svg class="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  <span id="bePopStashBtnText">Lấy code từ stash</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Khu vực chọn và chuyển nhánh -->
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-slate-200 block">Tên nhánh muốn checkout:</label>
+              <div class="flex items-center gap-2">
+                <input type="text" id="beBranchInput" oninput="filterBranchList('be')"
+                  onkeydown="handleBranchInputKeyDown(event, 'be')"
+                  placeholder="Gõ tên nhánh hoặc chọn trong danh sách..."
+                  class="flex-1 bg-[#0e192c] border border-[#244170] rounded-md px-3 py-1.5 text-xs font-mono text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-500" />
+                <button id="btnSwitchBe" onclick="doCheckout('be')"
+                  class="ant-btn ant-btn-primary h-[31px] px-3 text-xs font-medium whitespace-nowrap">
+                  <span>Chuyển nhánh</span>
+                </button>
+              </div>
+              <select id="beBranchSelect" size="5" onchange="onSelectBranchOption('be')"
+                oninput="onSelectBranchOption('be')" onkeyup="onSelectBranchOption('be')"
+                onkeydown="handleBranchSelectKeyDown(event, 'be')"
+                ondblclick="onSelectBranchOption('be'); doCheckout('be');"
+                class="w-full bg-[#0e192c] border border-[#244170] rounded-md p-1.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500">
+                <option disabled>Đang tải danh sách nhánh...</option>
+              </select>
+              <div class="flex items-center justify-between text-[11px] text-slate-400 px-0.5 min-h-[24px]">
+                <button type="button" id="btnPrevBe" onclick="doCheckoutPrevious('be')"
+                  class="hidden items-center gap-1.5 px-2 py-0.5 rounded bg-[#182c4f] hover:bg-[#244170] text-emerald-300 hover:text-white border border-[#2e528f] transition text-[11px] font-medium"
+                  title="Quay về nhánh trước đó (git checkout -)">
+                  <svg class="w-3 h-3 fill-none stroke-current" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                  </svg>
+                  <span>Quay về: <b id="bePrevBranchLabel" class="font-mono text-emerald-200">--</b></span>
+                </button>
+                <div class="flex items-center gap-2 ml-auto">
+                  <button type="button" id="btnRenameSelectedBe" onclick="quickFillRenameSelected('be')"
+                    class="hover:text-emerald-400 transition text-[11px] font-sans cursor-pointer flex items-center gap-1"
+                    title="Đổi tên nhánh đang được chọn trong danh sách">
+                    <svg class="w-3 h-3 fill-none stroke-current" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    <span>Đổi tên nhánh chọn</span>
+                  </button>
+                  <span class="text-slate-500 text-[11px]">• Nhấn đúp để chọn</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUB-VIEW 4: CHERRY-PICK COMMIT -->
+    <div id="gitSubView_cherry_pick" class="hidden space-y-5">
+      <!-- Info bar: Nhánh hiện tại cho Cherry-Pick -->
+      <div class="bg-[#101e38] border border-[#244170] rounded-lg p-3.5 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2 text-slate-300">
+          <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Commit được cherry-pick sẽ được áp dụng trực tiếp vào <b>nhánh hiện tại</b> của từng repository:</span>
+        </div>
+        <div class="flex items-center gap-3 font-mono text-xs">
+          <div class="flex items-center gap-1.5 bg-[#0e192c] border border-[#244170] px-2.5 py-1 rounded">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
+            <span class="text-slate-400 text-[11px]">FE hiện tại:</span>
+            <span id="feCherryTopBranch" class="text-cyan-300 font-bold text-sm">Đang nạp...</span>
+          </div>
+          <div class="flex items-center gap-1.5 bg-[#0e192c] border border-[#244170] px-2.5 py-1 rounded">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+            <span class="text-slate-400 text-[11px]">BE hiện tại:</span>
+            <span id="beCherryTopBranch" class="text-emerald-300 font-bold text-sm">Đang nạp...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 Cột Cherry-Pick: Frontend & Backend -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <!-- CỘT 1: FRONTEND -->
+        <div class="bg-[#101e38] border border-[#244170] rounded-lg p-4 md:p-5 shadow-sm space-y-4 flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="flex items-center justify-between pb-2 border-b border-[#244170]">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                <span class="font-semibold text-xs text-cyan-400">Frontend (easysalon-webapp)</span>
+              </div>
+            </div>
+
+            <!-- Thẻ hiển thị rõ nhánh hiện tại dạng Dropdown có Search -->
+            <div class="bg-[#0e192c] border border-cyan-800/60 rounded-md p-3 space-y-1.5">
+              <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                <span class="font-medium text-slate-300 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                  <span>Đang ở nhánh:</span>
+                </span>
+                <span
+                  class="text-xs font-bold font-sans text-cyan-300 px-2 py-0.5 rounded bg-cyan-950/90 border border-cyan-700/80 shadow-sm">Nhánh nhận commit</span>
+              </div>
+              <div class="flex items-center gap-2 pt-0.5">
+                <div class="relative flex-1" id="feCherryBranchDropdownWrap">
+                  <button type="button" id="feCherryBranchTrigger" onclick="toggleCherryBranchDropdown('fe')"
+                    class="w-full flex items-center justify-between bg-[#101e38] border border-cyan-700/80 rounded px-2.5 py-1.5 text-xs font-mono text-cyan-300 font-bold focus:outline-none focus:border-cyan-400 cursor-pointer shadow-sm text-left">
+                    <span id="feCherrySelectedBranchText" class="truncate">Đang nạp...</span>
+                    <svg class="w-3.5 h-3.5 text-cyan-400 ml-2 shrink-0 transition-transform duration-150" fill="none"
+                      viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  <!-- Dropdown Menu with Search -->
+                  <div id="feCherryBranchDropdownMenu"
+                    class="hidden absolute left-0 right-0 top-full mt-1 z-40 bg-[#101e38] border border-cyan-700/80 rounded-md shadow-2xl p-2 space-y-2">
+                    <div class="relative">
+                      <input type="text" id="feCherryBranchSearchInput" oninput="filterCherryBranches('fe')"
+                        placeholder="Tìm kiếm tên nhánh..."
+                        class="w-full bg-[#0e192c] border border-cyan-800 rounded px-2.5 py-1.5 text-xs font-mono text-slate-100 placeholder-slate-400 focus:outline-none focus:border-cyan-400" />
+                      <svg class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2 pointer-events-none" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <div id="feCherryBranchOptionsList"
+                      class="max-h-56 overflow-y-auto space-y-0.5 text-xs font-mono pr-0.5">
+                      <!-- Rendered by JS -->
+                    </div>
+                  </div>
+                </div>
+                <button type="button"
+                  onclick="copyToClipboard(document.getElementById('feCherrySelectedBranchText').textContent.trim())"
+                  class="p-1 hover:bg-[#182c4f] text-slate-400 hover:text-white rounded transition text-xs shrink-0"
+                  title="Sao chép tên nhánh">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Banner Xung đột nếu có -->
+            <div id="feCherryConflictBox"
+              class="hidden bg-amber-950/40 border border-amber-600/60 rounded-md p-3 space-y-2 text-xs">
+              <div class="flex items-center justify-between text-amber-300 font-semibold">
+                <span class="flex items-center gap-1.5">
+                  <svg class="w-4 h-4 fill-current text-amber-400" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  <span>Đang gặp xung đột (Conflict) trong cherry-pick!</span>
+                </span>
+              </div>
+              <div id="feCherryConflictFiles"
+                class="font-mono text-[11px] text-amber-200/90 bg-black/40 p-2 rounded max-h-24 overflow-y-auto"></div>
+              <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-800/60">
+                <div class="flex items-center gap-2">
+                  <button onclick="doCherryPickContinue('fe')"
+                    class="ant-btn ant-btn-primary h-[28px] px-3 text-[11px] font-medium bg-emerald-600 hover:bg-emerald-500 border-emerald-500">
+                    <span>Tiếp tục (--continue)</span>
+                  </button>
+                  <button onclick="doCherryPickAbort('fe')"
+                    class="ant-btn ant-btn-danger h-[28px] px-3 text-[11px] font-medium">
+                    <span>Hủy bỏ (--abort)</span>
+                  </button>
+                </div>
+                <button type="button" onclick="doAbortConflictAction('fe')"
+                  class="ant-btn ant-btn-danger h-[28px] px-3 text-[11px] font-medium flex items-center gap-1.5"
+                  title="Hủy bỏ mọi thay đổi và quay lại trạng thái ban đầu">
+                  <span>Trở lại trạng thái chưa merge hay cherry-pick</span>
+                </button>
+              </div>
+              <!-- Interactive VS Code Terminal Conflict Resolver -->
+              <div id="feCherryConflictTerminal" class="mt-2.5"></div>
+            </div>
+
+            <!-- Banner Thành công: Hiển thị Input commit message và Nút Push code -->
+            <div id="feCherrySuccessBox"
+              class="hidden bg-emerald-950/40 border border-emerald-600/60 rounded-md p-3.5 space-y-3 text-xs">
+              <div class="flex items-center justify-between gap-2 text-emerald-300 font-semibold">
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span id="feCherrySuccessTitle">Cherry-pick commit thành công!</span>
+                </div>
+                <button type="button" onclick="clearCherrySuccessBox('fe')"
+                  class="p-1 rounded text-emerald-400/70 hover:text-emerald-200 hover:bg-emerald-900/50 transition cursor-pointer"
+                  title="Đóng thông báo">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div id="feCherryCommitMsgSection" class="space-y-1.5">
+                <label class="text-[11px] text-slate-300 font-medium block">Nội dung commit message (nếu muốn chỉnh
+                  sửa):</label>
+                <input type="text" id="feCherryCommitMsgInput" placeholder="Nội dung commit message..."
+                  class="w-full bg-[#101e38] border border-[#244170] rounded px-3 py-1.5 text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-500 font-mono" />
+              </div>
+              <div class="flex items-center justify-between gap-2 pt-1">
+                <span id="feCherryPushPromptText" class="text-[11px] text-slate-400">Đẩy commit này lên nhánh
+                  remote:</span>
+                <div class="flex items-center gap-2">
+                  <button id="btnFeCherryPush" type="button" onclick="doCherryPush('fe')"
+                    class="ant-btn ant-btn-primary h-[30px] px-3.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 border-emerald-500 whitespace-nowrap inline-flex items-center gap-1.5">
+                    <span id="feCherryPushSpinner" class="hidden">
+                      <svg class="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none"
+                        viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                        </circle>
+                        <path class="opacity-75" fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
+                      </svg>
+                    </span>
+                    <span id="btnFeCherryPushText">Push code lên nhánh</span>
+                  </button>
+                  <button id="btnFeCherryCloseSuccess" type="button" onclick="clearCherrySuccessBox('fe')"
+                    class="hidden ant-btn h-[30px] px-3 text-xs font-semibold bg-slate-700/60 hover:bg-slate-700 text-slate-200 border-slate-600 cursor-pointer">
+                    Đóng
+                  </button>
+                </div>
+              </div>
+              <!-- Nút quay về nhánh cũ sau khi push cherry-pick thành công -->
+              <div id="feCherryReturnBranchWrap"
+                class="hidden pt-2 border-t border-emerald-800/60 flex flex-wrap items-center justify-between gap-2">
+                <span
+                  class="text-[11px] text-emerald-300 flex items-center gap-1.5 font-medium whitespace-nowrap shrink-0">
+                  <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Đã push code lên remote thành công.</span>
+                </span>
+                <button id="btnFeCherryReturnPrevBranch" type="button" onclick="doReturnToPrevCherryBranch('fe')"
+                  class="ant-btn h-[28px] px-3 text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white border-sky-500 flex items-center gap-1.5 shadow-sm max-w-full">
+                  <svg class="w-3.5 h-3.5 fill-none stroke-current shrink-0" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  <span id="btnFeCherryReturnPrevBranchText" class="truncate max-w-[280px] sm:max-w-[340px]">Quay về lại
+                    nhánh lúc nãy</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Banner Lỗi Cherry-Pick (nếu có lỗi trong quá trình thực hiện) -->
+            <div id="feCherryErrorBox"
+              class="hidden bg-rose-950/40 border border-rose-600/60 rounded-md p-3 space-y-2 text-xs">
+              <div class="flex items-center justify-between text-rose-300 font-semibold">
+                <span class="flex items-center gap-1.5">
+                  <svg class="w-4 h-4 fill-current text-rose-400 shrink-0" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  <span>Xảy ra lỗi trong quá trình cherry-pick:</span>
+                </span>
+                <button type="button" onclick="document.getElementById('feCherryErrorBox').classList.add('hidden')"
+                  class="text-rose-400 hover:text-white text-[11px]">Đóng</button>
+              </div>
+              <div id="feCherryErrorDetail"
+                class="font-mono text-[11px] text-rose-200/90 bg-black/40 p-2 rounded whitespace-pre-wrap max-h-32 overflow-y-auto">
+              </div>
+            </div>
+
+
+            <!-- Khu vực duyệt commit từ nhánh khác -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-medium text-slate-200">Hoặc duyệt commit từ nhánh khác:</label>
+                <span id="feCherryCommitsCount" class="text-[11px] font-mono text-slate-400"></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="hidden" id="feCherrySourceBranchSelect" value="staging" />
+                <div class="relative flex-1" id="feCherrySourceBranchDropdownWrap">
+                  <button type="button" id="feCherrySourceBranchTrigger"
+                    onclick="toggleCherrySourceBranchDropdown('fe')"
+                    class="w-full flex items-center justify-between bg-[#101e38] border border-cyan-700/80 rounded px-2.5 py-1.5 text-xs font-mono text-cyan-300 font-bold focus:outline-none focus:border-cyan-400 cursor-pointer shadow-sm text-left">
+                    <span id="feCherrySelectedSourceBranchText" class="truncate">staging</span>
+                    <svg class="w-3.5 h-3.5 text-cyan-400 ml-2 shrink-0 transition-transform duration-150" fill="none"
+                      viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  <!-- Dropdown Menu with Search -->
+                  <div id="feCherrySourceBranchDropdownMenu"
+                    class="hidden absolute left-0 right-0 top-full mt-1 z-40 bg-[#101e38] border border-cyan-700/80 rounded-md shadow-2xl p-2 space-y-2">
+                    <div class="relative">
+                      <input type="text" id="feCherrySourceBranchSearchInput" oninput="filterCherrySourceBranches('fe')"
+                        onkeydown="if(event.key==='Enter'){event.preventDefault();selectFirstFilteredCherrySourceBranch('fe')}"
+                        placeholder="Tìm kiếm tên nhánh..."
+                        class="w-full bg-[#0e192c] border border-cyan-800 rounded px-2.5 py-1.5 text-xs font-mono text-slate-100 placeholder-slate-400 focus:outline-none focus:border-cyan-400" />
+                      <svg class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2 pointer-events-none" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <div id="feCherrySourceBranchOptionsList"
+                      class="max-h-56 overflow-y-auto space-y-0.5 text-xs font-mono pr-0.5">
+                      <!-- Rendered by JS -->
+                    </div>
+                  </div>
+                </div>
+
+                <button onclick="loadBranchCommits('fe')"
+                  class="ant-btn text-xs h-[31px] px-2.5 bg-[#0e192c] border-[#244170] text-slate-200 hover:text-white shrink-0"
+                  title="Tải lại danh sách commit của nhánh này">
+                  <span>Tải lại</span>
+                </button>
+              </div>
+
+              <!-- Danh sách commit tải về -->
+              <div id="feCherryCommitsList"
+                class="bg-[#0e192c] border border-[#244170] rounded-md p-2 space-y-1.5 max-h-72 overflow-y-auto">
+                <div class="text-center text-xs text-slate-400 py-6">Đang tải danh sách commit...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CỘT 2: BACKEND -->
+        <div
+          class="bg-[#101e38] border border-[#244170] rounded-lg p-4 md:p-5 shadow-sm space-y-4 flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="flex items-center justify-between pb-2 border-b border-[#244170]">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="font-semibold text-xs text-emerald-400">Backend (easysalon-api)</span>
+              </div>
+            </div>
+
+            <!-- Thẻ hiển thị rõ nhánh hiện tại dạng Dropdown có Search -->
+            <div class="bg-[#0e192c] border border-emerald-800/60 rounded-md p-3 space-y-1.5">
+              <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                <span class="font-medium text-slate-300 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span>Đang ở nhánh:</span>
+                </span>
+                <span
+                  class="text-xs font-bold font-sans text-emerald-300 px-2 py-0.5 rounded bg-emerald-950/90 border border-emerald-700/80 shadow-sm">Nhánh nhận commit</span>
+              </div>
+              <div class="flex items-center gap-2 pt-0.5">
+                <div class="relative flex-1" id="beCherryBranchDropdownWrap">
+                  <button type="button" id="beCherryBranchTrigger" onclick="toggleCherryBranchDropdown('be')"
+                    class="w-full flex items-center justify-between bg-[#101e38] border border-emerald-700/80 rounded px-2.5 py-1.5 text-xs font-mono text-emerald-300 font-bold focus:outline-none focus:border-emerald-400 cursor-pointer shadow-sm text-left">
+                    <span id="beCherrySelectedBranchText" class="truncate">Đang nạp...</span>
+                    <svg class="w-3.5 h-3.5 text-emerald-400 ml-2 shrink-0 transition-transform duration-150"
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  <!-- Dropdown Menu with Search -->
+                  <div id="beCherryBranchDropdownMenu"
+                    class="hidden absolute left-0 right-0 top-full mt-1 z-40 bg-[#101e38] border border-emerald-700/80 rounded-md shadow-2xl p-2 space-y-2">
+                    <div class="relative">
+                      <input type="text" id="beCherryBranchSearchInput" oninput="filterCherryBranches('be')"
+                        placeholder="Tìm kiếm tên nhánh..."
+                        class="w-full bg-[#0e192c] border border-emerald-800 rounded px-2.5 py-1.5 text-xs font-mono text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-400" />
+                      <svg class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2 pointer-events-none" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <div id="beCherryBranchOptionsList"
+                      class="max-h-56 overflow-y-auto space-y-0.5 text-xs font-mono pr-0.5">
+                      <!-- Rendered by JS -->
+                    </div>
+                  </div>
+                </div>
+                <button type="button"
+                  onclick="copyToClipboard(document.getElementById('beCherrySelectedBranchText').textContent.trim())"
+                  class="p-1 hover:bg-[#182c4f] text-slate-400 hover:text-white rounded transition text-xs shrink-0"
+                  title="Sao chép tên nhánh">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Banner Xung đột nếu có -->
+            <div id="beCherryConflictBox"
+              class="hidden bg-amber-950/40 border border-amber-600/60 rounded-md p-3 space-y-2 text-xs">
+              <div class="flex items-center justify-between text-amber-300 font-semibold">
+                <span class="flex items-center gap-1.5">
+                  <svg class="w-4 h-4 fill-current text-amber-400" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  <span>Đang gặp xung đột (Conflict) trong cherry-pick!</span>
+                </span>
+              </div>
+              <div id="beCherryConflictFiles"
+                class="font-mono text-[11px] text-amber-200/90 bg-black/40 p-2 rounded max-h-24 overflow-y-auto"></div>
+              <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-800/60">
+                <div class="flex items-center gap-2">
+                  <button onclick="doCherryPickContinue('be')"
+                    class="ant-btn ant-btn-primary h-[28px] px-3 text-[11px] font-medium bg-emerald-600 hover:bg-emerald-500 border-emerald-500">
+                    <span>Tiếp tục (--continue)</span>
+                  </button>
+                  <button onclick="doCherryPickAbort('be')"
+                    class="ant-btn ant-btn-danger h-[28px] px-3 text-[11px] font-medium">
+                    <span>Hủy bỏ (--abort)</span>
+                  </button>
+                </div>
+                <button type="button" onclick="doAbortConflictAction('be')"
+                  class="ant-btn ant-btn-danger h-[28px] px-3 text-[11px] font-medium flex items-center gap-1.5"
+                  title="Hủy bỏ mọi thay đổi và quay lại trạng thái ban đầu">
+                  <span>Trở lại trạng thái chưa merge hay cherry-pick</span>
+                </button>
+              </div>
+              <!-- Interactive VS Code Terminal Conflict Resolver -->
+              <div id="beCherryConflictTerminal" class="mt-2.5"></div>
+            </div>
+
+            <!-- Banner Thành công: Hiển thị Input commit message và Nút Push code -->
+            <div id="beCherrySuccessBox"
+              class="hidden bg-emerald-950/40 border border-emerald-600/60 rounded-md p-3.5 space-y-3 text-xs">
+              <div class="flex items-center justify-between gap-2 text-emerald-300 font-semibold">
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span id="beCherrySuccessTitle">Cherry-pick commit thành công!</span>
+                </div>
+                <button type="button" onclick="clearCherrySuccessBox('be')"
+                  class="p-1 rounded text-emerald-400/70 hover:text-emerald-200 hover:bg-emerald-900/50 transition cursor-pointer"
+                  title="Đóng thông báo">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div id="beCherryCommitMsgSection" class="space-y-1.5">
+                <label class="text-[11px] text-slate-300 font-medium block">Nội dung commit message (nếu muốn chỉnh
+                  sửa):</label>
+                <input type="text" id="beCherryCommitMsgInput" placeholder="Nội dung commit message..."
+                  class="w-full bg-[#101e38] border border-[#244170] rounded px-3 py-1.5 text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-500 font-mono" />
+              </div>
+              <div class="flex items-center justify-between gap-2 pt-1">
+                <span id="beCherryPushPromptText" class="text-[11px] text-slate-400">Đẩy commit này lên nhánh
+                  remote:</span>
+                <div class="flex items-center gap-2">
+                  <button id="btnBeCherryPush" type="button" onclick="doCherryPush('be')"
+                    class="ant-btn ant-btn-primary h-[30px] px-3.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 border-emerald-500 whitespace-nowrap inline-flex items-center gap-1.5">
+                    <span id="beCherryPushSpinner" class="hidden">
+                      <svg class="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none"
+                        viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                        </circle>
+                        <path class="opacity-75" fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
+                      </svg>
+                    </span>
+                    <span id="btnBeCherryPushText">Push code lên nhánh</span>
+                  </button>
+                  <button id="btnBeCherryCloseSuccess" type="button" onclick="clearCherrySuccessBox('be')"
+                    class="hidden ant-btn h-[30px] px-3 text-xs font-semibold bg-slate-700/60 hover:bg-slate-700 text-slate-200 border-slate-600 cursor-pointer">
+                    Đóng
+                  </button>
+                </div>
+              </div>
+              <!-- Nút quay về nhánh cũ sau khi push cherry-pick thành công -->
+              <div id="beCherryReturnBranchWrap"
+                class="hidden pt-2 border-t border-emerald-800/60 flex flex-wrap items-center justify-between gap-2">
+                <span
+                  class="text-[11px] text-emerald-300 flex items-center gap-1.5 font-medium whitespace-nowrap shrink-0">
+                  <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Đã push code lên remote thành công.</span>
+                </span>
+                <button id="btnBeCherryReturnPrevBranch" type="button" onclick="doReturnToPrevCherryBranch('be')"
+                  class="ant-btn h-[28px] px-3 text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white border-sky-500 flex items-center gap-1.5 shadow-sm max-w-full">
+                  <svg class="w-3.5 h-3.5 fill-none stroke-current shrink-0" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  <span id="btnBeCherryReturnPrevBranchText" class="truncate max-w-[280px] sm:max-w-[340px]">Quay về lại
+                    nhánh lúc nãy</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Banner Lỗi Cherry-Pick (nếu có lỗi trong quá trình thực hiện) -->
+            <div id="beCherryErrorBox"
+              class="hidden bg-rose-950/40 border border-rose-600/60 rounded-md p-3 space-y-2 text-xs">
+              <div class="flex items-center justify-between text-rose-300 font-semibold">
+                <span class="flex items-center gap-1.5">
+                  <svg class="w-4 h-4 fill-current text-rose-400 shrink-0" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  <span>Xảy ra lỗi trong quá trình cherry-pick:</span>
+                </span>
+                <button type="button" onclick="document.getElementById('beCherryErrorBox').classList.add('hidden')"
+                  class="text-rose-400 hover:text-white text-[11px]">Đóng</button>
+              </div>
+              <div id="beCherryErrorDetail"
+                class="font-mono text-[11px] text-rose-200/90 bg-black/40 p-2 rounded whitespace-pre-wrap max-h-32 overflow-y-auto">
+              </div>
+            </div>
+
+
+            <!-- Khu vực duyệt commit từ nhánh khác -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-medium text-slate-200">Hoặc duyệt commit từ nhánh khác:</label>
+                <span id="beCherryCommitsCount" class="text-[11px] font-mono text-slate-400"></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="hidden" id="beCherrySourceBranchSelect" value="staging" />
+                <div class="relative flex-1" id="beCherrySourceBranchDropdownWrap">
+                  <button type="button" id="beCherrySourceBranchTrigger"
+                    onclick="toggleCherrySourceBranchDropdown('be')"
+                    class="w-full flex items-center justify-between bg-[#101e38] border border-emerald-700/80 rounded px-2.5 py-1.5 text-xs font-mono text-emerald-300 font-bold focus:outline-none focus:border-emerald-400 cursor-pointer shadow-sm text-left">
+                    <span id="beCherrySelectedSourceBranchText" class="truncate">staging</span>
+                    <svg class="w-3.5 h-3.5 text-emerald-400 ml-2 shrink-0 transition-transform duration-150"
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  <!-- Dropdown Menu with Search -->
+                  <div id="beCherrySourceBranchDropdownMenu"
+                    class="hidden absolute left-0 right-0 top-full mt-1 z-40 bg-[#101e38] border border-emerald-700/80 rounded-md shadow-2xl p-2 space-y-2">
+                    <div class="relative">
+                      <input type="text" id="beCherrySourceBranchSearchInput" oninput="filterCherrySourceBranches('be')"
+                        onkeydown="if(event.key==='Enter'){event.preventDefault();selectFirstFilteredCherrySourceBranch('be')}"
+                        placeholder="Tìm kiếm tên nhánh..."
+                        class="w-full bg-[#0e192c] border border-emerald-800 rounded px-2.5 py-1.5 text-xs font-mono text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-400" />
+                      <svg class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2 pointer-events-none" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <div id="beCherrySourceBranchOptionsList"
+                      class="max-h-56 overflow-y-auto space-y-0.5 text-xs font-mono pr-0.5">
+                      <!-- Rendered by JS -->
+                    </div>
+                  </div>
+                </div>
+
+                <button onclick="loadBranchCommits('be')"
+                  class="ant-btn text-xs h-[31px] px-2.5 bg-[#0e192c] border-[#244170] text-slate-200 hover:text-white shrink-0"
+                  title="Tải lại danh sách commit của nhánh này">
+                  <span>Tải lại</span>
+                </button>
+              </div>
+
+              <!-- Danh sách commit tải về -->
+              <div id="beCherryCommitsList"
+                class="bg-[#0e192c] border border-[#244170] rounded-md p-2 space-y-1.5 max-h-72 overflow-y-auto">
+                <div class="text-center text-xs text-slate-400 py-6">Đang tải danh sách commit...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUB-VIEW 3: PULL STAGING / MASTER / BETA -->
+    <div id="gitSubView_pull_sync" class="space-y-5">
+      <!-- 2 Cột: Frontend & Backend -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <!-- CỘT 1: FRONTEND -->
+        <div
+          class="bg-[#101e38] border border-[#244170] rounded-xl p-4 md:p-5 shadow-sm space-y-4 flex flex-col justify-between">
+          <div class="space-y-4">
+            <!-- Header & Thẻ Nhánh Hiện Tại Frontend -->
+            <div class="space-y-2 pb-2 border-b border-[#244170]">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-sm text-cyan-400">Frontend (easysalon-webapp)</span>
+              </div>
+              <div
+                class="bg-[#0e192c] border border-[#244170] rounded-lg p-2 px-3 flex items-center gap-2 text-xs shadow-sm min-w-0">
+                <span class="text-slate-400 font-sans text-xs shrink-0">Đang ở nhánh:</span>
+                <span id="feSyncCurrBranch" class="font-mono text-cyan-300 font-bold truncate flex-1"
+                  title="Đang nạp...">Đang nạp...</span>
+              </div>
+            </div>
+
+            <!-- Khối hành động Staging -->
+            <div class="bg-[#0e192c] border border-[#244170] rounded-lg p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span
+                    class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">staging</span>
+                  <span class="text-xs text-slate-200 font-medium">Nhánh kiểm thử Staging</span>
+                </div>
+                <div id="fe_staging_statusBadge" class="hidden"></div>
+              </div>
+              <div class="text-[11px] text-slate-400">Cập nhật mã nguồn mới nhất từ remote <code>origin/staging</code>
+              </div>
+              <div id="fe_staging_commitsBox" class="hidden"></div>
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <label
+                  class="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white select-none">
+                  <input type="checkbox" id="feReturnStaging"
+                    class="w-3.5 h-3.5 rounded border-[#244170] accent-sky-500 cursor-pointer" />
+                  <span>Pull Và ở nhánh hiện tại</span>
+                </label>
+                <button id="btnFePullStaging" type="button" disabled onclick="doSyncPull('fe', 'staging')"
+                  class="ant-btn ant-btn-primary h-[31px] px-3 text-xs font-medium whitespace-nowrap rounded-md opacity-50 cursor-not-allowed"
+                  title="Chỉ mở khi có commit mới cần pull">
+                  <svg id="fePullStagingSpinner" class="hidden animate-spin h-3.5 w-3.5 mr-1.5 text-white" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                  </svg>
+                  <span id="btnFePullStagingText">Pull Staging</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Khối hành động Master -->
+            <div class="bg-[#0e192c] border border-[#244170] rounded-lg p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span
+                    class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-amber-950 text-amber-300 border border-amber-800">master</span>
+                  <span class="text-xs text-slate-200 font-medium">Nhánh chính thức Master</span>
+                </div>
+                <div id="fe_master_statusBadge" class="hidden"></div>
+              </div>
+              <div class="text-[11px] text-slate-400">Cập nhật mã nguồn mới nhất từ remote <code>origin/master</code>
+              </div>
+              <div id="fe_master_commitsBox" class="hidden"></div>
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <label
+                  class="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white select-none">
+                  <input type="checkbox" id="feReturnMaster"
+                    class="w-3.5 h-3.5 rounded border-[#244170] accent-amber-500 cursor-pointer" />
+                  <span>Pull Và ở nhánh hiện tại</span>
+                </label>
+                <button id="btnFePullMaster" type="button" disabled onclick="doSyncPull('fe', 'master')"
+                  class="ant-btn ant-btn-primary h-[31px] px-3 text-xs font-medium whitespace-nowrap rounded-md opacity-50 cursor-not-allowed"
+                  title="Chỉ mở khi có commit mới cần pull">
+                  <svg id="fePullMasterSpinner" class="hidden animate-spin h-3.5 w-3.5 mr-1.5 text-white" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                  </svg>
+                  <span id="btnFePullMasterText">Pull Master</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Khối hành động Beta -->
+            <div class="bg-[#0e192c] border border-[#244170] rounded-lg p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span
+                    class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-purple-950 text-purple-300 border border-purple-800">beta</span>
+                  <span class="text-xs text-slate-200 font-medium">Nhánh thử nghiệm Beta</span>
+                </div>
+                <div id="fe_beta_statusBadge" class="hidden"></div>
+              </div>
+              <div class="text-[11px] text-slate-400">Cập nhật mã nguồn mới nhất từ remote <code>origin/beta</code>
+              </div>
+              <div id="fe_beta_commitsBox" class="hidden"></div>
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <label
+                  class="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white select-none">
+                  <input type="checkbox" id="feReturnBeta"
+                    class="w-3.5 h-3.5 rounded border-[#244170] accent-purple-500 cursor-pointer" />
+                  <span>Pull Và ở nhánh hiện tại</span>
+                </label>
+                <button id="btnFePullBeta" type="button" disabled onclick="doSyncPull('fe', 'beta')"
+                  class="ant-btn ant-btn-primary h-[31px] px-3 text-xs font-medium whitespace-nowrap rounded-md opacity-50 cursor-not-allowed"
+                  title="Chỉ mở khi có commit mới cần pull">
+                  <svg id="fePullBetaSpinner" class="hidden animate-spin h-3.5 w-3.5 mr-1.5 text-white" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                  </svg>
+                  <span id="btnFePullBetaText">Pull Beta</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Banner Xung đột Frontend nếu có -->
+            <div id="feSyncConflictBox"
+              class="hidden bg-amber-950/40 border border-amber-600/60 rounded-md p-3.5 space-y-2 text-xs">
+              <div class="flex items-center justify-between text-amber-300 font-semibold">
+                <span class="flex items-center gap-1.5">
+                  <svg class="w-4 h-4 fill-current text-amber-400" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  <span id="feSyncConflictTitle">Phát hiện xung đột (Conflict) khi pull Frontend!</span>
+                </span>
+              </div>
+              <p class="text-[11px] text-amber-200/80">Quá trình pull nhánh gặp xung đột mã nguồn. Danh sách các file bị
+                conflict:</p>
+              <div id="feSyncConflictFiles"
+                class="font-mono text-[11px] text-rose-300 bg-black/40 p-2 rounded max-h-32 overflow-y-auto"></div>
+              <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-800/60">
+                <button onclick="doAbortMerge('fe')"
+                  class="ant-btn ant-btn-danger h-[28px] px-3 text-[11px] font-medium">
+                  <span>Hủy bỏ Merge (git merge --abort)</span>
+                </button>
+                <button type="button" onclick="doAbortConflictAction('fe')"
+                  class="ant-btn ant-btn-danger h-[28px] px-3 text-[11px] font-medium flex items-center gap-1.5"
+                  title="Hủy bỏ mọi thay đổi và quay lại trạng thái ban đầu">
+                  <span>Trở lại trạng thái chưa merge hay cherry-pick</span>
+                </button>
+              </div>
+              <!-- Interactive VS Code Terminal Conflict Resolver -->
+              <div id="feSyncConflictTerminal" class="mt-2.5"></div>
+            </div>
+
+            <!-- Banner Kết quả thành công hoặc log Frontend -->
+            <div id="feSyncResultBox"
+              class="hidden bg-[#0e192c] border border-emerald-800/60 rounded-md p-3 space-y-1.5 text-xs">
+              <div class="flex items-center justify-between text-emerald-300 font-semibold">
+                <span id="feSyncResultTitle" class="flex items-center gap-1.5">
+                  <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Đã pull thành công</span>
+                </span>
+                <button type="button" onclick="document.getElementById('feSyncResultBox').classList.add('hidden')"
+                  class="text-slate-400 hover:text-white text-[11px]">Đóng</button>
+              </div>
+              <pre id="feSyncResultOutput"
+                class="font-mono text-[11px] text-slate-200 bg-black/40 p-2 rounded max-h-32 overflow-y-auto whitespace-pre-wrap"></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- CỘT 2: BACKEND -->
+        <div
+          class="bg-[#101e38] border border-[#244170] rounded-xl p-4 md:p-5 shadow-sm space-y-4 flex flex-col justify-between">
+          <div class="space-y-4">
+            <!-- Header & Thẻ Nhánh Hiện Tại Backend -->
+            <div class="space-y-2 pb-2 border-b border-[#244170]">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-sm text-emerald-400">Backend (easysalon-api)</span>
+              </div>
+              <div
+                class="bg-[#0e192c] border border-[#244170] rounded-lg p-2 px-3 flex items-center gap-2 text-xs shadow-sm min-w-0">
+                <span class="text-slate-400 font-sans text-xs shrink-0">Đang ở nhánh:</span>
+                <span id="beSyncCurrBranch" class="font-mono text-emerald-300 font-bold truncate flex-1"
+                  title="Đang nạp...">Đang nạp...</span>
+              </div>
+            </div>
+
+            <!-- Khối hành động Staging -->
+            <div class="bg-[#0e192c] border border-[#244170] rounded-lg p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span
+                    class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">staging</span>
+                  <span class="text-xs text-slate-200 font-medium">Nhánh kiểm thử Staging</span>
+                </div>
+                <div id="be_staging_statusBadge" class="hidden"></div>
+              </div>
+              <div class="text-[11px] text-slate-400">Cập nhật mã nguồn mới nhất từ remote <code>origin/staging</code>
+              </div>
+              <div id="be_staging_commitsBox" class="hidden"></div>
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <label
+                  class="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white select-none">
+                  <input type="checkbox" id="beReturnStaging"
+                    class="w-3.5 h-3.5 rounded border-[#244170] accent-emerald-500 cursor-pointer" />
+                  <span>Pull Và ở nhánh hiện tại</span>
+                </label>
+                <button id="btnBePullStaging" type="button" disabled onclick="doSyncPull('be', 'staging')"
+                  class="ant-btn ant-btn-primary h-[31px] px-3 text-xs font-medium whitespace-nowrap rounded-md opacity-50 cursor-not-allowed"
+                  title="Chỉ mở khi có commit mới cần pull">
+                  <svg id="bePullStagingSpinner" class="hidden animate-spin h-3.5 w-3.5 mr-1.5 text-white" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                  </svg>
+                  <span id="btnBePullStagingText">Pull Staging</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Khối hành động Master -->
+            <div class="bg-[#0e192c] border border-[#244170] rounded-lg p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span
+                    class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-amber-950 text-amber-300 border border-amber-800">master</span>
+                  <span class="text-xs text-slate-200 font-medium">Nhánh chính thức Master</span>
+                </div>
+                <div id="be_master_statusBadge" class="hidden"></div>
+              </div>
+              <div class="text-[11px] text-slate-400">Cập nhật mã nguồn mới nhất từ remote <code>origin/master</code>
+              </div>
+              <div id="be_master_commitsBox" class="hidden"></div>
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <label
+                  class="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white select-none">
+                  <input type="checkbox" id="beReturnMaster"
+                    class="w-3.5 h-3.5 rounded border-[#244170] accent-amber-500 cursor-pointer" />
+                  <span>Pull Và ở nhánh hiện tại</span>
+                </label>
+                <button id="btnBePullMaster" type="button" disabled onclick="doSyncPull('be', 'master')"
+                  class="ant-btn ant-btn-primary h-[31px] px-3 text-xs font-medium whitespace-nowrap rounded-md opacity-50 cursor-not-allowed"
+                  title="Chỉ mở khi có commit mới cần pull">
+                  <svg id="bePullMasterSpinner" class="hidden animate-spin h-3.5 w-3.5 mr-1.5 text-white" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                  </svg>
+                  <span id="btnBePullMasterText">Pull Master</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Khối hành động Beta -->
+            <div class="bg-[#0e192c] border border-[#244170] rounded-lg p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span
+                    class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-purple-950 text-purple-300 border border-purple-800">beta</span>
+                  <span class="text-xs text-slate-200 font-medium">Nhánh thử nghiệm Beta</span>
+                </div>
+                <div id="be_beta_statusBadge" class="hidden"></div>
+              </div>
+              <div class="text-[11px] text-slate-400">Cập nhật mã nguồn mới nhất từ remote <code>origin/beta</code>
+              </div>
+              <div id="be_beta_commitsBox" class="hidden"></div>
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <label
+                  class="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white select-none">
+                  <input type="checkbox" id="beReturnBeta"
+                    class="w-3.5 h-3.5 rounded border-[#244170] accent-purple-500 cursor-pointer" />
+                  <span>Pull Và ở nhánh hiện tại</span>
+                </label>
+                <button id="btnBePullBeta" type="button" disabled onclick="doSyncPull('be', 'beta')"
+                  class="ant-btn ant-btn-primary h-[31px] px-3 text-xs font-medium whitespace-nowrap rounded-md opacity-50 cursor-not-allowed"
+                  title="Chỉ mở khi có commit mới cần pull">
+                  <svg id="bePullBetaSpinner" class="hidden animate-spin h-3.5 w-3.5 mr-1.5 text-white" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                  </svg>
+                  <span id="btnBePullBetaText">Pull Beta</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Banner Xung đột Backend nếu có -->
+            <div id="beSyncConflictBox"
+              class="hidden bg-amber-950/40 border border-amber-600/60 rounded-md p-3.5 space-y-2 text-xs">
+              <div class="flex items-center justify-between text-amber-300 font-semibold">
+                <span class="flex items-center gap-1.5">
+                  <svg class="w-4 h-4 fill-current text-amber-400" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  <span id="beSyncConflictTitle">Phát hiện xung đột (Conflict) khi pull Backend!</span>
+                </span>
+              </div>
+              <p class="text-[11px] text-amber-200/80">Quá trình pull nhánh gặp xung đột mã nguồn. Danh sách các file bị
+                conflict:</p>
+              <div id="beSyncConflictFiles"
+                class="font-mono text-[11px] text-rose-300 bg-black/40 p-2 rounded max-h-32 overflow-y-auto"></div>
+              <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-800/60">
+                <button onclick="doAbortMerge('be')"
+                  class="ant-btn ant-btn-danger h-[28px] px-3 text-[11px] font-medium">
+                  <span>Hủy bỏ Merge (git merge --abort)</span>
+                </button>
+                <button type="button" onclick="doAbortConflictAction('be')"
+                  class="ant-btn ant-btn-danger h-[28px] px-3 text-[11px] font-medium flex items-center gap-1.5"
+                  title="Hủy bỏ mọi thay đổi và quay lại trạng thái ban đầu">
+                  <span>Trở lại trạng thái chưa merge hay cherry-pick</span>
+                </button>
+              </div>
+              <!-- Interactive VS Code Terminal Conflict Resolver -->
+              <div id="beSyncConflictTerminal" class="mt-2.5"></div>
+            </div>
+
+            <!-- Banner Kết quả thành công hoặc log Backend -->
+            <div id="beSyncResultBox"
+              class="hidden bg-[#0e192c] border border-emerald-800/60 rounded-md p-3 space-y-1.5 text-xs">
+              <div class="flex items-center justify-between text-emerald-300 font-semibold">
+                <span id="beSyncResultTitle" class="flex items-center gap-1.5">
+                  <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Đã pull thành công</span>
+                </span>
+                <button type="button" onclick="document.getElementById('beSyncResultBox').classList.add('hidden')"
+                  class="text-slate-400 hover:text-white text-[11px]">Đóng</button>
+              </div>
+              <pre id="beSyncResultOutput"
+                class="font-mono text-[11px] text-slate-200 bg-black/40 p-2 rounded max-h-32 overflow-y-auto whitespace-pre-wrap"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUB-VIEW 4: MERGE NHÁNH (GIT MERGE) -->
+    <div id="gitSubView_merge" class="hidden space-y-5">
+      <!-- Action / Info Bar trên cùng -->
+      <div
+        class="bg-[#101e38] border border-[#244170] rounded-lg p-3.5 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2.5 text-slate-300">
+          <div
+            class="w-7 h-7 rounded bg-[#182c4f] border border-[#244170] flex items-center justify-center text-cyan-400 shrink-0">
+            <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M8 7v10M8 7a3 3 0 100-6 3 3 0 000 6zm0 10a3 3 0 100 6 3 3 0 000-6zm8-4a3 3 0 100-6 3 3 0 000 6zm0 0v2a4 4 0 01-4 4H8" />
+            </svg>
+          </div>
+          <div>
+            <span class="font-semibold text-white">Hợp nhất nhánh (Git Merge):</span>
+            <span class="text-slate-400 ml-1">Gộp code từ nhánh nguồn (A) sang nhánh đích (B). Tự động hiển thị chi tiết
+              log và file xung đột bên dưới khi xảy ra conflict.</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 font-mono text-xs">
+          <div class="flex items-center gap-1.5 bg-[#0e192c] border border-[#244170] px-2.5 py-1 rounded">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
+            <span class="text-slate-400 text-[11px]">FE hiện tại:</span>
+            <span id="feMergeTopBranch" class="text-cyan-300 font-bold text-sm">Đang nạp...</span>
+          </div>
+          <div class="flex items-center gap-1.5 bg-[#0e192c] border border-[#244170] px-2.5 py-1 rounded">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+            <span class="text-slate-400 text-[11px]">BE hiện tại:</span>
+            <span id="beMergeTopBranch" class="text-emerald-300 font-bold">Đang nạp...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 Cột: Frontend & Backend -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <!-- CỘT 1: FRONTEND -->
+        <div
+          class="bg-[#101e38] border border-[#244170] rounded-lg p-4 md:p-5 shadow-sm space-y-4 flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="flex items-center justify-between pb-2 border-b border-[#244170]">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                <span class="font-semibold text-xs text-cyan-400">Frontend (easysalon-webapp)</span>
+              </div>
+            </div>
+
+            <!-- Thẻ chọn Nhánh merge A (Lấy code từ nhánh này) dạng Dropdown có Search -->
+            <div class="merge-branch-box bg-[#0e192c] border border-amber-800/60 rounded-md p-3 space-y-1.5">
+              <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                <span class="font-medium text-slate-300 flex items-center gap-1.5">
+                  <span
+                    class="px-1.5 py-0.2 rounded bg-amber-950 text-amber-400 border border-amber-800 font-mono text-[10px]">A</span>
+                  <span>Nhánh merge (Lấy code từ nhánh này):</span>
+                </span>
+                <div class="flex items-center gap-2">
+                  <span id="feMergeSourceCount" class="text-[10px] font-mono text-slate-400"></span>
+                  <button type="button" onclick="setMergeSourceToCurrent('fe')"
+                    class="text-[10px] text-cyan-400 hover:text-white underline cursor-pointer"
+                    title="Chọn ngay nhánh hiện tại làm nhánh merge">
+                    Chọn nhánh đang đứng
+                  </button>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 pt-0.5">
+                <input type="hidden" id="feMergeSourceSelect" value="" />
+                <div class="relative flex-1" id="feMergeSourceDropdownWrap">
+                  <button type="button" id="feMergeSourceTrigger" onclick="toggleMergeDropdown('fe', 'source')"
+                    class="merge-trigger-btn w-full flex items-center justify-between bg-[#101e38] border border-[#244170] rounded px-2.5 py-1.5 text-xs font-mono text-slate-200 font-bold focus:outline-none focus:border-cyan-400 cursor-pointer shadow-sm text-left">
+                    <span id="feMergeSelectedSourceText" class="truncate">Đang nạp...</span>
+                    <svg class="w-3.5 h-3.5 text-slate-400 ml-2 shrink-0 transition-transform duration-150" fill="none"
+                      viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  <!-- Dropdown Menu with Search -->
+                  <div id="feMergeSourceDropdownMenu"
+                    class="hidden absolute left-0 right-0 top-full mt-1 z-40 bg-[#101e38] border border-[#244170] rounded-md shadow-2xl p-2 space-y-2">
+                    <div class="relative">
+                      <input type="text" id="feMergeSourceSearchInput" oninput="filterMergeDropdown('fe', 'source')"
+                        placeholder="Tìm kiếm tên nhánh merge..."
+                        class="w-full bg-[#0e192c] border border-cyan-800 rounded px-2.5 py-1.5 text-xs font-mono text-slate-100 placeholder-slate-400 focus:outline-none focus:border-cyan-400" />
+                      <svg class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2 pointer-events-none" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <div id="feMergeSourceOptionsList"
+                      class="max-h-56 overflow-y-auto space-y-0.5 text-xs font-mono pr-0.5">
+                      <!-- Rendered by JS -->
+                    </div>
+                  </div>
+                </div>
+                <button type="button"
+                  onclick="copyToClipboard(document.getElementById('feMergeSelectedSourceText').textContent.trim())"
+                  class="p-1 hover:bg-[#182c4f] text-slate-400 hover:text-white rounded transition text-xs shrink-0"
+                  title="Sao chép tên nhánh">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Mũi tên chỉ hướng merge -->
+            <div class="flex items-center justify-center -my-1">
+              <div
+                class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#0e192c] border border-[#244170] text-[11px] text-cyan-300 font-medium shadow-sm">
+                <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+                <span>Hợp nhất từ nhánh merge (trên) ➔ vào nhánh cần merge (dưới)</span>
+              </div>
+            </div>
+
+            <!-- Thẻ chọn Nhánh cần merge B (Nhận code) dạng Dropdown có Search -->
+            <div class="merge-branch-box bg-[#0e192c] border border-cyan-800/60 rounded-md p-3 space-y-1.5">
+              <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                <span class="font-medium text-slate-300 flex items-center gap-1.5">
+                  <span
+                    class="px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 font-mono text-[10px]">B</span>
+                  <span>Nhánh cần merge (Merge vào nhánh này):</span>
+                </span>
+                <button type="button" onclick="setMergeTargetToCurrent('fe')"
+                  class="text-[10px] text-cyan-400 hover:text-white underline cursor-pointer"
+                  title="Chọn ngay nhánh hiện tại làm nhánh đích">
+                  Chọn nhánh đang đứng
+                </button>
+              </div>
+              <div class="flex items-center gap-2 pt-0.5">
+                <input type="hidden" id="feMergeTargetSelect" value="" />
+                <div class="relative flex-1" id="feMergeTargetDropdownWrap">
+                  <button type="button" id="feMergeTargetTrigger" onclick="toggleMergeDropdown('fe', 'target')"
+                    class="merge-trigger-btn w-full flex items-center justify-between bg-[#101e38] border border-cyan-700/80 rounded px-2.5 py-1.5 text-xs font-mono text-cyan-300 font-bold focus:outline-none focus:border-cyan-400 cursor-pointer shadow-sm text-left">
+                    <span id="feMergeSelectedTargetText" class="truncate">Đang nạp...</span>
+                    <svg class="w-3.5 h-3.5 text-cyan-400 ml-2 shrink-0 transition-transform duration-150" fill="none"
+                      viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  <!-- Dropdown Menu with Search -->
+                  <div id="feMergeTargetDropdownMenu"
+                    class="hidden absolute left-0 right-0 top-full mt-1 z-40 bg-[#101e38] border border-cyan-700/80 rounded-md shadow-2xl p-2 space-y-2">
+                    <div class="relative">
+                      <input type="text" id="feMergeTargetSearchInput" oninput="filterMergeDropdown('fe', 'target')"
+                        placeholder="Tìm kiếm tên nhánh đích..."
+                        class="w-full bg-[#0e192c] border border-cyan-800 rounded px-2.5 py-1.5 text-xs font-mono text-slate-100 placeholder-slate-400 focus:outline-none focus:border-cyan-400" />
+                      <svg class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2 pointer-events-none" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <div id="feMergeTargetOptionsList"
+                      class="max-h-56 overflow-y-auto space-y-0.5 text-xs font-mono pr-0.5">
+                      <!-- Rendered by JS -->
+                    </div>
+                  </div>
+                </div>
+                <button type="button"
+                  onclick="copyToClipboard(document.getElementById('feMergeSelectedTargetText').textContent.trim())"
+                  class="p-1 hover:bg-[#182c4f] text-slate-400 hover:text-white rounded transition text-xs shrink-0"
+                  title="Sao chép tên nhánh">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Tùy chọn Merge & Commit message -->
+            <div class="space-y-2 text-xs pt-1">
+              <div class="flex flex-wrap items-center justify-between gap-3 text-slate-200">
+                <label class="flex items-center gap-2 cursor-pointer select-none text-slate-200 font-medium">
+                  <input type="checkbox" id="feMergeNoFF"
+                    class="w-3.5 h-3.5 rounded border-[#244170] accent-sky-500 cursor-pointer" />
+                  <span>Tạo commit riêng (--no-ff)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer select-none text-slate-200 font-medium">
+                  <input type="checkbox" id="feMergeReturnCurrent"
+                    class="w-3.5 h-3.5 rounded border-[#244170] accent-sky-500 cursor-pointer" />
+                  <span>Quay về nhánh cũ sau khi merge</span>
+                </label>
+              </div>
+              <input type="text" id="feMergeCommitMsg" placeholder="Nội dung commit message (tùy chọn)..."
+                class="w-full bg-[#0e192c] border border-[#244170] rounded px-3 py-1.5 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-400" />
+            </div>
+
+            <!-- Nút bấm thực hiện Merge -->
+            <div class="pt-1">
+              <button id="btnFeDoMerge" type="button" onclick="doExecuteMerge('fe')"
+                class="ant-btn ant-btn-primary w-full h-[34px] text-xs font-semibold flex items-center justify-center gap-2 shadow-sm">
+                <span id="feMergeSpinner" class="hidden">
+                  <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                  </svg>
+                </span>
+                <svg class="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M8 7v10M8 7a3 3 0 100-6 3 3 0 000 6zm0 10a3 3 0 100 6 3 3 0 000-6zm8-4a3 3 0 100-6 3 3 0 000 6zm0 0v2a4 4 0 01-4 4H8" />
+                </svg>
+                <span id="feMergeBtnText">Thực hiện Merge Frontend</span>
+              </button>
+            </div>
+
+            <!-- Banner Xung đột & Log UI nếu xảy ra conflict (Frontend) -->
+            <div id="feMergeConflictBox"
+              class="hidden bg-amber-950/40 border border-amber-600/70 rounded-lg p-3.5 space-y-3 text-xs shadow-lg">
+              <div
+                class="flex items-center justify-between text-amber-300 font-bold text-[13px] border-b border-amber-700/50 pb-2">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-amber-400 shrink-0 animate-pulse" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  <span>Xảy ra xung đột mã nguồn (Merge Conflict)!</span>
+                </span>
+                <span
+                  class="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-900/60 border border-amber-600 text-amber-200">Cần
+                  xử lý</span>
+              </div>
+
+              <!-- Danh sách file bị conflict -->
+              <div class="space-y-1">
+                <span class="text-[11px] text-amber-200 font-semibold block">Các file bị xung đột:</span>
+                <div id="feMergeConflictFiles"
+                  class="font-mono text-[11px] text-amber-200/90 bg-black/50 p-2.5 rounded border border-amber-800/60 max-h-32 overflow-y-auto space-y-1">
+                </div>
+              </div>
+
+              <!-- LOG UI CHI TIẾT XUNG ĐỘT (CONSOLE OUTPUT) -->
+              <div class="space-y-1">
+                <div class="flex items-center justify-between text-[11px] text-amber-300 font-semibold">
+                  <span class="flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 6h16M4 12h16M4 18h7" />
+                    </svg>
+                    <span>Log UI chi tiết xung đột (Git Console Output):</span>
+                  </span>
+                  <button type="button"
+                    onclick="copyToClipboard(document.getElementById('feMergeConflictLogText').textContent)"
+                    class="text-[10px] text-slate-300 hover:text-white px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 transition cursor-pointer"
+                    title="Sao chép toàn bộ log xung đột">
+                    Sao chép log
+                  </button>
+                </div>
+                <pre id="feMergeConflictLogText"
+                  class="font-mono text-[11px] text-amber-200/95 bg-[#090d16] border border-amber-800/80 p-3 rounded-md max-h-56 overflow-y-auto whitespace-pre-wrap shadow-inner leading-relaxed select-text"></pre>
+              </div>
+
+              <!-- Nút hành động giải quyết xung đột -->
+              <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-800/60">
+                <div class="flex items-center gap-2">
+                  <button id="btnFeMergeAbort" type="button" onclick="doMergeAbort('fe')"
+                    class="ant-btn ant-btn-danger h-[30px] px-3.5 text-xs font-semibold flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span>Hủy bỏ Merge (--abort)</span>
+                  </button>
+                  <button type="button" onclick="doAbortConflictAction('fe')"
+                    class="ant-btn ant-btn-danger h-[30px] px-3.5 text-xs font-semibold flex items-center gap-1.5"
+                    title="Hủy bỏ mọi thay đổi và quay lại trạng thái ban đầu">
+                    <span>Trở lại trạng thái chưa merge hay cherry-pick</span>
+                  </button>
+                </div>
+                <button id="btnFeMergeContinue" type="button" onclick="doMergeContinue('fe')"
+                  class="ant-btn ant-btn-primary h-[30px] px-3.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 border-emerald-500 flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Đã sửa xong & Tiếp tục (--continue)</span>
+                </button>
+              </div>
+
+              <!-- Interactive VS Code Terminal Conflict Resolver -->
+              <div id="feMergeConflictTerminal" class="mt-3"></div>
+            </div>
+
+            <!-- Banner Thành công & Log Frontend -->
+            <div id="feMergeSuccessBox"
+              class="hidden bg-emerald-950/40 border border-emerald-600/70 rounded-lg p-3.5 space-y-3 text-xs shadow-md">
+              <div
+                class="flex items-center justify-between text-emerald-300 font-bold text-xs border-b border-emerald-700/50 pb-2">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span id="feMergeSuccessTitle">Merge Frontend thành công!</span>
+                </span>
+                <button type="button" onclick="document.getElementById('feMergeSuccessBox').classList.add('hidden')"
+                  class="text-slate-400 hover:text-white text-[11px]">Đóng</button>
+              </div>
+              <div id="feMergeSuccessText" class="text-slate-200 text-xs"></div>
+              <!-- Log output thành công -->
+              <div class="space-y-1">
+                <span class="text-[10px] text-slate-400 block font-semibold">Log chi tiết:</span>
+                <pre id="feMergeSuccessLogText"
+                  class="font-mono text-[11px] text-slate-200 bg-[#090d16] border border-[#244170] p-2.5 rounded max-h-36 overflow-y-auto whitespace-pre-wrap select-text"></pre>
+              </div>
+              <div class="flex items-center justify-between gap-2 pt-1 border-t border-emerald-800/60">
+                <span class="text-[11px] text-slate-400">Đẩy nhánh đích vừa merge lên Remote:</span>
+                <div class="flex items-center gap-2">
+                  <button id="btnFeMergeViewDiff" type="button" onclick="toggleMergeDiffView('fe')"
+                    title="Xem chi tiết các thay đổi vừa được merge (Diff / Files)"
+                    class="ant-btn h-[28px] px-2.5 text-xs font-semibold bg-[#10223d] hover:bg-[#1a3660] text-sky-300 hover:text-sky-200 border border-sky-500/50 flex items-center gap-1.5 transition cursor-pointer">
+                    <svg class="w-3.5 h-3.5 shrink-0 fill-none stroke-current" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    <span>Xem thay đổi đã merge</span>
+                  </button>
+                  <button id="btnFeMergePush" type="button" onclick="doMergePush('fe')"
+                    class="ant-btn ant-btn-primary h-[28px] px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 border-emerald-500 flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                      <path
+                        d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z" />
+                    </svg>
+                    <span>Push nhánh đích</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Khu vực hiển thị Diff & File đã merge khi bấm icon con mắt -->
+              <div id="feMergeDiffContainer" class="hidden pt-2 border-t border-emerald-800/60 space-y-2">
+                <div class="flex items-center justify-between text-[11px] text-slate-300">
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-sky-400 flex items-center gap-1.5">
+                      <svg class="w-3.5 h-3.5 stroke-current fill-none" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                      </svg>
+                      <span>Nội dung thay đổi đã merge (Diff):</span>
+                    </span>
+                    <span id="feMergeDiffStat" class="text-[10px] text-slate-400 font-mono"></span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button id="btnFeCopyMergeDiff" type="button" onclick="copyMergeDiff('fe')"
+                      class="text-[10px] text-sky-400 hover:text-sky-300 font-sans px-2 py-0.5 rounded border border-sky-500/30 hover:bg-sky-500/10 transition cursor-pointer">
+                      Sao chép diff
+                    </button>
+                    <button id="btnFeCollapseMergeDiff" type="button" onclick="toggleMergeDiffView('fe')"
+                      class="text-[10px] text-slate-400 hover:text-white font-sans px-2 py-0.5 rounded hover:bg-white/5 transition cursor-pointer">
+                      Thu gọn
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Danh sách file thay đổi -->
+                <div id="feMergeDiffFiles" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto"></div>
+
+                <!-- Khung code diff cuộn được -->
+                <div id="feMergeDiffBody" class="sync-diff-wrapper rounded-md bg-[#1e1e1e] border border-[#333333] max-h-[380px] min-h-[100px] overflow-auto text-[11.5px] font-mono leading-relaxed shadow-inner">
+                  <div class="text-slate-400 text-xs p-3 text-center">Chưa có dữ liệu diff.</div>
+                </div>
+              </div>
+              <!-- Nút quay về nhánh cũ sau khi push thành công -->
+              <div id="feMergeReturnBranchWrap"
+                class="hidden pt-2 border-t border-emerald-800/60 flex flex-wrap items-center justify-between gap-2">
+                <span
+                  class="text-[11px] text-emerald-300 flex items-center gap-1.5 font-medium whitespace-nowrap shrink-0">
+                  <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Đã push code lên remote thành công.</span>
+                </span>
+                <button id="btnFeReturnPrevBranch" type="button" onclick="doReturnToPrevBranch('fe')"
+                  class="ant-btn h-[28px] px-3 text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white border-sky-500 flex items-center gap-1.5 shadow-sm max-w-full">
+                  <svg class="w-3.5 h-3.5 fill-none stroke-current shrink-0" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  <span id="btnFeReturnPrevBranchText" class="truncate max-w-[280px] sm:max-w-[340px]">Quay về lại nhánh
+                    lúc nãy</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Banner Lỗi chung (Frontend) -->
+            <div id="feMergeErrorBox"
+              class="hidden bg-rose-950/40 border border-rose-600/70 rounded-lg p-3 space-y-2 text-xs">
+              <div class="flex items-center justify-between text-rose-300 font-bold">
+                <span class="flex items-center gap-1.5">
+                  <svg class="w-4 h-4 fill-current text-rose-400 shrink-0" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  <span>Không thể thực hiện Merge:</span>
+                </span>
+                <button type="button" onclick="document.getElementById('feMergeErrorBox').classList.add('hidden')"
+                  class="text-rose-400 hover:text-white text-[11px]">Đóng</button>
+              </div>
+              <pre id="feMergeErrorDetail"
+                class="font-mono text-[11px] text-rose-200/90 bg-black/40 p-2.5 rounded whitespace-pre-wrap max-h-36 overflow-y-auto"></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- CỘT 2: BACKEND -->
+        <div
+          class="bg-[#101e38] border border-[#244170] rounded-lg p-4 md:p-5 shadow-sm space-y-4 flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="flex items-center justify-between pb-2 border-b border-[#244170]">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="font-semibold text-xs text-emerald-400">Backend (easysalon-api)</span>
+              </div>
+            </div>
+
+            <!-- Thẻ chọn Nhánh merge A (Lấy code từ nhánh này) dạng Dropdown có Search -->
+            <div class="merge-branch-box bg-[#0e192c] border border-amber-800/60 rounded-md p-3 space-y-1.5">
+              <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                <span class="font-medium text-slate-300 flex items-center gap-1.5">
+                  <span
+                    class="px-1.5 py-0.2 rounded bg-amber-950 text-amber-400 border border-amber-800 font-mono text-[10px]">A</span>
+                  <span>Nhánh merge (Lấy code từ nhánh này):</span>
+                </span>
+                <div class="flex items-center gap-2">
+                  <span id="beMergeSourceCount" class="text-[10px] font-mono text-slate-400"></span>
+                  <button type="button" onclick="setMergeSourceToCurrent('be')"
+                    class="text-[10px] text-emerald-400 hover:text-white underline cursor-pointer"
+                    title="Chọn ngay nhánh hiện tại làm nhánh merge">
+                    Chọn nhánh đang đứng
+                  </button>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 pt-0.5">
+                <input type="hidden" id="beMergeSourceSelect" value="" />
+                <div class="relative flex-1" id="beMergeSourceDropdownWrap">
+                  <button type="button" id="beMergeSourceTrigger" onclick="toggleMergeDropdown('be', 'source')"
+                    class="merge-trigger-btn w-full flex items-center justify-between bg-[#101e38] border border-[#244170] rounded px-2.5 py-1.5 text-xs font-mono text-slate-200 font-bold focus:outline-none focus:border-emerald-400 cursor-pointer shadow-sm text-left">
+                    <span id="beMergeSelectedSourceText" class="truncate">Đang nạp...</span>
+                    <svg class="w-3.5 h-3.5 text-slate-400 ml-2 shrink-0 transition-transform duration-150" fill="none"
+                      viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  <!-- Dropdown Menu with Search -->
+                  <div id="beMergeSourceDropdownMenu"
+                    class="hidden absolute left-0 right-0 top-full mt-1 z-40 bg-[#101e38] border border-[#244170] rounded-md shadow-2xl p-2 space-y-2">
+                    <div class="relative">
+                      <input type="text" id="beMergeSourceSearchInput" oninput="filterMergeDropdown('be', 'source')"
+                        placeholder="Tìm kiếm tên nhánh merge..."
+                        class="w-full bg-[#0e192c] border border-emerald-800 rounded px-2.5 py-1.5 text-xs font-mono text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-400" />
+                      <svg class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2 pointer-events-none" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <div id="beMergeSourceOptionsList"
+                      class="max-h-56 overflow-y-auto space-y-0.5 text-xs font-mono pr-0.5">
+                      <!-- Rendered by JS -->
+                    </div>
+                  </div>
+                </div>
+                <button type="button"
+                  onclick="copyToClipboard(document.getElementById('beMergeSelectedSourceText').textContent.trim())"
+                  class="p-1 hover:bg-[#182c4f] text-slate-400 hover:text-white rounded transition text-xs shrink-0"
+                  title="Sao chép tên nhánh">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Mũi tên chỉ hướng merge -->
+            <div class="flex items-center justify-center -my-1">
+              <div
+                class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#0e192c] border border-[#244170] text-[11px] text-emerald-300 font-medium shadow-sm">
+                <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+                <span>Hợp nhất từ nhánh merge (trên) ➔ vào nhánh cần merge (dưới)</span>
+              </div>
+            </div>
+
+            <!-- Thẻ chọn Nhánh cần merge B (Nhận code) dạng Dropdown có Search -->
+            <div class="merge-branch-box bg-[#0e192c] border border-emerald-800/60 rounded-md p-3 space-y-1.5">
+              <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                <span class="font-medium text-slate-300 flex items-center gap-1.5">
+                  <span
+                    class="px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono text-[10px]">B</span>
+                  <span>Nhánh cần merge (Merge vào nhánh này):</span>
+                </span>
+                <button type="button" onclick="setMergeTargetToCurrent('be')"
+                  class="text-[10px] text-emerald-400 hover:text-white underline cursor-pointer"
+                  title="Chọn ngay nhánh hiện tại làm nhánh đích">
+                  Chọn nhánh đang đứng
+                </button>
+              </div>
+              <div class="flex items-center gap-2 pt-0.5">
+                <input type="hidden" id="beMergeTargetSelect" value="" />
+                <div class="relative flex-1" id="beMergeTargetDropdownWrap">
+                  <button type="button" id="beMergeTargetTrigger" onclick="toggleMergeDropdown('be', 'target')"
+                    class="merge-trigger-btn w-full flex items-center justify-between bg-[#101e38] border border-emerald-700/80 rounded px-2.5 py-1.5 text-xs font-mono text-emerald-300 font-bold focus:outline-none focus:border-emerald-400 cursor-pointer shadow-sm text-left">
+                    <span id="beMergeSelectedTargetText" class="truncate">Đang nạp...</span>
+                    <svg class="w-3.5 h-3.5 text-emerald-400 ml-2 shrink-0 transition-transform duration-150"
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  <!-- Dropdown Menu with Search -->
+                  <div id="beMergeTargetDropdownMenu"
+                    class="hidden absolute left-0 right-0 top-full mt-1 z-40 bg-[#101e38] border border-emerald-700/80 rounded-md shadow-2xl p-2 space-y-2">
+                    <div class="relative">
+                      <input type="text" id="beMergeTargetSearchInput" oninput="filterMergeDropdown('be', 'target')"
+                        placeholder="Tìm kiếm tên nhánh đích..."
+                        class="w-full bg-[#0e192c] border border-emerald-800 rounded px-2.5 py-1.5 text-xs font-mono text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-400" />
+                      <svg class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2 pointer-events-none" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <div id="beMergeTargetOptionsList"
+                      class="max-h-56 overflow-y-auto space-y-0.5 text-xs font-mono pr-0.5">
+                      <!-- Rendered by JS -->
+                    </div>
+                  </div>
+                </div>
+                <button type="button"
+                  onclick="copyToClipboard(document.getElementById('beMergeSelectedTargetText').textContent.trim())"
+                  class="p-1 hover:bg-[#182c4f] text-slate-400 hover:text-white rounded transition text-xs shrink-0"
+                  title="Sao chép tên nhánh">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Tùy chọn Merge & Commit message -->
+            <div class="space-y-2 text-xs pt-1">
+              <div class="flex flex-wrap items-center justify-between gap-3 text-slate-200">
+                <label class="flex items-center gap-2 cursor-pointer select-none text-slate-200 font-medium">
+                  <input type="checkbox" id="beMergeNoFF"
+                    class="w-3.5 h-3.5 rounded border-[#244170] accent-emerald-500 cursor-pointer" />
+                  <span>Tạo commit riêng (--no-ff)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer select-none text-slate-200 font-medium">
+                  <input type="checkbox" id="beMergeReturnCurrent"
+                    class="w-3.5 h-3.5 rounded border-[#244170] accent-emerald-500 cursor-pointer" />
+                  <span>Quay về nhánh cũ sau khi merge</span>
+                </label>
+              </div>
+              <input type="text" id="beMergeCommitMsg" placeholder="Nội dung commit message (tùy chọn)..."
+                class="w-full bg-[#0e192c] border border-[#244170] rounded px-3 py-1.5 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-400" />
+            </div>
+
+            <!-- Nút bấm thực hiện Merge -->
+            <div class="pt-1">
+              <button id="btnBeDoMerge" type="button" onclick="doExecuteMerge('be')"
+                class="ant-btn ant-btn-primary w-full h-[34px] text-xs font-semibold flex items-center justify-center gap-2 shadow-sm bg-emerald-600 hover:bg-emerald-500 border-emerald-500">
+                <span id="beMergeSpinner" class="hidden">
+                  <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                  </svg>
+                </span>
+                <svg class="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M8 7v10M8 7a3 3 0 100-6 3 3 0 000 6zm0 10a3 3 0 100 6 3 3 0 000-6zm8-4a3 3 0 100-6 3 3 0 000 6zm0 0v2a4 4 0 01-4 4H8" />
+                </svg>
+                <span id="beMergeBtnText">Thực hiện Merge Backend</span>
+              </button>
+            </div>
+
+            <!-- Banner Xung đột & Log UI nếu xảy ra conflict (Backend) -->
+            <div id="beMergeConflictBox"
+              class="hidden bg-amber-950/40 border border-amber-600/70 rounded-lg p-3.5 space-y-3 text-xs shadow-lg">
+              <div
+                class="flex items-center justify-between text-amber-300 font-bold text-[13px] border-b border-amber-700/50 pb-2">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-amber-400 shrink-0 animate-pulse" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  <span>Xảy ra xung đột mã nguồn (Merge Conflict)!</span>
+                </span>
+                <span
+                  class="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-900/60 border border-amber-600 text-amber-200">Cần
+                  xử lý</span>
+              </div>
+
+              <!-- Danh sách file bị conflict -->
+              <div class="space-y-1">
+                <span class="text-[11px] text-amber-200 font-semibold block">Các file bị xung đột:</span>
+                <div id="beMergeConflictFiles"
+                  class="font-mono text-[11px] text-amber-200/90 bg-black/50 p-2.5 rounded border border-amber-800/60 max-h-32 overflow-y-auto space-y-1">
+                </div>
+              </div>
+
+              <!-- LOG UI CHI TIẾT XUNG ĐỘT (CONSOLE OUTPUT) -->
+              <div class="space-y-1">
+                <div class="flex items-center justify-between text-[11px] text-amber-300 font-semibold">
+                  <span class="flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 6h16M4 12h16M4 18h7" />
+                    </svg>
+                    <span>Log UI chi tiết xung đột (Git Console Output):</span>
+                  </span>
+                  <button type="button"
+                    onclick="copyToClipboard(document.getElementById('beMergeConflictLogText').textContent)"
+                    class="text-[10px] text-slate-300 hover:text-white px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 transition cursor-pointer"
+                    title="Sao chép toàn bộ log xung đột">
+                    Sao chép log
+                  </button>
+                </div>
+                <pre id="beMergeConflictLogText"
+                  class="font-mono text-[11px] text-amber-200/95 bg-[#090d16] border border-amber-800/80 p-3 rounded-md max-h-56 overflow-y-auto whitespace-pre-wrap shadow-inner leading-relaxed select-text"></pre>
+              </div>
+
+              <!-- Nút hành động giải quyết xung đột -->
+              <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-800/60">
+                <div class="flex items-center gap-2">
+                  <button id="btnBeMergeAbort" type="button" onclick="doMergeAbort('be')"
+                    class="ant-btn ant-btn-danger h-[30px] px-3.5 text-xs font-semibold flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span>Hủy bỏ Merge (--abort)</span>
+                  </button>
+                  <button type="button" onclick="doAbortConflictAction('be')"
+                    class="ant-btn ant-btn-danger h-[30px] px-3.5 text-xs font-semibold flex items-center gap-1.5"
+                    title="Hủy bỏ mọi thay đổi và quay lại trạng thái ban đầu">
+                    <span>Trở lại trạng thái chưa merge hay cherry-pick</span>
+                  </button>
+                </div>
+                <button id="btnBeMergeContinue" type="button" onclick="doMergeContinue('be')"
+                  class="ant-btn ant-btn-primary h-[30px] px-3.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 border-emerald-500 flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Đã sửa xong & Tiếp tục (--continue)</span>
+                </button>
+              </div>
+
+              <!-- Interactive VS Code Terminal Conflict Resolver -->
+              <div id="beMergeConflictTerminal" class="mt-3"></div>
+            </div>
+
+            <!-- Banner Thành công & Log Backend -->
+            <div id="beMergeSuccessBox"
+              class="hidden bg-emerald-950/40 border border-emerald-600/70 rounded-lg p-3.5 space-y-3 text-xs shadow-md">
+              <div
+                class="flex items-center justify-between text-emerald-300 font-bold text-xs border-b border-emerald-700/50 pb-2">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span id="beMergeSuccessTitle">Merge Backend thành công!</span>
+                </span>
+                <button type="button" onclick="document.getElementById('beMergeSuccessBox').classList.add('hidden')"
+                  class="text-slate-400 hover:text-white text-[11px]">Đóng</button>
+              </div>
+              <div id="beMergeSuccessText" class="text-slate-200 text-xs"></div>
+              <!-- Log output thành công -->
+              <div class="space-y-1">
+                <span class="text-[10px] text-slate-400 block font-semibold">Log chi tiết:</span>
+                <pre id="beMergeSuccessLogText"
+                  class="font-mono text-[11px] text-slate-200 bg-[#090d16] border border-[#244170] p-2.5 rounded max-h-36 overflow-y-auto whitespace-pre-wrap select-text"></pre>
+              </div>
+              <div class="flex items-center justify-between gap-2 pt-1 border-t border-emerald-800/60">
+                <span class="text-[11px] text-slate-400">Đẩy nhánh đích vừa merge lên Remote:</span>
+                <div class="flex items-center gap-2">
+                  <button id="btnBeMergeViewDiff" type="button" onclick="toggleMergeDiffView('be')"
+                    title="Xem chi tiết các thay đổi vừa được merge (Diff / Files)"
+                    class="ant-btn h-[28px] px-2.5 text-xs font-semibold bg-[#10223d] hover:bg-[#1a3660] text-emerald-300 hover:text-emerald-200 border border-emerald-500/50 flex items-center gap-1.5 transition cursor-pointer">
+                    <svg class="w-3.5 h-3.5 shrink-0 fill-none stroke-current" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    <span>Xem thay đổi đã merge</span>
+                  </button>
+                  <button id="btnBeMergePush" type="button" onclick="doMergePush('be')"
+                    class="ant-btn ant-btn-primary h-[28px] px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 border-emerald-500 flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                      <path
+                        d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z" />
+                    </svg>
+                    <span>Push nhánh đích</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Khu vực hiển thị Diff & File đã merge khi bấm icon con mắt -->
+              <div id="beMergeDiffContainer" class="hidden pt-2 border-t border-emerald-800/60 space-y-2">
+                <div class="flex items-center justify-between text-[11px] text-slate-300">
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-emerald-400 flex items-center gap-1.5">
+                      <svg class="w-3.5 h-3.5 stroke-current fill-none" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                      </svg>
+                      <span>Nội dung thay đổi đã merge (Diff):</span>
+                    </span>
+                    <span id="beMergeDiffStat" class="text-[10px] text-slate-400 font-mono"></span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button id="btnBeCopyMergeDiff" type="button" onclick="copyMergeDiff('be')"
+                      class="text-[10px] text-emerald-400 hover:text-emerald-300 font-sans px-2 py-0.5 rounded border border-emerald-500/30 hover:bg-emerald-500/10 transition cursor-pointer">
+                      Sao chép diff
+                    </button>
+                    <button id="btnBeCollapseMergeDiff" type="button" onclick="toggleMergeDiffView('be')"
+                      class="text-[10px] text-slate-400 hover:text-white font-sans px-2 py-0.5 rounded hover:bg-white/5 transition cursor-pointer">
+                      Thu gọn
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Danh sách file thay đổi -->
+                <div id="beMergeDiffFiles" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto"></div>
+
+                <!-- Khung code diff cuộn được -->
+                <div id="beMergeDiffBody" class="sync-diff-wrapper rounded-md bg-[#1e1e1e] border border-[#333333] max-h-[380px] min-h-[100px] overflow-auto text-[11.5px] font-mono leading-relaxed shadow-inner">
+                  <div class="text-slate-400 text-xs p-3 text-center">Chưa có dữ liệu diff.</div>
+                </div>
+              </div>
+              <!-- Nút quay về nhánh cũ sau khi push thành công -->
+              <div id="beMergeReturnBranchWrap"
+                class="hidden pt-2 border-t border-emerald-800/60 flex flex-wrap items-center justify-between gap-2">
+                <span
+                  class="text-[11px] text-emerald-300 flex items-center gap-1.5 font-medium whitespace-nowrap shrink-0">
+                  <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Đã push code lên remote thành công.</span>
+                </span>
+                <button id="btnBeReturnPrevBranch" type="button" onclick="doReturnToPrevBranch('be')"
+                  class="ant-btn h-[28px] px-3 text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white border-sky-500 flex items-center gap-1.5 shadow-sm max-w-full">
+                  <svg class="w-3.5 h-3.5 fill-none stroke-current shrink-0" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  <span id="btnBeReturnPrevBranchText" class="truncate max-w-[280px] sm:max-w-[340px]">Quay về lại nhánh
+                    lúc nãy</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Banner Lỗi chung (Backend) -->
+            <div id="beMergeErrorBox"
+              class="hidden bg-rose-950/40 border border-rose-600/70 rounded-lg p-3 space-y-2 text-xs">
+              <div class="flex items-center justify-between text-rose-300 font-bold">
+                <span class="flex items-center gap-1.5">
+                  <svg class="w-4 h-4 fill-current text-rose-400 shrink-0" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  <span>Không thể thực hiện Merge:</span>
+                </span>
+                <button type="button" onclick="document.getElementById('beMergeErrorBox').classList.add('hidden')"
+                  class="text-rose-400 hover:text-white text-[11px]">Đóng</button>
+              </div>
+              <pre id="beMergeErrorDetail"
+                class="font-mono text-[11px] text-rose-200/90 bg-black/40 p-2.5 rounded whitespace-pre-wrap max-h-36 overflow-y-auto"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+

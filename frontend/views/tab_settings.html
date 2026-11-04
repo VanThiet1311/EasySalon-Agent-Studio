@@ -1,0 +1,1731 @@
+  <!-- TAB 5: CÀI ĐẶT HỆ THỐNG & AI ENGINE (SETTINGS PAGE) -->
+  <main id="view_settings" class="hidden flex-1 max-w-[1550px] w-full mx-auto p-4 md:p-6 space-y-5">
+    <!-- Action Bar trên cùng -->
+    <div
+      class="flex flex-wrap items-center justify-between gap-4 bg-[#101e38] border border-[#244170] rounded-lg p-4 shadow-sm">
+      <div class="flex items-center gap-3">
+        <div
+          class="w-9 h-9 rounded-lg bg-[#182c4f] border border-[#244170] flex items-center justify-center text-[#199cff]">
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+            <path
+              d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-sm font-semibold text-white">Cài đặt hệ thống & AI Engine</h2>
+          <p class="text-xs text-slate-400">Tùy chỉnh Mức độ suy luận (Reasoning Effort), Động cơ thực thi AI (AI
+            Execution Engine) và Môi trường hệ thống</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnSaveSettingsPage" onclick="handleSaveSettingsClick()"
+          class="ant-btn text-xs h-[34px] px-5 font-bold shadow-sm inline-flex items-center gap-1.5 rounded-lg transition-all duration-200 bg-slate-700/60 hover:bg-slate-700 border border-slate-600/50 text-slate-400 select-none cursor-not-allowed">
+          <span id="btnSaveSettingsPageIcon">✓</span>
+          <span id="btnSaveSettingsPageText">Lưu cài đặt</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Bố cục dạng Sidebar bên trái + Content Panel bên phải -->
+    <div class="flex flex-col md:flex-row gap-5 items-start">
+      <!-- SIDEBAR ĐIỀU HƯỚNG BÊN TRÁI -->
+      <aside
+        class="w-full md:w-64 lg:w-72 shrink-0 bg-[#101e38] border border-[#244170] rounded-xl p-3 shadow-sm space-y-2">
+        <div class="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+          <span>Danh mục cài đặt</span>
+        </div>
+
+        <!-- Tab 1: AI Execution Engine (Động cơ thực thi AI) - Lên đầu tiên -->
+        <button type="button" id="settingsNav_engine" onclick="switchSettingsSidebarTab('engine')"
+          class="settings-sidebar-btn is-active w-full text-left p-3 rounded-lg border transition flex items-start gap-3 bg-blue-600 border-blue-500 text-white shadow-md cursor-pointer select-none">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold">AI Execution Engine</span>
+              <span id="settingsNavDirty_engine" class="w-2 h-2 rounded-full bg-amber-400 hidden shrink-0 self-center shadow-[0_0_6px_rgba(251,191,36,0.6)]" title="Có thay đổi chưa lưu"></span>
+            </div>
+            <div class="settings-nav-desc text-[11px] text-white/80 truncate mt-0.5">Gemini CLI / OpenCode 9router</div>
+          </div>
+        </button>
+
+        <!-- Tab 2: Model AI (Mô hình AI) -->
+        <button type="button" id="settingsNav_model" onclick="switchSettingsSidebarTab('model')"
+          class="settings-sidebar-btn w-full text-left p-3 rounded-lg border transition flex items-start gap-3 bg-[#0c1628] border-[#244170]/40 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer select-none">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold">Model AI</span>
+              <span id="settingsNavDirty_model" class="w-2 h-2 rounded-full bg-amber-400 hidden shrink-0 self-center shadow-[0_0_6px_rgba(251,191,36,0.6)]" title="Có thay đổi chưa lưu"></span>
+            </div>
+            <div class="settings-nav-desc text-[11px] text-slate-400 truncate mt-0.5">Mô hình OpenCode & 9router</div>
+          </div>
+        </button>
+
+        <!-- Tab 3: Effort (Mức độ suy luận / tư duy) -->
+        <button type="button" id="settingsNav_effort" onclick="switchSettingsSidebarTab('effort')"
+          class="settings-sidebar-btn w-full text-left p-3 rounded-lg border transition flex items-start gap-3 bg-[#0c1628] border-[#244170]/40 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer select-none">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold">Effort</span>
+              <span id="settingsNavDirty_effort" class="w-2 h-2 rounded-full bg-amber-400 hidden shrink-0 self-center shadow-[0_0_6px_rgba(251,191,36,0.6)]" title="Có thay đổi chưa lưu"></span>
+            </div>
+            <div class="settings-nav-desc text-[11px] text-slate-400 truncate mt-0.5">Mức độ suy luận (Reasoning)</div>
+          </div>
+        </button>
+
+        <!-- Tab 3: MCP Servers (Model Context Protocol: Jira, Tools, Database) -->
+        <button type="button" id="settingsNav_mcp" onclick="switchSettingsSidebarTab('mcp')"
+          class="settings-sidebar-btn w-full text-left p-3 rounded-lg border transition flex items-start gap-3 bg-[#0c1628] border-[#244170]/40 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer select-none">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold">MCP Servers</span>
+              <span id="mcpServerCountBadge" class="settings-nav-badge">0</span>
+            </div>
+            <div class="settings-nav-desc text-[11px] text-slate-400 truncate mt-0.5">Jira, Database, Filesystem & APIs
+            </div>
+          </div>
+        </button>
+
+        <!-- Tab 4: Cấu hình API (Cắm API Key vào để xài) -->
+        <button type="button" id="settingsNav_api" onclick="switchSettingsSidebarTab('api')"
+          class="settings-sidebar-btn w-full text-left p-3 rounded-lg border transition flex items-start gap-3 bg-[#0c1628] border-[#244170]/40 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer select-none">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold">Cấu hình API</span>
+              <span id="settingsNavDirty_api" class="w-2 h-2 rounded-full bg-amber-400 hidden shrink-0 self-center shadow-[0_0_6px_rgba(251,191,36,0.6)]" title="Có thay đổi chưa lưu"></span>
+            </div>
+            <div class="settings-nav-desc text-[11px] text-slate-400 truncate mt-0.5">Gemini, Claude, OpenAI, Custom API
+            </div>
+          </div>
+        </button>
+
+        <!-- Tab 4: Environment & CLI (Môi trường & Hệ thống) -->
+        <button type="button" id="settingsNav_env" onclick="switchSettingsSidebarTab('env')"
+          class="settings-sidebar-btn w-full text-left p-3 rounded-lg border transition flex items-start gap-3 bg-[#0c1628] border-[#244170]/40 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer select-none">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold">Environment & CLI</span>
+              <span id="settingsNavDirty_env" class="w-2 h-2 rounded-full bg-amber-400 hidden shrink-0 self-center shadow-[0_0_6px_rgba(251,191,36,0.6)]" title="Có thay đổi chưa lưu"></span>
+            </div>
+            <div class="settings-nav-desc text-[11px] text-slate-400 truncate mt-0.5">Workspace & Phiên bản CLI</div>
+          </div>
+        </button>
+      </aside>
+
+      <!-- KHUNG NỘI DUNG CÀI ĐẶT BÊN PHẢI -->
+      <div class="flex-1 min-w-0 w-full">
+        <!-- PANEL 1: AI EXECUTION ENGINE (BỘ MÁY THỰC THI AI) -->
+        <div id="settingsPanel_engine" class="settings-content-panel space-y-4">
+          <!-- Card: Chọn AI Engine -->
+          <div class="bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xs font-bold text-white uppercase tracking-wider">
+                  AI Execution Engine (Bộ máy thực thi)
+                </h3>
+                <p class="text-[11px] text-slate-400 mt-0.5">Chọn phương thức và môi trường thực thi chạy ngầm cho các
+                  tác vụ lập trình & fix bug (chạy native trực tiếp qua Gemini CLI persistent stream hoặc OpenCode CLI
+                  kết nối proxy 9router nội bộ). Hệ thống tự động chuyển đổi phương thức thực thi ngay khi chọn.</p>
+              </div>
+              <span id="pageCurrentEngineTag"
+                class="text-[10px] font-sans px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 uppercase font-semibold tracking-wider">GEMINI
+                CLI</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Engine Option 1: Gemini CLI -->
+              <label id="page_card_engine_gemini_cli" onclick="onPageEngineChange('gemini_cli')"
+                class="engine-card is-active cursor-pointer flex flex-col justify-between p-4 rounded-xl border transition space-y-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex items-center gap-2.5">
+                    <input type="radio" name="page_engine" value="gemini_cli" checked class="mt-0.5 cursor-pointer"
+                      onchange="onPageEngineChange('gemini_cli')">
+                    <div>
+                      <span class="engine-card-title text-sm font-bold flex items-center gap-1.5">Gemini CLI</span>
+                      <span class="engine-card-sub text-[11px] block font-sans">Antigravity Native CLI (<code
+                          class="font-mono text-[10px]">agy</code>)</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" id="btnPageStartGeminiCli"
+                      onclick="event.stopPropagation(); startGeminiCliBackground(this);"
+                      class="text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center gap-1 cursor-pointer"
+                      title="Antigravity CLI native daemon chạy ngầm (agy remote-control start)">
+                      <span>▶ Chạy ngầm</span>
+                    </button>
+                    <span id="pageGeminiCliStatusPill"
+                      class="engine-card-badge text-[10px] font-sans font-medium px-2 py-0.5 rounded uppercase">Đang
+                      kiểm tra...</span>
+                  </div>
+                </div>
+                <p class="engine-card-desc text-xs leading-relaxed">
+                  Chạy trực tiếp qua Antigravity CLI native với persistent background terminal. Hỗ trợ đầy đủ các mức độ
+                  suy luận (Reasoning Effort), stream chi tiết từng tool call qua NDJSON và quản lý tiến trình ngầm.
+                </p>
+                <div class="engine-card-footer pt-2 border-t flex items-center justify-between text-[11px] font-sans">
+                  <span>Trạng thái: <strong id="pageGeminiCliStatusText" class="engine-card-status font-semibold">Đang
+                      kiểm tra...</strong></span>
+                  <span class="text-[11px] text-slate-400">Persistent Process</span>
+                </div>
+              </label>
+
+              <!-- Engine Option 2: OpenCode (9router) -->
+              <label id="page_card_engine_opencode" onclick="onPageEngineChange('opencode')"
+                class="engine-card cursor-pointer flex flex-col justify-between p-4 rounded-xl border transition space-y-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex items-center gap-2.5">
+                    <input type="radio" name="page_engine" value="opencode" class="mt-0.5 cursor-pointer"
+                      onchange="onPageEngineChange('opencode')">
+                    <div>
+                      <span class="engine-card-title text-sm font-bold flex items-center gap-1.5">OpenCode CLI</span>
+                      <span class="engine-card-sub text-[11px] block font-sans">Proxy 9router Local</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" id="btnPageStartNineRouter"
+                      onclick="event.stopPropagation(); startNineRouterBackground(this);"
+                      class="text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center gap-1 cursor-pointer"
+                      title="Khởi động 9router proxy chạy ngầm trên cổng 20128">
+                      <span>▶ Chạy ngầm</span>
+                    </button>
+                    <span id="pageNineRouterStatusPill"
+                      class="engine-card-badge text-[10px] font-sans font-medium px-2 py-0.5 rounded uppercase">9router:
+                      ...</span>
+                  </div>
+                </div>
+                <p class="engine-card-desc text-xs leading-relaxed">
+                  Chạy thông qua OpenCode v2.2.0 kết nối với proxy 9router nội bộ (<code
+                    class="engine-code px-1 py-0.5 rounded font-mono">127.0.0.1:20128</code>). Tốc độ cực nhanh như chạy
+                  trực tiếp trên terminal, session độc lập cách ly cho từng tác vụ.
+                </p>
+                <div class="engine-card-footer pt-2 border-t flex items-center justify-between text-[11px] font-sans">
+                  <span>Trạng thái: <strong id="pageNineRouterStatusText" class="engine-card-status font-semibold">Đang
+                      kiểm tra...</strong></span>
+                  <span class="text-[11px] text-slate-400">Port 20128</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Chi tiết cấu hình Engine (Chỉ hiển thị cho Gemini CLI) -->
+          <div id="page_section_gemini_cli" class="bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-3">
+            <div class="flex items-center justify-between text-xs font-semibold text-slate-300">
+              <span>Trạng thái Gemini CLI Native:</span>
+              <span class="font-mono text-emerald-400">agy --active</span>
+            </div>
+            <div
+              class="bg-[#0c1628] rounded-lg p-3 text-xs text-slate-300 font-sans space-y-1.5 border border-[#244170]/60">
+              <div>Provider: <strong class="text-cyan-300">Antigravity Multi-Agent Harness</strong></div>
+              <div>Protocol: <strong class="text-white">NDJSON Persistent Background Stream</strong></div>
+              <div>Isolation: <strong class="text-emerald-400">Tách biệt 2 process Frontend (agy) & Backend
+                  (agy)</strong></div>
+              <div class="pt-2.5 border-t border-[#244170]/50 space-y-2">
+                <div class="flex items-center justify-between text-[11px] font-sans">
+                  <span class="text-slate-400 font-medium">Lệnh thực thi ngầm:</span>
+                  <button type="button" id="btnCopyGeminiCliCmd"
+                    onclick="copyToClipboard('agy --dangerously-skip-permissions --mode accept-edits --effort <level> --output-format stream-json')"
+                    class="btn-copy-gemini-cmd px-2.5 py-1 rounded-md text-[11px] font-sans transition flex items-center gap-1.5 cursor-pointer select-none"
+                    title="Sao chép lệnh CLI chạy ngầm">
+                    <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2"
+                      viewBox="0 0 24 24">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    <span>Sao chép lệnh</span>
+                  </button>
+                </div>
+                <div
+                  class="gemini-cli-cmd-box flex items-center gap-2.5 px-3 py-2 rounded-lg font-mono text-[11px] overflow-x-auto select-all cursor-text">
+                  <span class="cmd-prompt font-bold select-none text-xs shrink-0">$</span>
+                  <code
+                    class="whitespace-nowrap font-mono tracking-tight"><span class="cmd-bin">agy</span> <span class="cmd-flag">--dangerously-skip-permissions</span> <span class="cmd-flag">--mode</span> <span class="cmd-arg">accept-edits</span> <span class="cmd-flag">--effort</span> <span class="cmd-param">&lt;level&gt;</span> <span class="cmd-flag">--output-format</span> <span class="cmd-arg">stream-json</span></code>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="page_section_opencode" class="hidden"></div>
+        </div>
+
+        <!-- PANEL 2: MODEL AI (CHỌN MÔ HÌNH AI) -->
+        <div id="settingsPanel_model" class="settings-content-panel hidden space-y-4">
+          <div class="bg-[#101e38] border border-[#244170] rounded-xl p-5 shadow-sm space-y-5">
+            <!-- Header -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#244170]/60">
+              <div>
+                <h3 class="text-xs font-bold text-white uppercase tracking-wider">
+                  Mô hình AI (Model AI)
+                </h3>
+                <p id="pageModelTabSubHeader" class="text-[11px] text-slate-400 mt-1 font-sans">
+                  Chọn mô hình AI kết nối qua proxy 9router nội bộ (127.0.0.1:20128) để thực thi lập trình &amp; fix bug.
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="pageModelEndpointBadge" class="inline-flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1 rounded-md bg-[#0c1628] border border-[#244170] text-emerald-400 font-medium">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span id="pageModelEndpointText">127.0.0.1:20128</span>
+                </span>
+                <button type="button" onclick="refreshCurrentEngineModels()"
+                  class="px-3 py-1.5 text-xs font-sans font-medium rounded-lg bg-[#1677ff] hover:bg-[#0958d9] text-white transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  title="Tải lại danh sách mô hình">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span>Làm mới danh sách</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Thẻ mô hình đang kích hoạt -->
+            <div class="opencode-active-model-card p-4 rounded-xl border space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#244170]/40">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"></span>
+                  <span class="text-xs font-semibold text-slate-200 opencode-active-label">Mô hình đang kích hoạt:</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="activeModelEffortBadge"
+                    class="text-[10px] font-sans font-medium px-2.5 py-0.5 rounded bg-blue-900/60 text-blue-200 border border-blue-700/60">Suy luận: HIGH</span>
+                  <span id="activeModelEngineBadge"
+                    class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-[#182c4f] text-slate-300 border border-[#244170]">9router
+                    Proxy</span>
+                </div>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div class="min-w-0 flex-1">
+                  <code id="activeModelDisplayBadge"
+                    class="font-mono text-xs md:text-sm font-semibold px-2.5 py-1 rounded bg-[#0958d9]/30 text-sky-300 border border-sky-600/50 select-all tracking-tight inline-block">ag/gemini-3.8-flash-high</code>
+                  <p id="pageModelActiveDesc" class="text-[11px] text-slate-400 mt-1.5 font-sans leading-snug">
+                    Kết nối 9router proxy (port 20128) &bull; Định danh OpenCode: <span id="activeModelOpencodeFullId" class="font-mono text-slate-300">9router/ag/gemini-3.8-flash-high</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Form chọn mô hình -->
+            <div class="space-y-2">
+              <label id="pageModelSelectLabel" for="pageSettingsOpencodeModelSelect" class="block text-xs font-semibold text-slate-200 font-sans">
+                Chọn mô hình:
+              </label>
+              <div class="relative">
+                <select id="pageSettingsOpencodeModelSelect" onchange="onModelDropdownChange(this.value)"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg px-3 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#1677ff] focus:ring-1 focus:ring-[#1677ff] font-sans cursor-pointer transition">
+                  <option value="">Đang tải danh sách mô hình...</option>
+                </select>
+              </div>
+              <p id="pageModelSelectHint" class="text-[11px] text-slate-400 font-sans">
+                Hệ thống tự động đồng bộ mức suy luận (Effort) với mô hình đã chọn.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL 3: EFFORT (MỨC ĐỘ SUY LUẬN) -->
+        <div id="settingsPanel_effort" class="settings-content-panel hidden space-y-4">
+          <div class="bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-xs font-bold text-white uppercase tracking-wider">
+                  Mức độ suy luận (Reasoning Effort)
+                </h3>
+                <p class="text-[11px] text-slate-400 mt-1 font-sans">
+                  Quy định độ sâu tư duy và lượng token suy nghĩ (thinking tokens) của AI trước khi đưa ra câu trả lời
+                  hoặc viết code. Mức suy luận càng cao giúp AI phân tích logic và giải quyết các bài toán phức tạp
+                  chuẩn xác hơn.
+                </p>
+              </div>
+            </div>
+
+            <!-- Bộ máy thực thi AI (AI Execution Engine: Hiển thị trạng thái đang áp dụng, read-only tại tab Effort) -->
+            <div class="pb-3 border-b border-slate-200 dark:border-[#244170]/40 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-[11px] font-semibold text-slate-300">
+                    Bộ máy thực thi AI (AI Execution Engine):
+                  </div>
+                  <p class="text-[11px] text-slate-400 mt-0.5">
+                    Bộ máy đang áp dụng cho phiên làm việc. Để thay đổi bộ máy thực thi, vui lòng chuyển sang tab <button type="button" onclick="switchSettingsSidebarTab('engine')" class="text-sky-400 hover:underline font-semibold font-sans">AI Execution Engine</button>.
+                  </p>
+                </div>
+                <span id="quickEngineTag"
+                  class="text-[10px] font-sans px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 uppercase font-semibold tracking-wider">GEMINI
+                  CLI</span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <!-- Option 1: Gemini CLI (Read-only / disabled tại tab Effort) -->
+                <div id="quick_card_engine_gemini_cli"
+                  class="engine-card is-active flex items-start gap-3 p-3 rounded-xl border transition select-none cursor-default">
+                  <input type="radio" name="quick_engine" value="gemini_cli" checked disabled class="mt-0.5 cursor-not-allowed">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                      <span class="engine-card-title text-xs font-bold">Google Gemini CLI</span>
+                    </div>
+                    <p class="engine-card-desc text-[11px] mt-1 leading-snug">Chạy trực tiếp qua Antigravity CLI native với persistent stream terminal.</p>
+                  </div>
+                </div>
+
+                <!-- Option 2: OpenCode (9router) (Read-only / disabled tại tab Effort) -->
+                <div id="quick_card_engine_opencode"
+                  class="engine-card flex items-start gap-3 p-3 rounded-xl border transition select-none opacity-50 cursor-not-allowed">
+                  <input type="radio" name="quick_engine" value="opencode" disabled class="mt-0.5 cursor-not-allowed">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                      <span class="engine-card-title text-xs font-bold">OpenCode CLI (9router)</span>
+                    </div>
+                    <p class="engine-card-desc text-[11px] mt-1 leading-snug">Chạy qua OpenCode kết nối proxy 9router (127.0.0.1:20128), điều phối qua mô hình Gemini.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Hộp cấu hình nhanh mô hình OpenCode khi chọn OpenCode -->
+              <div id="quickOpencodeSection"
+                class="settings-opencode-box hidden space-y-2.5 transition-all duration-200">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="opencode-box-title font-sans font-semibold">Mô hình OpenCode (truy vấn động từ 9router):</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="opencode-box-badge text-[10px] font-mono px-2 py-0.5 rounded font-medium">Port 20128</span>
+                  </div>
+                </div>
+                <div class="opencode-active-model-card p-3 rounded-lg">
+                  <div class="flex items-start sm:items-center gap-2.5 min-w-0">
+                    <span
+                      class="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0 mt-1 sm:mt-0 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
+                      title="Mô hình đang hoạt động"></span>
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-[11px] font-sans font-medium text-slate-300 opencode-active-label">Mô hình đang kích hoạt:</span>
+                        <code id="quickOpencodeActiveModel"
+                          class="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-[#0958d9]/30 text-sky-300 border border-sky-600/50 select-all tracking-tight">ag/gemini-3.8-flash-high</code>
+                        <span id="quickOpencodeEffortBadge"
+                          class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-blue-900/60 text-blue-200 border border-blue-700/60">Suy luận: High</span>
+                      </div>
+                      <p id="quickOpencodeActiveDesc"
+                        class="text-[11px] text-slate-400 opencode-active-desc mt-1 leading-snug font-sans">
+                        Mô hình thực thi tự động áp dụng mức suy luận đã chọn (Low / Medium / High) bên dưới.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <!-- Dropdown ẩn để duy trì state đồng bộ ngầm mà không hiển thị thao tác tại tab này -->
+                <select id="quickOpencodeModelSelect" class="hidden" onchange="onOpenCodeModelChange(this.value)">
+                  <option value="">Đang tải danh sách mô hình từ 9router...</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Panel: Gemini (Low, Medium, High) -->
+            <div id="tab_panel_model_gemini" class="model-family-panel space-y-4">
+              <span id="tab_btn_model_gemini" class="hidden"></span>
+              <div>
+                <div class="text-[11px] font-semibold text-slate-300 mb-2.5">
+                  <span id="pageEffortSectionTitle">Mức độ suy luận cho Gemini:</span>
+                </div>
+                <!-- Reasoning Effort Cards Grid cho Gemini: ĐÚNG 3 MỨC -->
+                <div id="pageEffortCardsGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <label id="page_card_effort_low" onclick="onPageEffortChange('low')"
+                    class="effort-card cursor-pointer flex items-start gap-3 p-3.5 rounded-xl border transition">
+                    <input type="radio" name="page_effort" value="low" class="cursor-pointer"
+                      onchange="onPageEffortChange('low')">
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center justify-between">
+                        <span class="effort-card-title text-xs font-bold">Low</span>
+                        <span class="effort-card-badge text-[10px] font-sans font-medium px-1.5 py-0.5 rounded">Tốc độ
+                          cao</span>
+                      </div>
+                      <p class="effort-card-desc text-[11px] mt-1 leading-snug">Ít thinking token, phản hồi tức thì. Phù
+                        hợp prompt ngắn hoặc khi đã rõ nguyên nhân.</p>
+                    </div>
+                  </label>
+
+                  <label id="page_card_effort_medium" onclick="onPageEffortChange('medium')"
+                    class="effort-card cursor-pointer flex items-start gap-3 p-3.5 rounded-xl border transition">
+                    <input type="radio" name="page_effort" value="medium" class="cursor-pointer"
+                      onchange="onPageEffortChange('medium')">
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center justify-between">
+                        <span class="effort-card-title text-xs font-bold">Medium</span>
+                        <span class="effort-card-badge text-[10px] font-sans font-medium px-1.5 py-0.5 rounded">Cân
+                          bằng</span>
+                      </div>
+                      <p class="effort-card-desc text-[11px] mt-1 leading-snug">Mức suy nghĩ vừa phải, cân bằng giữa
+                        thời gian phản hồi và tính chính xác.</p>
+                    </div>
+                  </label>
+
+                  <label id="page_card_effort_high" onclick="onPageEffortChange('high')"
+                    class="effort-card is-active cursor-pointer flex items-start gap-3 p-3.5 rounded-xl border transition">
+                    <input type="radio" name="page_effort" value="high" checked class="cursor-pointer"
+                      onchange="onPageEffortChange('high')">
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center justify-between">
+                        <span class="effort-card-title text-xs font-bold">High</span>
+                        <span class="effort-card-badge text-[10px] font-sans font-medium px-1.5 py-0.5 rounded">Khuyên
+                          dùng</span>
+                      </div>
+                      <p class="effort-card-desc text-[11px] mt-1 leading-snug">Suy luận nhiều bước, đào sâu qua nhiều
+                        file code để phát hiện nguyên nhân gốc rễ.</p>
+                    </div>
+                  </label>
+                </div>
+
+                <!-- Thông báo khi mô hình không hỗ trợ Thinking / Reasoning Effort (Free / Fixed models) -->
+                <div id="pageEffortNotSupportedNotice"
+                  class="hidden p-4 rounded-xl bg-[#0c1628] border border-[#244170]/70 text-slate-300 space-y-1.5">
+                  <div class="flex items-center gap-2 text-xs font-semibold text-white">
+                    <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                    <span id="pageEffortNoticeTitle">Mô hình hoạt động ở chế độ tiêu chuẩn (Standard Inference)</span>
+                  </div>
+                  <p id="pageEffortNoticeDesc" class="text-xs text-slate-300 leading-relaxed font-sans">
+                    Mô hình này không áp dụng mức suy luận (Thinking tokens). Toàn bộ token sẽ được xử lý trực tiếp ở
+                    tốc độ cao nhất theo thiết kế của mô hình.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hidden master select để tương thích 100% với backend / JS cũ -->
+            <select id="pageSettingsModelSelect" class="hidden">
+              <option value="gemini-3.8-flash-high">Gemini 3.8 Flash (High)</option>
+              <option value="gemini-3.8-flash-medium">Gemini 3.8 Flash (Medium)</option>
+              <option value="gemini-3.8-flash-low">Gemini 3.8 Flash (Low)</option>
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- PANEL 4: MCP SERVERS (MODEL CONTEXT PROTOCOL) -->
+        <div id="settingsPanel_mcp" class="settings-content-panel hidden space-y-4">
+          <!-- Card 1: Giới thiệu & Đồng bộ 2 Engine -->
+          <div class="bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 class="text-xs font-bold text-white uppercase tracking-wider">
+                  Model Context Protocol (MCP) Servers
+                </h3>
+                <p class="text-[11px] text-slate-400 mt-1">
+                  Kết nối AI Agent với các hệ thống và nguồn dữ liệu bên ngoài: Jira, GitHub, PostgreSQL, GitLab và các
+                  API tùy biến. Cấu hình được đồng bộ tự động thời gian thực cho cả <strong>Antigravity CLI (Gemini
+                    CLI)</strong> và <strong>OpenCode CLI</strong>.
+                </p>
+              </div>
+              <button type="button" id="btnOpenAddCustomMcp" onclick="selectMcpPreset('custom')"
+                class="hidden"></button>
+            </div>
+          </div>
+
+          <!-- Card 2: DANH MỤC CÁC CÔNG CỤ MCP HỖ TRỢ (PRESET CARDS) -->
+          <div class="bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-3.5">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#244170]/60 pb-2.5">
+              <div>
+                <h4 class="text-xs font-bold text-white uppercase tracking-wider">
+                  Chọn công cụ MCP để tích hợp
+                </h4>
+                <p class="text-[11px] text-slate-400 mt-0.5">
+                  Chọn thẻ bên dưới để xem bộ khung cấu hình, lệnh thực thi và danh sách biến môi trường cần thiết:
+                </p>
+              </div>
+            </div>
+
+            <!-- Grid 7 Cards: Jira, GitHub, PostgreSQL, MySQL, GitLab, Slack, Custom -->
+            <div id="mcpPresetCardsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+              <!-- 1. Card Atlassian Jira -->
+              <div id="cardPreset_jira" onclick="selectMcpPreset('jira')"
+                class="mcp-preset-card is-selected p-3 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
+                <div class="space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <!-- Authentic Atlassian Jira Logo SVG inside white background container -->
+                    <div class="w-7 h-7 rounded-lg bg-white p-1 flex items-center justify-center shadow-xs shrink-0">
+                      <svg viewBox="0 0 256 256" class="w-full h-full" preserveAspectRatio="xMidYMid">
+                        <defs>
+                          <linearGradient id="jira-card-grad-a" x1="98%" x2="58%" y1="0%" y2="40%">
+                            <stop offset="18%" stop-color="#0052cc" />
+                            <stop offset="100%" stop-color="#2684ff" />
+                          </linearGradient>
+                          <linearGradient id="jira-card-grad-b" x1="100%" x2="55%" y1="0%" y2="45%">
+                            <stop offset="18%" stop-color="#0052cc" />
+                            <stop offset="100%" stop-color="#2684ff" />
+                          </linearGradient>
+                        </defs>
+                        <path fill="#2684ff"
+                          d="M244.658 0H121.707a55.5 55.5 0 0 0 55.502 55.502h22.649V77.37c.02 30.625 24.841 55.447 55.466 55.467V10.666C255.324 4.777 250.55 0 244.658 0" />
+                        <path fill="url(#jira-card-grad-a)"
+                          d="M183.822 61.262H60.872c.019 30.625 24.84 55.447 55.466 55.467h22.649v21.938c.039 30.625 24.877 55.43 55.502 55.43V71.93c0-5.891-4.776-10.667-10.667-10.667" />
+                        <path fill="url(#jira-card-grad-b)"
+                          d="M122.951 122.489H0c0 30.653 24.85 55.502 55.502 55.502h22.72v21.867c.02 30.597 24.798 55.408 55.396 55.466V133.156c0-5.891-4.776-10.667-10.667-10.667" />
+                      </svg>
+                    </div>
+                    <span id="badgePreset_jira"
+                      class="text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400">Chưa
+                      kết nối</span>
+                  </div>
+                  <div>
+                    <h5 class="text-xs font-bold text-white">Atlassian Jira</h5>
+                    <p class="text-[10.5px] mcp-preset-desc line-clamp-2 mt-0.5">Issue, bug tracking
+                      &amp; sync comment</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. Card GitHub -->
+              <div id="cardPreset_github" onclick="selectMcpPreset('github')"
+                class="mcp-preset-card is-unconfigured p-3 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
+                <div class="space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <!-- Official GitHub Mark SVG (Responsive color for Light/Dark mode) -->
+                    <svg viewBox="0 0 24 24" class="w-6 h-6 shrink-0 github-logo-svg" fill="currentColor">
+                      <path fill-rule="evenodd" clip-rule="evenodd"
+                        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                    </svg>
+                    <span id="badgePreset_github"
+                      class="text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400">Chưa
+                      cấu hình</span>
+                  </div>
+                  <div>
+                    <h5 class="text-xs font-bold text-white">GitHub</h5>
+                    <p class="text-[10.5px] mcp-preset-desc line-clamp-2 mt-0.5">Pull Request, diff,
+                      review &amp; issue</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. Card PostgreSQL -->
+              <div id="cardPreset_postgres" onclick="selectMcpPreset('postgres')"
+                class="mcp-preset-card is-unconfigured p-3 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
+                <div class="space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <!-- Official PostgreSQL Elephant SVG -->
+                    <svg viewBox="0 0 256 264" class="w-6 h-6 shrink-0" preserveAspectRatio="xMidYMid">
+                      <path fill="#336791"
+                        d="M237.906 160.722c-29.74 6.135-31.785-3.934-31.785-3.934 31.4-46.593 44.527-105.736 33.2-120.211-30.904-39.485-84.399-20.811-85.292-20.327l-.287.052c-5.876-1.22-12.451-1.946-19.842-2.067-13.456-.22-23.664 3.528-31.41 9.402 0 0-95.43-39.314-90.991 49.444.944 18.882 27.064 142.873 58.218 105.422 11.387-13.695 22.39-25.274 22.39-25.274 5.464 3.63 12.006 5.482 18.864 4.817l.533-.452c-.166 1.7-.09 3.363.213 5.332-8.026 8.967-5.667 10.541-21.711 13.844-16.235 3.346-6.698 9.302-.471 10.86 7.549 1.887 25.013 4.561 36.813-11.958l-.47 1.885c3.144 2.519 5.352 16.383 4.982 28.952-.37 12.568-.617 21.197 1.86 27.937 2.479 6.74 4.948 21.905 26.04 17.386 17.623-3.777 26.756-13.564 28.027-29.89.901-11.606 2.942-9.89 3.07-20.267l1.637-4.912c1.887-15.733.3-20.809 11.157-18.448l2.64.232c7.99.363 18.45-1.286 24.589-4.139 13.218-6.134 21.058-16.377 8.024-13.686z" />
+                      <path fill="#fff"
+                        d="M108.076 81.525c-2.68-.373-5.107-.028-6.335.902-.69.523-.904 1.129-.962 1.546-.154 1.105.62 2.327 1.096 2.957 1.346 1.784 3.312 3.01 5.258 3.28q.423.059.842.058c3.245 0 6.196-2.527 6.456-4.392.325-2.336-3.066-3.893-6.355-4.35m88.784.073c-.256-1.831-3.514-2.353-6.606-1.923-3.088.43-6.082 1.824-5.832 3.659.2 1.427 2.777 3.863 5.827 3.863q.387 0 .78-.054c2.036-.282 3.53-1.575 4.24-2.32 1.08-1.136 1.706-2.402 1.591-3.225" />
+                    </svg>
+                    <span id="badgePreset_postgres"
+                      class="text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400">Chưa
+                      cấu hình</span>
+                  </div>
+                  <div>
+                    <h5 class="text-xs font-bold text-white">PostgreSQL</h5>
+                    <p class="text-[10.5px] mcp-preset-desc line-clamp-2 mt-0.5">Truy vấn schema &amp;
+                      SQL database</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4. Card MySQL -->
+              <div id="cardPreset_mysql" onclick="selectMcpPreset('mysql')"
+                class="mcp-preset-card is-unconfigured p-3 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
+                <div class="space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <!-- Official MySQL Dolphin (Sakila) SVG inside white background container -->
+                    <div class="w-7 h-7 rounded-lg bg-white p-1 flex items-center justify-center shadow-xs shrink-0">
+                      <svg viewBox="0 0 128 128" class="w-full h-full" preserveAspectRatio="xMidYMid">
+                        <path fill="#00618A"
+                          d="M117.688 98.242c-6.973-.191-12.297.461-16.852 2.379-1.293.547-3.355.559-3.566 2.18.711.746.82 1.859 1.387 2.777 1.086 1.754 2.922 4.113 4.559 5.352 1.789 1.348 3.633 2.793 5.551 3.961 3.414 2.082 7.223 3.27 10.504 5.352 1.938 1.23 3.859 2.777 5.75 4.164.934.684 1.563 1.75 2.773 2.18v-.195c-.637-.812-.801-1.93-1.387-2.777l-2.578-2.578c-2.52-3.344-5.719-6.281-9.117-8.719-2.711-1.949-8.781-4.578-9.91-7.73l-.199-.199c1.922-.219 4.172-.914 5.949-1.391 2.98-.797 5.645-.59 8.719-1.387l4.164-1.187v-.793c-1.555-1.594-2.664-3.707-4.359-5.152-4.441-3.781-9.285-7.555-14.273-10.703-2.766-1.746-6.184-2.883-9.117-4.363-.988-.496-2.719-.758-3.371-1.586-1.539-1.961-2.379-4.449-3.566-6.738-2.488-4.793-4.93-10.023-7.137-15.066-1.504-3.437-2.484-6.828-4.359-9.91-9-14.797-18.687-23.73-33.695-32.508-3.195-1.867-7.039-2.605-11.102-3.57l-6.543-.395c-1.332-.555-2.715-2.184-3.965-2.977C16.977 3.52 4.223-3.312.539 5.672-1.785 11.34 4.016 16.871 6.09 19.746c1.457 2.012 3.32 4.273 4.359 6.539.688 1.492.805 2.984 1.391 4.559 1.438 3.883 2.695 8.109 4.559 11.695.941 1.816 1.98 3.727 3.172 5.352.727.996 1.98 1.438 2.18 2.973-1.227 1.715-1.297 4.375-1.984 6.543-3.098 9.77-1.926 21.91 2.578 29.137 1.383 2.223 4.641 6.98 9.117 5.156 3.918-1.598 3.043-6.539 4.164-10.902.254-.988.098-1.715.594-2.379v.199l3.57 7.133c2.641 4.254 7.324 8.699 11.297 11.699 2.059 1.555 3.68 4.242 6.344 5.152v-.199h-.199c-.516-.805-1.324-1.137-1.98-1.781-1.551-1.523-3.277-3.414-4.559-5.156-3.613-4.902-6.805-10.27-9.711-15.855-1.391-2.668-2.598-5.609-3.77-8.324-.453-1.047-.445-2.633-1.387-3.172-1.281 1.988-3.172 3.598-4.164 5.945-1.582 3.754-1.789 8.336-2.375 13.082-.348.125-.195.039-.398.199-2.762-.668-3.73-3.508-4.758-5.949-2.594-6.164-3.078-16.09-.793-23.191.59-1.836 3.262-7.617 2.18-9.316-.516-1.691-2.219-2.672-3.172-3.965-1.18-1.598-2.355-3.703-3.172-5.551-2.125-4.805-3.113-10.203-5.352-15.062-1.07-2.324-2.875-4.676-4.359-6.738-1.645-2.289-3.484-3.977-4.758-6.742-.453-.984-1.066-2.559-.398-3.566.215-.684.516-.969 1.191-1.191 1.148-.887 4.352.297 5.547.793 3.18 1.32 5.832 2.578 8.527 4.363 1.289.855 2.598 2.512 4.16 2.973h1.785c2.789.641 5.914.195 8.523.988 4.609 1.402 8.738 3.582 12.488 5.949 11.422 7.215 20.766 17.48 27.156 29.734 1.027 1.973 1.473 3.852 2.379 5.945 1.824 4.219 4.125 8.559 5.941 12.688 1.816 4.113 3.582 8.27 6.148 11.695 1.348 1.801 6.551 2.766 8.918 3.766 1.66.699 4.379 1.43 5.949 2.379 3 1.809 5.906 3.965 8.723 5.945 1.402.992 5.73 3.168 5.945 4.957zm-88.605-75.52c-1.453-.027-2.48.156-3.566.395v.199h.195c.695 1.422 1.918 2.34 2.777 3.566l1.98 4.164.199-.195c1.227-.867 1.789-2.25 1.781-4.363-.492-.52-.562-1.164-.992-1.785-.562-.824-1.66-1.289-2.375-1.98zm0 0" />
+                      </svg>
+                    </div>
+                    <span id="badgePreset_mysql"
+                      class="text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400">Chưa
+                      cấu hình</span>
+                  </div>
+                  <div>
+                    <h5 class="text-xs font-bold text-white">MySQL</h5>
+                    <p class="text-[10.5px] mcp-preset-desc line-clamp-2 mt-0.5">Truy vấn schema &amp;
+                      SQL database</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5. Card GitLab -->
+              <div id="cardPreset_gitlab" onclick="selectMcpPreset('gitlab')"
+                class="mcp-preset-card is-unconfigured p-3 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
+                <div class="space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <!-- Official GitLab Fox SVG -->
+                    <svg viewBox="0 0 256 247" class="w-6 h-6 shrink-0" preserveAspectRatio="xMidYMid">
+                      <path fill="#e24329"
+                        d="m251.845 97.642-.328-.986-34.85-90.903c-.657-1.808-1.972-3.287-3.616-4.274Q210.586 0 207.627 0c-1.973 0-3.78.822-5.26 1.973a8.73 8.73 0 0 0-3.124 4.767l-23.506 71.999H80.56l-23.506-72c-.493-1.808-1.644-3.451-3.123-4.766C52.45.822 50.643 0 48.67 0s-3.781.329-5.425 1.48c-1.644.986-2.96 2.465-3.617 4.273L4.781 96.656l-.33.986c-10.355 26.959-1.479 57.37 21.535 74.794h.328c0 .164 53.096 39.944 53.096 39.944l26.3 19.89 15.946 12c3.78 2.96 9.205 2.96 12.986 0l15.945-12 26.3-19.89 53.424-39.944c23.014-17.425 31.726-47.835 21.37-74.794z" />
+                      <path fill="#fc6d26"
+                        d="m251.845 97.642-.328-.986c-17.26 3.616-33.205 10.85-46.849 21.04-.164 0-41.424 31.398-76.602 57.863a18377 18377 0 0 0 48.657 36.821l53.424-39.944c23.013-17.425 31.726-47.835 21.37-74.794z" />
+                      <path fill="#fca326"
+                        d="m79.245 212.38 26.301 19.89 15.945 12c3.78 2.96 9.206 2.96 12.986 0l15.945-12 26.301-19.89s-22.684-17.095-48.657-36.82c-26.136 19.725-48.82 36.82-48.82 36.82" />
+                      <path fill="#fc6d26"
+                        d="M51.465 117.697c-13.644-10.192-29.589-17.589-46.849-21.04l-.329.985c-10.356 26.959-1.479 57.37 21.534 74.794h.33c0 .164 53.094 39.944 53.094 39.944s22.685-17.095 48.821-36.82c-35.013-26.466-76.272-57.699-76.601-57.863" />
+                    </svg>
+                    <span id="badgePreset_gitlab"
+                      class="text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400">Chưa
+                      cấu hình</span>
+                  </div>
+                  <div>
+                    <h5 class="text-xs font-bold text-white">GitLab</h5>
+                    <p class="text-[10.5px] mcp-preset-desc line-clamp-2 mt-0.5">CI/CD pipelines &amp;
+                      Merge Requests</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 6. Card Slack -->
+              <div id="cardPreset_slack" onclick="selectMcpPreset('slack')"
+                class="mcp-preset-card is-unconfigured p-3 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
+                <div class="space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <!-- Official Slack Logo SVG -->
+                    <div class="w-7 h-7 rounded-lg bg-white p-1 flex items-center justify-center shadow-xs shrink-0">
+                      <svg viewBox="0 0 127 127" class="w-full h-full" preserveAspectRatio="xMidYMid">
+                        <path
+                          d="M27.2 79.9a13.6 13.6 0 1 1-13.6-13.6h13.6v13.6zm6.8 0a13.6 13.6 0 1 1 27.2 0v34a13.6 13.6 0 1 1-27.2 0v-34z"
+                          fill="#E01E5A" />
+                        <path
+                          d="M47.6 27.2a13.6 13.6 0 1 1 13.6-13.6v13.6H47.6zm0 6.8a13.6 13.6 0 1 1 0 27.2h-34a13.6 13.6 0 1 1 0-27.2h34z"
+                          fill="#36C5F0" />
+                        <path
+                          d="M99.8 47.6a13.6 13.6 0 1 1 13.6 13.6H99.8V47.6zm-6.8 0a13.6 13.6 0 1 1-27.2 0v-34a13.6 13.6 0 1 1 27.2 0v34z"
+                          fill="#2EB67D" />
+                        <path
+                          d="M79.4 99.8a13.6 13.6 0 1 1-13.6 13.6V99.8h13.6zm0-6.8a13.6 13.6 0 1 1 0-27.2h34a13.6 13.6 0 1 1 0 27.2h-34z"
+                          fill="#ECB22E" />
+                      </svg>
+                    </div>
+                    <span id="badgePreset_slack"
+                      class="text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400">Chưa
+                      cấu hình</span>
+                  </div>
+                  <div>
+                    <h5 class="text-xs font-bold text-white">Slack</h5>
+                    <p class="text-[10.5px] mcp-preset-desc line-clamp-2 mt-0.5">Kênh chat, DM &amp;
+                      thông báo webhook</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 7. Card Custom MCP -->
+              <div id="cardPreset_custom" onclick="selectMcpPreset('custom')"
+                class="mcp-preset-card is-unconfigured p-3 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
+                <div class="space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <!-- Clean Terminal / Command Line SVG -->
+                    <svg viewBox="0 0 24 24" class="w-6 h-6 shrink-0 text-slate-300" fill="none" stroke="currentColor"
+                      stroke-width="2">
+                      <rect x="2" y="3" width="20" height="18" rx="3" stroke="currentColor" />
+                      <path d="M7 9l4 3-4 3" stroke-linecap="round" stroke-linejoin="round" />
+                      <line x1="13" y1="15" x2="17" y2="15" stroke-linecap="round" />
+                    </svg>
+                    <span id="badgePreset_custom"
+                      class="text-[9.5px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-400">Tùy
+                      biến</span>
+                  </div>
+                  <div>
+                    <h5 class="text-xs font-bold text-white">Custom MCP</h5>
+                    <p class="text-[10.5px] mcp-preset-desc line-clamp-2 mt-0.5">Chạy qua lệnh npx hoặc
+                      binary</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: BỘ KHUNG CẤU HÌNH CHI TIẾT THEO MCP ĐƯỢC CHỌN -->
+
+          <!-- 3.1 Khung Cấu hình Atlassian Jira -->
+          <div id="mcpConfigFrame_jira" class="bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="text-xs font-bold text-white uppercase tracking-wider">
+                    Cấu hình Atlassian Jira MCP
+                  </h4>
+                  <span class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-blue-500/20 text-blue-300">Jira
+                    Cloud
+                    &amp; Server</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">
+                  AI Agent tự động đọc nội dung issue (mô tả lỗi, các bước tái hiện bug, acceptance criteria), tạo nhánh
+                  Git
+                  theo mã Jira và phản hồi kết quả trực tiếp lên ticket.
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="jiraSyncStatusBadge"
+                  class="text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400">Chưa kết
+                  nối</span>
+              </div>
+            </div>
+
+            <!-- Form cấu hình Jira: 3 trường bắt buộc -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Trường 1: Jira Host URL -->
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                  <span>Jira Host / Domain URL:</span>
+                  <span class="text-[10px] text-slate-400 font-normal">https://your-domain.atlassian.net</span>
+                </label>
+                <input type="text" id="input_jira_host" placeholder="https://easysalon.atlassian.net"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+              </div>
+
+              <!-- Trường 2: Email tài khoản Jira -->
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                  <span>Email tài khoản Jira:</span>
+                  <span class="text-[10px] text-slate-400 font-normal">Email dùng để tạo API Token</span>
+                </label>
+                <input type="email" id="input_jira_email" placeholder="dev@easysalon.vn"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+              </div>
+
+              <!-- Trường 3: Jira API Token (Chiếm cả 2 cột) -->
+              <div class="md:col-span-2 space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <label class="text-[11px] font-semibold text-slate-300">
+                    Jira API Token:
+                  </label>
+                  <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank"
+                    rel="noopener noreferrer" class="text-[10px] text-blue-400 hover:text-blue-300 underline font-sans">
+                    Lấy API Token tại Atlassian Account Settings
+                  </a>
+                </div>
+                <div class="relative">
+                  <input type="password" id="input_jira_token"
+                    placeholder="Dán mã API Token của Atlassian vào đây (ví dụ: ATATT3xFfGF0...)"
+                    class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+                  <button type="button" id="btnToggleJiraTokenMask" onclick="toggleJiraTokenMask()"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs cursor-pointer select-none">
+                    Hiện
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hộp thông báo kết quả kiểm tra -->
+            <div id="jiraTestStatusResult" class="hidden text-xs p-3 rounded-lg border font-sans leading-relaxed"></div>
+
+            <!-- Nút hành động Jira MCP -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <div class="flex items-center gap-2">
+                <button type="button" id="btnToggleJiraFooter" onclick="toggleJiraServer()"
+                  class="hidden text-xs px-3 py-1.5 rounded-lg border border-[#244170] text-slate-300 hover:text-white hover:bg-white/5 transition cursor-pointer font-sans">
+                  Tắt MCP
+                </button>
+                <button type="button" id="btnRemoveJiraFooter" onclick="removeJiraServer()"
+                  class="hidden text-xs px-3 py-1.5 rounded-lg border border-rose-900/60 text-rose-400 hover:bg-rose-950/50 transition cursor-pointer font-sans">
+                  Xóa cấu hình
+                </button>
+              </div>
+              <div class="flex items-center gap-2 ml-auto">
+                <button type="button" id="btnTestJiraConnection" onclick="testJiraConnection(this)"
+                  class="px-3.5 py-1.5 rounded-lg border border-[#244170] text-xs font-sans text-slate-200 hover:bg-white/5 transition cursor-pointer">
+                  Kiểm tra kết nối Jira
+                </button>
+                <button type="button" id="btnSaveJiraMcp" onclick="saveJiraMcp(this)"
+                  class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5">
+                  Lưu &amp; Kích hoạt Jira MCP
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3.2 Khung Cấu hình GitHub MCP -->
+          <div id="mcpConfigFrame_github"
+            class="hidden bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="text-xs font-bold text-white uppercase tracking-wider">
+                    Cấu hình GitHub MCP
+                  </h4>
+                  <span
+                    class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300">Official
+                    GitHub MCP</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">
+                  Cho phép AI Agent duyệt commit diff, đọc pull request, phân tích source code từ xa và tương tác với
+                  GitHub
+                  API.
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="githubSyncStatusBadge"
+                  class="text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400">Chưa cấu
+                  hình</span>
+              </div>
+            </div>
+
+            <!-- Form cấu hình GitHub -->
+            <div class="space-y-4">
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <label class="text-[11px] font-semibold text-slate-300">
+                    GitHub Personal Access Token (classic hoặc fine-grained):
+                  </label>
+                  <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer"
+                    class="text-[10px] text-blue-400 hover:text-blue-300 underline font-sans">
+                    Lấy Token tại GitHub Developer Settings (yêu cầu quyền repo)
+                  </a>
+                </div>
+                <div class="relative">
+                  <input type="password" id="input_github_token" placeholder="ghp_... hoặc github_pat_..."
+                    class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans font-mono">
+                  <button type="button" id="btnToggleGithubToken" onclick="togglePasswordVisibility('input_github_token', this)"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs cursor-pointer select-none">
+                    Hiện
+                  </button>
+                </div>
+              </div>
+
+              <div id="githubTestStatusResult" class="hidden text-xs p-3 rounded-lg border font-sans leading-relaxed">
+              </div>
+            </div>
+
+            <!-- Nút hành động GitHub -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#244170]/40">
+              <div class="flex items-center gap-2">
+                <button type="button" id="btnToggleGithubFooter" onclick="togglePresetMcp('github')"
+                  class="hidden text-xs px-3 py-1.5 rounded-lg border border-[#244170] text-slate-300 hover:text-white hover:bg-white/5 transition cursor-pointer font-sans">
+                  Tắt MCP
+                </button>
+                <button type="button" id="btnRemoveGithubFooter" onclick="removePresetMcp('github')"
+                  class="hidden text-xs px-3 py-1.5 rounded-lg border border-rose-900/60 text-rose-400 hover:bg-rose-950/50 transition cursor-pointer font-sans">
+                  Xóa cấu hình
+                </button>
+              </div>
+              <div class="flex items-center gap-2 ml-auto">
+                <button type="button" id="btnTestGithubConnection" onclick="testGithubConnection(this)"
+                  class="px-3.5 py-1.5 rounded-lg border border-[#244170] text-xs font-sans text-slate-200 hover:bg-white/5 transition cursor-pointer">
+                  Kiểm tra kết nối GitHub
+                </button>
+                <button type="button" id="btnSaveGithubMcp" onclick="saveGithubMcp(this)"
+                  class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5">
+                  Lưu &amp; Kích hoạt GitHub MCP
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3.3 Khung Cấu hình PostgreSQL MCP -->
+          <div id="mcpConfigFrame_postgres"
+            class="hidden bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#244170]/60 pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="text-xs font-bold text-white uppercase tracking-wider">
+                    Cấu hình PostgreSQL Database MCP
+                  </h4>
+                  <span
+                    class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-blue-500/20 text-blue-300">Postgres
+                    DB
+                    Inspector</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">
+                  Cho phép AI Agent kết nối trực tiếp vào cơ sở dữ liệu PostgreSQL để đọc cấu trúc bảng, kiểm tra khóa
+                  ngoại,
+                  debug SQL queries và tối ưu index.
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="postgresSyncStatusBadge"
+                  class="text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400">Chưa cấu
+                  hình</span>
+              </div>
+            </div>
+
+            <!-- Form cấu hình Postgres -->
+            <div class="space-y-4">
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                  <span>PostgreSQL Connection String / URL:</span>
+                  <span
+                    class="text-[10px] text-slate-400 font-normal">postgresql://user:password@localhost:5432/dbname</span>
+                </label>
+                <input type="text" id="input_postgres_url"
+                  placeholder="postgresql://postgres:password@127.0.0.1:5432/easysalon_db"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans font-mono">
+              </div>
+
+              <div id="postgresTestStatusResult" class="hidden text-xs p-3 rounded-lg border font-sans leading-relaxed">
+              </div>
+            </div>
+
+            <!-- Nút hành động Postgres -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#244170]/40">
+              <div class="flex items-center gap-2">
+                <button type="button" id="btnTogglePostgresFooter" onclick="togglePresetMcp('postgres')"
+                  class="hidden text-xs px-3 py-1.5 rounded-lg border border-[#244170] text-slate-300 hover:text-white hover:bg-white/5 transition cursor-pointer font-sans">
+                  Tắt MCP
+                </button>
+                <button type="button" id="btnRemovePostgresFooter" onclick="removePresetMcp('postgres')"
+                  class="hidden text-xs px-3 py-1.5 rounded-lg border border-rose-900/60 text-rose-400 hover:bg-rose-950/50 transition cursor-pointer font-sans">
+                  Xóa cấu hình
+                </button>
+              </div>
+              <div class="flex items-center gap-2 ml-auto">
+                <button type="button" id="btnSavePostgresMcp" onclick="savePostgresMcp(this)"
+                  class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5">
+                  Lưu &amp; Kích hoạt PostgreSQL MCP
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3.3b Khung Cấu hình MySQL MCP -->
+          <div id="mcpConfigFrame_mysql"
+            class="hidden bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#244170]/60 pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="text-xs font-bold text-white uppercase tracking-wider">
+                    Cấu hình MySQL Database MCP
+                  </h4>
+                  <span class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-teal-500/20 text-teal-300">MySQL
+                    DB
+                    Inspector</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">
+                  Cho phép AI Agent kết nối trực tiếp vào cơ sở dữ liệu MySQL / MariaDB để đọc cấu trúc bảng, kiểm tra
+                  khóa
+                  ngoại, debug SQL queries và tối ưu index.
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="mysqlSyncStatusBadge"
+                  class="text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400">Chưa cấu
+                  hình</span>
+              </div>
+            </div>
+
+            <!-- Form cấu hình MySQL -->
+            <div class="space-y-4">
+              <!-- Thông số kết nối MySQL chuẩn Workbench -->
+              <div class="grid grid-cols-1 md:grid-cols-6 gap-3.5">
+                <!-- Hostname (4 cols) -->
+                <div class="md:col-span-4 space-y-1.5">
+                  <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                    <span>Hostname / Máy chủ:</span>
+                    <span class="text-[10px] text-slate-400 font-normal">127.0.0.1 hoặc localhost</span>
+                  </label>
+                  <input type="text" id="input_mysql_host" placeholder="127.0.0.1"
+                    oninput="handleMysqlFieldChange()"
+                    class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+                </div>
+
+                <!-- Port (2 cols) -->
+                <div class="md:col-span-2 space-y-1.5">
+                  <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                    <span>Port / Cổng:</span>
+                    <span class="text-[10px] text-slate-400 font-normal">Mặc định 3306</span>
+                  </label>
+                  <input type="number" id="input_mysql_port" placeholder="3306" value="3306"
+                    oninput="handleMysqlFieldChange()"
+                    class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+                </div>
+
+                <!-- Username (2 cols) -->
+                <div class="md:col-span-2 space-y-1.5">
+                  <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                    <span>Username / Người dùng:</span>
+                    <span class="text-[10px] text-slate-400 font-normal">root</span>
+                  </label>
+                  <input type="text" id="input_mysql_user" placeholder="root"
+                    oninput="handleMysqlFieldChange()"
+                    class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+                </div>
+
+                <!-- Password (2 cols) -->
+                <div class="md:col-span-2 space-y-1.5">
+                  <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                    <span>Password / Mật khẩu:</span>
+                    <span class="text-[10px] text-slate-400 font-normal">Mật khẩu DB</span>
+                  </label>
+                  <div class="relative">
+                    <input type="password" id="input_mysql_password" placeholder="••••••••"
+                      oninput="handleMysqlFieldChange()"
+                      class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans font-mono">
+                    <button type="button" id="btnToggleMysqlPassword" onclick="togglePasswordVisibility('input_mysql_password', this)"
+                      class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs cursor-pointer select-none">
+                      Hiện
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Default Schema / Database (2 cols) -->
+                <div class="md:col-span-2 space-y-1.5">
+                  <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                    <span>Default Schema / Database:</span>
+                    <span class="text-[10px] text-slate-400 font-normal">Tùy chọn</span>
+                  </label>
+                  <input type="text" id="input_mysql_database" placeholder="easysalon_db"
+                    oninput="handleMysqlFieldChange()"
+                    class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+                </div>
+              </div>
+
+              <!-- Connection String / URL (Đồng bộ 2 chiều) -->
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                  <span>MySQL Connection String / URL (Đồng bộ tự động):</span>
+                  <span class="text-[10px] text-slate-400 font-normal">Tự sinh từ các trường trên hoặc dán chuỗi kết nối trực tiếp</span>
+                </label>
+                <input type="text" id="input_mysql_url" placeholder="mysql://root:password@127.0.0.1:3306/easysalon_db"
+                  oninput="handleMysqlUrlChange()"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans font-mono">
+              </div>
+
+              <div id="mysqlTestStatusResult" class="hidden text-xs p-3 rounded-lg border font-sans leading-relaxed">
+              </div>
+            </div>
+
+            <!-- Nút hành động MySQL -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <div class="flex items-center gap-2">
+                <button type="button" id="btnToggleMysqlFooter" onclick="togglePresetMcp('mysql')"
+                  class="hidden text-xs px-3 py-1.5 rounded-lg border border-[#244170] text-slate-300 hover:text-white hover:bg-white/5 transition cursor-pointer font-sans">
+                  Tắt MCP
+                </button>
+                <button type="button" id="btnRemoveMysqlFooter" onclick="removePresetMcp('mysql')"
+                  class="hidden text-xs px-3 py-1.5 rounded-lg border border-rose-900/60 text-rose-400 hover:bg-rose-950/50 transition cursor-pointer font-sans">
+                  Xóa cấu hình
+                </button>
+              </div>
+              <div class="flex items-center gap-2 ml-auto">
+                <button type="button" id="btnTestMysqlConnection" onclick="testMysqlConnection(this)"
+                  class="px-3.5 py-1.5 rounded-lg border border-[#244170] text-xs font-sans text-slate-200 hover:bg-white/5 transition cursor-pointer">
+                  Kiểm tra kết nối MySQL
+                </button>
+                <button type="button" id="btnSaveMysqlMcp" onclick="saveMysqlMcp(this)"
+                  class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5">
+                  Lưu &amp; Kích hoạt MySQL MCP
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3.4 Khung Cấu hình GitLab MCP -->
+          <div id="mcpConfigFrame_gitlab"
+            class="hidden bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#244170]/60 pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="text-xs font-bold text-white uppercase tracking-wider">
+                    Cấu hình GitLab MCP
+                  </h4>
+                  <span
+                    class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-orange-500/20 text-orange-300">GitLab
+                    Cloud &amp; Self-hosted</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">
+                  Tích hợp sâu với GitLab CI/CD pipelines, đọc và tạo Merge Request và quản lý kho lưu trữ.
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="gitlabSyncStatusBadge"
+                  class="text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400">Chưa cấu
+                  hình</span>
+              </div>
+            </div>
+
+            <!-- Form cấu hình GitLab -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                  <span>GitLab Host URL:</span>
+                  <span class="text-[10px] text-slate-400 font-normal">https://gitlab.com</span>
+                </label>
+                <input type="text" id="input_gitlab_host" placeholder="https://gitlab.com"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                  <span>Personal Access Token:</span>
+                  <span class="text-[10px] text-slate-400 font-normal">Quyền api / read_api</span>
+                </label>
+                <div class="relative">
+                  <input type="password" id="input_gitlab_token" placeholder="glpat-..."
+                    class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans font-mono">
+                  <button type="button" id="btnToggleGitlabToken" onclick="togglePasswordVisibility('input_gitlab_token', this)"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs cursor-pointer select-none">
+                    Hiện
+                  </button>
+                </div>
+              </div>
+
+              <div id="gitlabTestStatusResult"
+                class="hidden md:col-span-2 text-xs p-3 rounded-lg border font-sans leading-relaxed"></div>
+            </div>
+
+            <!-- Nút hành động GitLab -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#244170]/40">
+              <div class="flex items-center gap-2">
+                <button type="button" id="btnToggleGitlabFooter" onclick="togglePresetMcp('gitlab')"
+                  class="hidden text-xs px-3 py-1.5 rounded-lg border border-[#244170] text-slate-300 hover:text-white hover:bg-white/5 transition cursor-pointer font-sans">
+                  Tắt MCP
+                </button>
+                <button type="button" id="btnRemoveGitlabFooter" onclick="removePresetMcp('gitlab')"
+                  class="hidden text-xs px-3 py-1.5 rounded-lg border border-rose-900/60 text-rose-400 hover:bg-rose-950/50 transition cursor-pointer font-sans">
+                  Xóa cấu hình
+                </button>
+              </div>
+              <div class="flex items-center gap-2 ml-auto">
+                <button type="button" id="btnTestGitlabConnection" onclick="testGitlabConnection(this)"
+                  class="px-3.5 py-1.5 rounded-lg border border-[#244170] text-xs font-sans text-slate-200 hover:bg-white/5 transition cursor-pointer">
+                  Kiểm tra kết nối GitLab
+                </button>
+                <button type="button" id="btnSaveGitlabMcp" onclick="saveGitlabMcp(this)"
+                  class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5">
+                  Lưu &amp; Kích hoạt GitLab MCP
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3.5 Khung Cấu hình Slack MCP -->
+          <div id="mcpConfigFrame_slack"
+            class="hidden bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="text-xs font-bold text-white uppercase tracking-wider">
+                    Cấu hình Slack MCP
+                  </h4>
+                  <span
+                    class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">Official
+                    Slack MCP</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">
+                  Cho phép AI Agent gửi tin nhắn, đọc thảo luận kênh, tương tác và đồng bộ thông báo trong workspace
+                  Slack.
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="slackSyncStatusBadge"
+                  class="text-[10px] font-sans font-medium px-2.5 py-1 rounded bg-slate-800 text-slate-400">Chưa cấu
+                  hình</span>
+              </div>
+            </div>
+
+            <!-- Form cấu hình Slack -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <label class="text-[11px] font-semibold text-slate-300">
+                    Bot User OAuth Token:
+                  </label>
+                  <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer"
+                    class="text-[10px] text-blue-400 hover:text-blue-300 underline font-sans">
+                    Lấy Token tại api.slack.com/apps (xoxb-...)
+                  </a>
+                </div>
+                <div class="relative">
+                  <input type="password" id="input_slack_bot_token" placeholder="xoxb-..."
+                    class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 pr-10 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans font-mono">
+                  <button type="button" id="btnToggleSlackToken" onclick="togglePasswordVisibility('input_slack_bot_token', this)"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs cursor-pointer select-none">
+                    Hiện
+                  </button>
+                </div>
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                  <span>Slack Team / Workspace ID (Tùy chọn):</span>
+                  <span class="text-[10px] text-slate-400 font-normal">T0123456789</span>
+                </label>
+                <input type="text" id="input_slack_team_id" placeholder="T..."
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans font-mono">
+              </div>
+
+              <div id="slackTestStatusResult"
+                class="hidden md:col-span-2 text-xs p-3 rounded-lg border font-sans leading-relaxed"></div>
+            </div>
+
+            <!-- Nút hành động Slack -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#244170]/40">
+              <div class="flex items-center gap-2">
+                <button type="button" id="btnToggleSlackFooter" onclick="togglePresetMcp('slack')"
+                  class="hidden text-xs px-3 py-1.5 rounded-lg border border-[#244170] text-slate-300 hover:text-white hover:bg-white/5 transition cursor-pointer font-sans">
+                  Tắt MCP
+                </button>
+                <button type="button" id="btnRemoveSlackFooter" onclick="removePresetMcp('slack')"
+                  class="hidden text-xs px-3 py-1.5 rounded-lg border border-rose-900/60 text-rose-400 hover:bg-rose-950/50 transition cursor-pointer font-sans">
+                  Xóa cấu hình
+                </button>
+              </div>
+              <div class="flex items-center gap-2 ml-auto">
+                <button type="button" id="btnTestSlackConnection" onclick="testSlackConnection(this)"
+                  class="px-3.5 py-1.5 rounded-lg border border-[#244170] text-xs font-sans text-slate-200 hover:bg-white/5 transition cursor-pointer">
+                  Kiểm tra kết nối Slack
+                </button>
+                <button type="button" id="btnSaveSlackMcp" onclick="saveSlackMcp(this)"
+                  class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5">
+                  Lưu &amp; Kích hoạt Slack MCP
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3.5 Khung Cấu hình MCP Tùy chỉnh (Custom) -->
+          <div id="customMcpSection"
+            class="hidden bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex items-center justify-between border-b border-[#244170]/60 pb-3">
+              <div>
+                <h4 class="text-xs font-bold text-white uppercase tracking-wider">
+                  Cấu hình MCP Server tùy chỉnh
+                </h4>
+                <p class="text-[11px] text-slate-400 mt-0.5">
+                  Thêm bất kỳ server Model Context Protocol nào qua Stdio (npx, python, binary) hoặc Remote HTTP URL.
+                </p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300">Tên Server (Server Name):</label>
+                <input type="text" id="input_custom_mcp_name" placeholder="filesystem, custom-api, brave-search..."
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300">Giao thức (Protocol):</label>
+                <select id="select_custom_mcp_type" onchange="onCustomMcpTypeChange(this.value)"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#199cff] font-sans">
+                  <option value="stdio">Stdio (Local Command / npx / binary)</option>
+                  <option value="http">HTTP (Remote URL / SSE)</option>
+                </select>
+              </div>
+
+              <!-- Trường Stdio Command -->
+              <div id="boxCustomMcpCommand" class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300">Lệnh thực thi (Command):</label>
+                <input type="text" id="input_custom_mcp_command" placeholder="npx, python3, docker..."
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+              </div>
+
+              <!-- Trường Stdio Args -->
+              <div id="boxCustomMcpArgs" class="space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300">Tham số lệnh (Arguments cách nhau bởi dấu
+                  cách):</label>
+                <input type="text" id="input_custom_mcp_args"
+                  placeholder="-y @modelcontextprotocol/server-filesystem /path/to/dir"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+              </div>
+
+              <!-- Trường HTTP URL (mặc định ẩn) -->
+              <div id="boxCustomMcpUrl" class="hidden md:col-span-2 space-y-1.5">
+                <label class="text-[11px] font-semibold text-slate-300">Remote MCP Server URL:</label>
+                <input type="text" id="input_custom_mcp_url" placeholder="https://mcp.example.com/sse"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans">
+              </div>
+
+              <!-- Biến môi trường (Environment Variables) -->
+              <div class="md:col-span-2 space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <label class="text-[11px] font-semibold text-slate-300">Biến môi trường (Mỗi dòng một cặp KEY=VALUE
+                    hoặc
+                    JSON):</label>
+                  <span class="text-[10px] text-slate-400">Ví dụ: API_KEY=xyz</span>
+                </div>
+                <textarea id="textarea_custom_mcp_env" rows="3" placeholder="API_KEY=xyz&#10;BASE_URL=https://..."
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#199cff] font-sans font-mono"></textarea>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-1 border-t border-[#244170]/40">
+              <button type="button" id="btnSaveCustomMcp" onclick="saveCustomMcp(this)"
+                class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer">
+                Lưu MCP Server
+              </button>
+            </div>
+          </div>
+
+          <!-- Hidden MCP Reference Containers for DOM state & tests -->
+          <div id="mcpServersContainer" class="hidden"></div>
+          <span id="mcpServerActiveCountTag" class="hidden"></span>
+          <div class="hidden">
+            <button type="button" id="btnToggleJira"></button>
+            <button type="button" id="btnRemoveJira"></button>
+            <button type="button" id="btnToggleGithub"></button>
+            <button type="button" id="btnRemoveGithub"></button>
+            <button type="button" id="btnTogglePostgres"></button>
+            <button type="button" id="btnRemovePostgres"></button>
+            <button type="button" id="btnToggleGitlab"></button>
+            <button type="button" id="btnRemoveGitlab"></button>
+          </div>
+        </div>
+
+        <!-- Retained Account DOM container for compatibility -->
+        <div id="settingsPanel_account" class="hidden">
+          <span id="pageAccountStatusTag"></span>
+          <span id="accountProviderName"></span>
+          <span id="accountCliVersionBadge"></span>
+          <span id="accountSystemUser"></span>
+          <button id="btnCheckAccountAuth"></button>
+          <button id="btnTestCliPing"></button>
+          <div id="accountTestResultMsg"></div>
+          <div id="accountLoginStatus"></div>
+          <div id="accountAuthMethod"></div>
+          <code id="accountScopeId"></code>
+          <code id="accountScopePath"></code>
+          <code id="accountCliPath"></code>
+          <code id="accountInstallationId"></code>
+          <span id="accountActiveModel"></span>
+          <span id="accountEffortBadge"></span>
+          <span id="accountAgentMode"></span>
+          <span id="accountTrustedCount"></span>
+        </div>
+
+        <!-- PANEL 4: CẤU HÌNH API (CẮM API VÀO ĐỂ XÀI) -->
+        <div id="settingsPanel_api" class="settings-content-panel hidden space-y-4">
+          <div class="bg-[#101e38] rounded-xl p-5 md:p-6 shadow-sm space-y-6">
+            <!-- Header -->
+            <div class="flex items-center justify-between pb-1">
+              <div>
+                <h3 class="text-xs font-bold text-white uppercase tracking-wider">
+                  Cấu hình API Keys &amp; Nhà cung cấp AI
+                </h3>
+                <p class="text-[11px] text-slate-400 mt-0.5">
+                  Cắm trực tiếp API Key cá nhân để thực thi các mô hình AI độc lập. Hệ thống sẽ lưu trữ an toàn và nạp vào môi trường thực thi.
+                </p>
+              </div>
+              <span id="pageCurrentApiProviderTag" class="hidden">GOOGLE GEMINI</span>
+            </div>
+
+            <!-- Provider Selector Tabs -->
+            <div class="space-y-2">
+              <label class="text-[11px] font-semibold text-slate-300 block">Chọn Provider AI ưu tiên:</label>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <button type="button" id="btn_provider_gemini" onclick="selectActiveApiProvider('gemini')"
+                  class="api-provider-btn is-active p-3 rounded-lg text-left transition select-none cursor-pointer">
+                  <div class="text-xs font-bold block">Google Gemini</div>
+                  <div class="text-[10px] text-slate-400 mt-0.5 font-sans">Flash, Pro Models</div>
+                </button>
+                <button type="button" id="btn_provider_claude" onclick="selectActiveApiProvider('claude')"
+                  class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer">
+                  <div class="text-xs font-bold block">Anthropic Claude</div>
+                  <div class="text-[10px] text-slate-400 mt-0.5 font-sans">Sonnet, Opus Thinking</div>
+                </button>
+                <button type="button" id="btn_provider_openai" onclick="selectActiveApiProvider('openai')"
+                  class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer">
+                  <div class="text-xs font-bold block">OpenAI / GPT</div>
+                  <div class="text-[10px] text-slate-400 mt-0.5 font-sans">GPT-4o, o3-mini</div>
+                </button>
+                <button type="button" id="btn_provider_custom" onclick="selectActiveApiProvider('custom')"
+                  class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer">
+                  <div class="text-xs font-bold block">Custom / 9router</div>
+                  <div class="text-[10px] text-slate-400 mt-0.5 font-sans">Custom Base URL</div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Danh sách các trường nhập API Key (dạng thẻ mềm, không border gắt) -->
+            <div class="space-y-4 pt-1">
+              <!-- 1. Google Gemini API Key -->
+              <div class="api-key-item-box p-4 rounded-xl bg-[#0c1628]/70 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <label for="input_gemini_api_key" class="text-xs font-bold text-white flex items-center gap-2">
+                    <span>Google Gemini API Key</span>
+                    <span id="badge_gemini_key_status"
+                      class="text-[10px] font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-medium">Chưa lưu</span>
+                  </label>
+                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer"
+                    class="text-[11px] text-cyan-400 hover:text-cyan-300 font-sans hover:underline">
+                    Lấy API Key từ Google AI Studio ↗
+                  </a>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="relative flex-1">
+                    <input type="password" id="input_gemini_api_key" placeholder="AIzaSy..."
+                      oninput="onSettingsOptionChanged('api')"
+                      class="w-full bg-[#101e38] border border-[#244170]/80 rounded-lg px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-[#1677ff] pr-10" />
+                    <button type="button" onclick="togglePasswordVisibility('input_gemini_api_key', this)"
+                      class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs px-1 select-none cursor-pointer">
+                      Hiện
+                    </button>
+                  </div>
+                  <button type="button" onclick="testApiKey('gemini')"
+                    class="ant-btn text-xs h-[34px] px-3.5 bg-[#182c4f] hover:bg-[#203a68] text-slate-200 hover:text-white shrink-0 cursor-pointer">
+                    <span>Kiểm tra kết nối</span>
+                  </button>
+                </div>
+                <p class="text-[11px] text-slate-400">Dùng cho các dòng Gemini 3.8 Flash, Gemini 2.5 Pro qua API chuẩn của Google.</p>
+              </div>
+
+              <!-- 2. Anthropic Claude API Key -->
+              <div class="api-key-item-box p-4 rounded-xl bg-[#0c1628]/70 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <label for="input_claude_api_key" class="text-xs font-bold text-white flex items-center gap-2">
+                    <span>Anthropic Claude API Key</span>
+                    <span id="badge_claude_key_status"
+                      class="text-[10px] font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-medium">Chưa lưu</span>
+                  </label>
+                  <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer"
+                    class="text-[11px] text-purple-400 hover:text-purple-300 font-sans hover:underline">
+                    Lấy API Key từ Anthropic Console ↗
+                  </a>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="relative flex-1">
+                    <input type="password" id="input_claude_api_key" placeholder="sk-ant-api03-..."
+                      oninput="onSettingsOptionChanged('api')"
+                      class="w-full bg-[#101e38] border border-[#244170]/80 rounded-lg px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-[#1677ff] pr-10" />
+                    <button type="button" onclick="togglePasswordVisibility('input_claude_api_key', this)"
+                      class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs px-1 select-none cursor-pointer">
+                      Hiện
+                    </button>
+                  </div>
+                  <button type="button" onclick="testApiKey('claude')"
+                    class="ant-btn text-xs h-[34px] px-3.5 bg-[#182c4f] hover:bg-[#203a68] text-slate-200 hover:text-white shrink-0 cursor-pointer">
+                    <span>Kiểm tra kết nối</span>
+                  </button>
+                </div>
+                <p class="text-[11px] text-slate-400">Dùng cho Claude Sonnet 4.6, Claude Opus với Extended Thinking Budget.</p>
+              </div>
+
+              <!-- 3. OpenAI API Key -->
+              <div class="api-key-item-box p-4 rounded-xl bg-[#0c1628]/70 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <label for="input_openai_api_key" class="text-xs font-bold text-white flex items-center gap-2">
+                    <span>OpenAI API Key</span>
+                    <span id="badge_openai_key_status"
+                      class="text-[10px] font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-medium">Chưa lưu</span>
+                  </label>
+                  <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer"
+                    class="text-[11px] text-emerald-400 hover:text-emerald-300 font-sans hover:underline">
+                    Lấy API Key từ OpenAI Platform ↗
+                  </a>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="relative flex-1">
+                    <input type="password" id="input_openai_api_key" placeholder="sk-proj-..."
+                      oninput="onSettingsOptionChanged('api')"
+                      class="w-full bg-[#101e38] border border-[#244170]/80 rounded-lg px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-[#1677ff] pr-10" />
+                    <button type="button" onclick="togglePasswordVisibility('input_openai_api_key', this)"
+                      class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs px-1 select-none cursor-pointer">
+                      Hiện
+                    </button>
+                  </div>
+                  <button type="button" onclick="testApiKey('openai')"
+                    class="ant-btn text-xs h-[34px] px-3.5 bg-[#182c4f] hover:bg-[#203a68] text-slate-200 hover:text-white shrink-0 cursor-pointer">
+                    <span>Kiểm tra kết nối</span>
+                  </button>
+                </div>
+                <p class="text-[11px] text-slate-400">Dùng cho GPT-4o, o3-mini và các dòng mô hình OpenAI native.</p>
+              </div>
+
+              <!-- 4. Custom API Base URL & Key -->
+              <div class="api-key-item-box p-4 rounded-xl bg-[#0c1628]/70 space-y-3">
+                <div class="flex items-center justify-between">
+                  <label class="text-xs font-bold text-white flex items-center gap-2">
+                    <span>Custom Endpoint / 9router Local Proxy</span>
+                    <span id="badge_custom_key_status"
+                      class="text-[10px] font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-medium">Tùy chọn</span>
+                  </label>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label for="input_custom_endpoint" class="text-[11px] text-slate-400 block mb-1">Base URL Endpoint:</label>
+                    <input type="text" id="input_custom_endpoint" placeholder="http://127.0.0.1:20128/v1"
+                      oninput="onSettingsOptionChanged('api')"
+                      class="w-full bg-[#101e38] border border-[#244170]/80 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-[#1677ff]" />
+                  </div>
+                  <div>
+                    <label for="input_custom_api_key" class="text-[11px] text-slate-400 block mb-1">Custom API Key (nếu có):</label>
+                    <div class="relative">
+                      <input type="password" id="input_custom_api_key" placeholder="Bearer Token / API Key"
+                        oninput="onSettingsOptionChanged('api')"
+                        class="w-full bg-[#101e38] border border-[#244170]/80 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-[#1677ff] pr-10" />
+                      <button type="button" onclick="togglePasswordVisibility('input_custom_api_key', this)"
+                        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs px-1 select-none cursor-pointer">
+                        Hiện
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between pt-1">
+                  <p class="text-[11px] text-slate-400">Kết nối các proxy nội bộ hoặc các dịch vụ tương thích OpenAI API (Groq, DeepSeek, OpenRouter).</p>
+                  <button type="button" onclick="testApiKey('custom')"
+                    class="ant-btn text-xs h-[34px] px-3.5 bg-[#182c4f] hover:bg-[#203a68] text-slate-200 hover:text-white shrink-0 cursor-pointer">
+                    <span>Kiểm tra Custom API</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL 4: ENVIRONMENT & CLI -->
+        <div id="settingsPanel_env" class="settings-content-panel hidden space-y-4">
+          <div class="bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xs font-bold text-white uppercase tracking-wider">
+                  Môi trường & Đường dẫn hệ thống (Environment & Workspaces)
+                </h3>
+                <p class="text-[11px] text-slate-400 mt-0.5">
+                  Tùy chỉnh đường dẫn thư mục mã nguồn (Workspaces) và đường dẫn file thực thi CLI.
+                </p>
+              </div>
+            </div>
+
+            <!-- Ưu tiên nạp cấu hình info box -->
+            <div
+              class="p-3 rounded-lg bg-[#0c1628] border border-[#244170]/70 text-xs font-sans text-slate-300 space-y-1">
+              <div class="font-semibold text-white flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-[#1677ff] inline-block"></span>
+                <span>Thứ tự ưu tiên nạp cấu hình hệ thống:</span>
+              </div>
+              <div class="text-[11px] text-slate-400 leading-relaxed pl-4">
+                1. <strong>Biến môi trường (.env / os.environ)</strong> (Ưu tiên cao nhất nếu được thiết lập)<br>
+                2. <strong>Cấu hình người dùng lưu tại đây (settings.json)</strong> (Có thể chỉnh sửa và lưu trực
+                tiếp)<br>
+                3. <strong>Đường dẫn mặc định dự phòng (Fallback)</strong> (Tự động phát hiện khi chưa thiết lập)
+              </div>
+            </div>
+
+            <div class="space-y-4 pt-1">
+              <!-- Frontend Workspace -->
+              <div class="space-y-1.5">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <label for="input_fe_workspace" class="text-xs font-semibold text-slate-200">
+                    Frontend Workspace Path (<code class="font-mono text-[11px] text-cyan-300">FE_WORKSPACE</code>)
+                  </label>
+                  <div class="flex items-center gap-2">
+                    <button type="button" onclick="autoDetectWorkspace('fe')"
+                      class="text-[10.5px] font-sans px-2.5 py-1 rounded bg-[#1677ff]/15 hover:bg-[#1677ff]/25 text-[#199cff] hover:text-white border border-[#1677ff]/30 transition cursor-pointer flex items-center gap-1.5 font-medium select-none">
+                      <svg class="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 20 20">
+                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                        <path fill-rule="evenodd"
+                          d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
+                          clip-rule="evenodd" />
+                      </svg>
+                      <span>Lấy tự động theo folder 'easysalon-webapp'</span>
+                    </button>
+                    <span id="badge_fe_workspace_status"
+                      class="text-[10px] font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-medium">Hệ
+                      thống</span>
+                  </div>
+                </div>
+                <input type="text" id="input_fe_workspace"
+                  oninput="onSettingsOptionChanged('env'); onWorkspaceInputChanged('fe', this.value)"
+                  placeholder="/path/to/easysalon-webapp"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#199cff] font-mono">
+                <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-400 font-sans">
+                  <span>Thư mục chứa dự án Frontend React / Webapp để quét sơ đồ và thực thi Git/Agent.</span>
+                  <span>Suy ra từ folder: <button type="button"
+                      onclick="setWorkspaceValue('fe', '/run/media/thietnv/Data/Project/easysalon-webapp')"
+                      class="text-cyan-400 hover:text-cyan-300 hover:underline font-mono cursor-pointer">/run/media/thietnv/Data/Project/easysalon-webapp</button></span>
+                </div>
+              </div>
+
+              <!-- Backend Workspace -->
+              <div class="space-y-1.5">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <label for="input_be_workspace" class="text-xs font-semibold text-slate-200">
+                    Backend Workspace Path (<code class="font-mono text-[11px] text-cyan-300">BE_WORKSPACE</code>)
+                  </label>
+                  <div class="flex items-center gap-2">
+                    <button type="button" onclick="autoDetectWorkspace('be')"
+                      class="text-[10.5px] font-sans px-2.5 py-1 rounded bg-[#1677ff]/15 hover:bg-[#1677ff]/25 text-[#199cff] hover:text-white border border-[#1677ff]/30 transition cursor-pointer flex items-center gap-1.5 font-medium select-none">
+                      <svg class="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 20 20">
+                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                        <path fill-rule="evenodd"
+                          d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
+                          clip-rule="evenodd" />
+                      </svg>
+                      <span>Lấy tự động theo folder 'easysalon-api'</span>
+                    </button>
+                    <span id="badge_be_workspace_status"
+                      class="text-[10px] font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-medium">Hệ
+                      thống</span>
+                  </div>
+                </div>
+                <input type="text" id="input_be_workspace"
+                  oninput="onSettingsOptionChanged('env'); onWorkspaceInputChanged('be', this.value)"
+                  placeholder="/path/to/easysalon-api"
+                  class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#199cff] font-mono">
+                <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-400 font-sans">
+                  <span>Thư mục chứa dự án Backend API / Server để quét sơ đồ và thực thi Git/Agent.</span>
+                  <span>Suy ra từ folder: <button type="button"
+                      onclick="setWorkspaceValue('be', '/run/media/thietnv/Data/Project/easysalon-api')"
+                      class="text-cyan-400 hover:text-cyan-300 hover:underline font-mono cursor-pointer">/run/media/thietnv/Data/Project/easysalon-api</button></span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                <!-- Antigravity CLI Binary Path -->
+                <div class="space-y-1.5">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <label for="input_agy_bin" class="text-xs font-semibold text-slate-200">
+                      Antigravity CLI (<code class="font-mono text-[11px] text-cyan-300">AGY_BIN</code>)
+                    </label>
+                    <div class="flex items-center gap-2">
+                      <button type="button" onclick="autoDetectCli('agy')"
+                        class="text-[10.5px] font-sans px-2.5 py-1 rounded bg-[#1677ff]/15 hover:bg-[#1677ff]/25 text-[#199cff] hover:text-white border border-[#1677ff]/30 transition cursor-pointer flex items-center gap-1.5 font-medium select-none"
+                        title="Tự động dò tìm đường dẫn nhị phân Antigravity CLI đã cài đặt (Linux hoặc Windows)">
+                        <svg class="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 20 20">
+                          <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                          <path fill-rule="evenodd"
+                            d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
+                            clip-rule="evenodd" />
+                        </svg>
+                        <span>Lấy tự động</span>
+                      </button>
+                      <span id="badge_agy_bin_status"
+                        class="text-[10px] font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-medium">Tự
+                        dò tìm</span>
+                    </div>
+                  </div>
+                  <input type="text" id="input_agy_bin"
+                    oninput="onSettingsOptionChanged('env'); onCliInputChanged('agy', this.value)"
+                    placeholder="Mặc định: agy (Linux: ~/.local/bin/agy | Win: %LOCALAPPDATA%\Programs\...)"
+                    class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#199cff] font-mono">
+                  <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-400 font-sans">
+                    <span>Đường dẫn file nhị phân CLI hoặc tên lệnh trong PATH.</span>
+                    <span>Suy ra từ hệ thống: <button type="button" id="btn_suggest_agy_bin"
+                        onclick="setCliValue('agy', this.textContent)"
+                        class="text-cyan-400 hover:text-cyan-300 hover:underline font-mono cursor-pointer truncate max-w-[200px] inline-block align-bottom">/home/thietnv/.local/bin/agy</button></span>
+                  </div>
+                </div>
+
+                <!-- OpenCode CLI Binary Path -->
+                <div class="space-y-1.5">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <label for="input_opencode_bin" class="text-xs font-semibold text-slate-200">
+                      OpenCode CLI (<code class="font-mono text-[11px] text-cyan-300">OPENCODE_BIN</code>)
+                    </label>
+                    <div class="flex items-center gap-2">
+                      <button type="button" onclick="autoDetectCli('opencode')"
+                        class="text-[10.5px] font-sans px-2.5 py-1 rounded bg-[#1677ff]/15 hover:bg-[#1677ff]/25 text-[#199cff] hover:text-white border border-[#1677ff]/30 transition cursor-pointer flex items-center gap-1.5 font-medium select-none"
+                        title="Tự động dò tìm đường dẫn nhị phân OpenCode CLI đã cài đặt (Linux hoặc Windows)">
+                        <svg class="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 20 20">
+                          <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                          <path fill-rule="evenodd"
+                            d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
+                            clip-rule="evenodd" />
+                        </svg>
+                        <span>Lấy tự động</span>
+                      </button>
+                      <span id="badge_opencode_bin_status"
+                        class="text-[10px] font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-medium">Tự
+                        dò tìm</span>
+                    </div>
+                  </div>
+                  <input type="text" id="input_opencode_bin"
+                    oninput="onSettingsOptionChanged('env'); onCliInputChanged('opencode', this.value)"
+                    placeholder="Mặc định: opencode (Linux: ~/.npm-global/bin/opencode | Win: %APPDATA%\npm\...)"
+                    class="w-full bg-[#0c1628] border border-[#244170] rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:border-[#199cff] font-mono">
+                  <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-400 font-sans">
+                    <span>Đường dẫn file nhị phân OpenCode CLI kết nối với 9router.</span>
+                    <span>Suy ra từ hệ thống: <button type="button" id="btn_suggest_opencode_bin"
+                        onclick="setCliValue('opencode', this.textContent)"
+                        class="text-cyan-400 hover:text-cyan-300 hover:underline font-mono cursor-pointer truncate max-w-[200px] inline-block align-bottom">/home/thietnv/.npm-global/bin/opencode</button></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+

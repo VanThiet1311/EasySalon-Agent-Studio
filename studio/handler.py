@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 import http.server
 import json
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -28,12 +29,14 @@ from studio.state import (
     start_nine_router_background,
     start_gemini_cli_background,
     get_opencode_models,
+    get_gemini_cli_models,
 )
 from studio.terminals import (
     get_terminal_feed,
     enqueue_task_item,
     start_queue_worker,
     close_task_terminals,
+    kill_process_tree,
     queue_cond,
     sync_active_task_models,
 )
@@ -42,6 +45,7 @@ from studio.git_ops import (
     get_git_commits,
     get_git_cherry_pick_status,
     switch_git_branch,
+    rename_git_branch,
     pull_git_branch,
     execute_git_cherry_pick,
     abort_git_cherry_pick,
@@ -49,10 +53,13 @@ from studio.git_ops import (
     push_git_branch,
     sync_pull_branch,
     execute_git_stash,
+    get_git_stash_list,
+    execute_git_stash_pop,
     abort_git_merge,
     get_git_merge_status,
     execute_git_merge,
     continue_git_merge,
+    compute_merge_diff,
     check_sync_pull_status,
     parse_git_conflict_content,
     resolve_conflict_content,
@@ -82,9 +89,27 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
+
+    def do_DELETE(self):
+        try:
+            parsed = urllib.parse.urlparse(self.path)
+            path = parsed.path
+            if path == '/api/notes':
+                params = urllib.parse.parse_qs(parsed.query)
+                note_id = params.get('id', [None])[0]
+                from studio.services.notes_service import delete_note
+                res = delete_note(note_id)
+                self.send_json(res)
+            else:
+                self.send_error(404)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        except Exception as e:
+            traceback.print_exc()
+            self.send_json({'success': False, 'message': str(e)}, 500)
 
     @staticmethod
     def _resolve_file_workspace(raw_target):
@@ -127,9 +152,16 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             '/logs',
             '/diagram',
             '/architecture',
+            '/jira',
+            '/jira-tasks',
+            '/jira-tickets',
+            '/notes',
+            '/note',
             '/settings',
             '/setting',
             '/effort',
+            '/model',
+            '/models',
             '/engine',
             '/account',
             '/env',
@@ -137,6 +169,8 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             '/api-settings',
             '/api-keys',
             '/settings/effort',
+            '/settings/model',
+            '/settings/models',
             '/settings/engine',
             '/settings/account',
             '/settings/api',
@@ -278,8 +312,22 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 }
             self.send_json(data)
         elif path == '/api/settings':
+            from studio.state import detect_opencode_active_model, save_settings
+            from studio.terminals import sync_active_task_models
+            detected = detect_opencode_active_model()
             with state_lock:
                 st = dict(app_state.get('settings', load_settings()))
+                if detected:
+                    is_free_or_agent = ('free' in detected.lower()) or detected.endswith('-agent')
+                    clean_detected = detected if is_free_or_agent else re.sub(r'-(low|medium|high|xhigh|max)$', '', detected, flags=re.IGNORECASE)
+                    if clean_detected and st.get('opencode_model') != clean_detected:
+                        st['opencode_model'] = clean_detected
+                        app_state['settings'] = st
+                        try:
+                            save_settings(st)
+                            sync_active_task_models(st)
+                        except Exception:
+                            pass
             from config import get_agy_bin, get_opencode_bin
             current_fe = get_fe_workspace()
             current_be = get_be_workspace()
@@ -354,10 +402,42 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             })
         elif path == '/api/opencode/models':
             models = get_opencode_models()
+            from studio.state import detect_opencode_active_model, save_settings
+            from studio.terminals import sync_active_task_models
+            detected = detect_opencode_active_model()
+            with state_lock:
+                st = dict(app_state.get('settings', load_settings()))
+                if detected:
+                    is_free_or_agent = ('free' in detected.lower()) or detected.endswith('-agent')
+                    clean_detected = detected if is_free_or_agent else re.sub(r'-(low|medium|high|xhigh|max)$', '', detected, flags=re.IGNORECASE)
+                    if clean_detected and st.get('opencode_model') != clean_detected:
+                        st['opencode_model'] = clean_detected
+                        app_state['settings'] = st
+                        try:
+                            save_settings(st)
+                            sync_active_task_models(st)
+                        except Exception:
+                            pass
+            curr_model = st.get('opencode_model', '')
             self.send_json({
                 'success': True,
                 'nine_router_online': is_nine_router_online(),
-                'models': models
+                'models': models,
+                'detected_model': detected,
+                'current_model': curr_model
+            })
+        elif path == '/api/gemini/models':
+            models = get_gemini_cli_models()
+            with state_lock:
+                st = dict(app_state.get('settings', load_settings()))
+            curr_model = st.get('model', 'gemini-3.8-flash-high')
+            curr_effort = st.get('effort', 'high')
+            self.send_json({
+                'success': True,
+                'models': models,
+                'current_model': curr_model,
+                'current_effort': curr_effort,
+                'cli_status': get_gemini_cli_status()
             })
         elif path == '/api/mcp/list':
             import studio.mcp_ops as mcp_ops
@@ -366,6 +446,76 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'success': True,
                 'servers': servers
             })
+        elif path == '/api/jira/status':
+            import studio.jira_ops as jira_ops
+            res = jira_ops.get_jira_status()
+            self.send_json(res)
+        elif path == '/api/jira/issues':
+            import studio.jira_ops as jira_ops
+            params = urllib.parse.parse_qs(parsed.query)
+            jql = params.get('jql', [None])[0]
+            query = params.get('query', [None])[0]
+            project = params.get('project', [None])[0]
+            filter_type = params.get('filter', ['all'])[0]
+            hide_nc = str(params.get('hide_non_coding', ['false'])[0]).lower() in ('1', 'true', 'yes')
+            max_r = int(params.get('max_results', ['30'])[0]) if params.get('max_results') else 30
+            res = jira_ops.search_jira_issues(jql=jql, query=query, project=project, filter_type=filter_type, hide_non_coding=hide_nc, max_results=max_r)
+            self.send_json(res)
+        elif path in ('/api/jira/current-user', '/api/jira/myself'):
+            import studio.jira_ops as jira_ops
+            prof = jira_ops.get_current_user_profile() if hasattr(jira_ops, 'get_current_user_profile') else {}
+            self.send_json({
+                'success': bool(prof),
+                'user': prof
+            })
+        elif path == '/api/jira/issue':
+            import studio.jira_ops as jira_ops
+            params = urllib.parse.parse_qs(parsed.query)
+            key = params.get('key', [None])[0]
+            res = jira_ops.get_jira_issue_detail(key)
+            self.send_json(res)
+        elif path == '/api/jira/assignable-users':
+            import studio.jira_ops as jira_ops
+            params = urllib.parse.parse_qs(parsed.query)
+            issue_key = params.get('issue_key', [None])[0] or params.get('key', [None])[0]
+            project_key = params.get('project', [None])[0] or params.get('project_key', [None])[0]
+            query = params.get('query', [''])[0]
+            res = jira_ops.get_jira_assignable_users(issue_key=issue_key, project_key=project_key, query=query)
+            self.send_json(res)
+        elif path == '/api/jira/note':
+            import studio.jira_ops as jira_ops
+            params = urllib.parse.parse_qs(parsed.query)
+            key = params.get('key', [None])[0]
+            res = jira_ops.get_jira_note(key)
+            self.send_json(res)
+        elif path == '/api/jira/attachment':
+            import studio.jira_ops as jira_ops
+            params = urllib.parse.parse_qs(parsed.query)
+            att_id = params.get('id', [None])[0]
+            fn = params.get('name', [''])[0]
+            is_thumb = bool(params.get('thumb', [False])[0])
+            jira_ops.stream_jira_attachment(self, att_id, filename=fn, is_thumb=is_thumb)
+            return
+        elif path.startswith('/secure/attachment/'):
+            parts = [p for p in path.split('/') if p]
+            att_id = parts[2] if len(parts) > 2 else ''
+            fn = parts[3] if len(parts) > 3 else ''
+            import studio.jira_ops as jira_ops
+            jira_ops.stream_jira_attachment(self, att_id, filename=fn)
+            return
+        elif path.startswith('/rest/api/3/attachment/content/') or path.startswith('/rest/api/2/attachment/content/'):
+            att_id = path.split('/')[-1]
+            import studio.jira_ops as jira_ops
+            jira_ops.stream_jira_attachment(self, att_id)
+            return
+        elif path == '/api/notes':
+            from studio.services.notes_service import get_all_notes
+            notes = get_all_notes()
+            self.send_json({'success': True, 'notes': notes})
+        elif path == '/api/jira/updates':
+            import studio.jira_ops as jira_ops
+            res = jira_ops.check_jira_updates()
+            self.send_json(res)
         elif path == '/api/account/status':
             with state_lock:
                 st = dict(app_state.get('settings', load_settings()))
@@ -415,12 +565,34 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'fe': fe_status,
                 'be': be_status
             })
+        elif path == '/api/git/stash/list':
+            qs = urllib.parse.parse_qs(parsed.query)
+            target = qs.get('target', ['fe'])[0]
+            ws = get_workspace(target)
+            stashes = get_git_stash_list(ws)
+            self.send_json({
+                'success': True,
+                'target': target,
+                'stashes': stashes
+            })
         elif path == '/api/git/merge/status':
             fe_status = get_git_merge_status(get_fe_workspace())
             be_status = get_git_merge_status(get_be_workspace())
             self.send_json({
                 'fe': fe_status,
                 'be': be_status
+            })
+        elif path == '/api/git/merge/diff':
+            qs = urllib.parse.parse_qs(parsed.query)
+            target = qs.get('target', ['fe'])[0]
+            base_commit = qs.get('base_commit', [''])[0]
+            head_commit = qs.get('head_commit', [''])[0]
+            ws = get_workspace(target)
+            diff_data = compute_merge_diff(ws, base_commit=base_commit, head_commit=head_commit)
+            self.send_json({
+                'success': True,
+                'target': target,
+                'merge_diff': diff_data
             })
         elif path == '/api/git/conflict/status':
             qs = urllib.parse.parse_qs(parsed.query)
@@ -711,7 +883,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
         elif path == '/api/queue/remove':
             task_id = body.get('task_id', '').strip()
             with state_lock:
-                if task_id == 'completed':
+                if task_id in ('completed', 'done', 'finished'):
                     finished_ids = set()
                     for tid, ts in app_state['active_tasks'].items():
                         if not ts.get('is_running') and (
@@ -722,12 +894,16 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                             finished_ids.add(str(tid).replace('queued_', ''))
                             finished_ids.add(f"queued_{str(tid).replace('queued_', '')}")
                     for tid in list(app_state['active_tasks'].keys()):
-                        if tid in finished_ids:
-                            app_state['active_tasks'].pop(tid, None)
+                        clean_tid = str(tid).replace('queued_', '')
+                        if tid in finished_ids or clean_tid in finished_ids:
+                            ts = app_state['active_tasks'].pop(tid, None)
+                            if ts and ts.get('current_process'):
+                                kill_process_tree(ts['current_process'])
                             close_task_terminals(tid)
+                            close_task_terminals(clean_tid)
                     app_state['task_queue'] = [
                         q for q in app_state.get('task_queue', [])
-                        if q.get('id') not in finished_ids and q.get('status') not in ('done', 'completed', 'stopped')
+                        if q.get('id') not in finished_ids and str(q.get('id', '')).replace('queued_', '') not in finished_ids and q.get('status') not in ('done', 'completed', 'stopped')
                     ]
                     cur_sess = app_state.get('current_session')
                     if cur_sess:
@@ -738,21 +914,24 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                     save_queue_state_unlocked()
                 elif task_id == 'all':
                     for tid, ts in list(app_state['active_tasks'].items()):
-                        if not ts.get('is_running'):
-                            app_state['active_tasks'].pop(tid, None)
-                            close_task_terminals(tid)
-                    app_state['task_queue'] = [
-                        q for q in app_state.get('task_queue', [])
-                        if q.get('status') in ('running', 'queued')
-                    ]
-                    if not any(t.get('is_running') for t in app_state['active_tasks'].values()):
-                        app_state['current_session'] = None
+                        proc = ts.get('current_process')
+                        if proc:
+                            kill_process_tree(proc)
+                        close_task_terminals(tid)
+                        app_state['active_tasks'].pop(tid, None)
+                    if app_state.get('current_process'):
+                        kill_process_tree(app_state['current_process'])
+                        app_state['current_process'] = None
+                    app_state['task_queue'] = []
+                    app_state['is_running'] = False
+                    app_state['current_session'] = None
                     save_queue_state_unlocked()
                 elif task_id:
                     clean_id = str(task_id).replace('queued_', '')
                     matching_ids = {task_id, clean_id, f"queued_{clean_id}"}
                     for tid in list(app_state['active_tasks'].keys()):
-                        if tid in matching_ids:
+                        clean_tid = str(tid).replace('queued_', '')
+                        if tid in matching_ids or clean_tid in matching_ids:
                             ts = app_state['active_tasks'].get(tid)
                             if ts:
                                 ts['is_running'] = False
@@ -762,15 +941,21 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                                     ts['session']['status'] = 'STOPPED'
                                 proc = ts.get('current_process')
                                 if proc:
-                                    try:
-                                        proc.kill()
-                                    except Exception:
-                                        pass
-                            close_task_terminals(tid)
+                                    kill_process_tree(proc)
                             app_state['active_tasks'].pop(tid, None)
+                    cur_proc = app_state.get('current_process')
+                    cur_sess = app_state.get('current_session')
+                    if cur_proc and cur_sess:
+                        cur_tid = cur_sess.get('task_id') or cur_sess.get('id')
+                        clean_cur = str(cur_tid).replace('queued_', '') if cur_tid else ''
+                        if cur_tid in matching_ids or clean_cur in matching_ids:
+                            kill_process_tree(cur_proc)
+                            app_state['current_process'] = None
+                    for mid in matching_ids:
+                        close_task_terminals(mid)
                     app_state['task_queue'] = [
                         q for q in app_state.get('task_queue', [])
-                        if q.get('id') not in matching_ids
+                        if q.get('id') not in matching_ids and str(q.get('id', '')).replace('queued_', '') not in matching_ids
                     ]
                     app_state['is_running'] = any(t.get('is_running') for t in app_state['active_tasks'].values())
                     cur_sess = app_state.get('current_session')
@@ -789,43 +974,50 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                     clean_id = str(task_id).replace('queued_', '')
                     matching_ids = {task_id, clean_id, f"queued_{clean_id}"}
                     for tid in list(app_state['active_tasks'].keys()):
-                        if tid in matching_ids:
+                        clean_tid = str(tid).replace('queued_', '')
+                        if tid in matching_ids or clean_tid in matching_ids:
                             ts = app_state['active_tasks'][tid]
-                            if ts.get('current_process'):
-                                try:
-                                    ts['current_process'].kill()
-                                except Exception:
-                                    pass
+                            proc = ts.get('current_process')
+                            if proc:
+                                kill_process_tree(proc)
                             ts['is_running'] = False
                             ts['queue_status'] = 'stopped'
                             ts['status_text'] = 'Đã dừng tác vụ.'
                             if ts.get('session'):
                                 ts['session']['status'] = 'STOPPED'
+                    cur_proc = app_state.get('current_process')
+                    cur_sess = app_state.get('current_session')
+                    if cur_proc and cur_sess:
+                        cur_tid = cur_sess.get('task_id') or cur_sess.get('id')
+                        clean_cur = str(cur_tid).replace('queued_', '') if cur_tid else ''
+                        if cur_tid in matching_ids or clean_cur in matching_ids:
+                            kill_process_tree(cur_proc)
+                            app_state['current_process'] = None
                     for q in app_state.get('task_queue', []):
-                        if q.get('id') in matching_ids:
+                        clean_qid = str(q.get('id', '')).replace('queued_', '')
+                        if q.get('id') in matching_ids or clean_qid in matching_ids:
                             q['status'] = 'stopped'
                             q['isRunning'] = False
+                    for mid in matching_ids:
+                        close_task_terminals(mid)
                 else:
-                    for tid, ts in app_state['active_tasks'].items():
-                        if ts.get('current_process'):
-                            try:
-                                ts['current_process'].kill()
-                            except Exception:
-                                pass
+                    for tid, ts in list(app_state['active_tasks'].items()):
+                        proc = ts.get('current_process')
+                        if proc:
+                            kill_process_tree(proc)
                         ts['is_running'] = False
                         ts['queue_status'] = 'stopped'
                         ts['status_text'] = 'Đã dừng tác vụ.'
                         if ts.get('session'):
                             ts['session']['status'] = 'STOPPED'
+                        close_task_terminals(tid)
                     for q in app_state.get('task_queue', []):
                         if q.get('status') in ('running', 'queued'):
                             q['status'] = 'stopped'
                             q['isRunning'] = False
                     if app_state.get('current_process'):
-                        try:
-                            app_state['current_process'].kill()
-                        except Exception:
-                            pass
+                        kill_process_tree(app_state['current_process'])
+                        app_state['current_process'] = None
                     app_state['current_session'] = None
                 app_state['is_running'] = any(t.get('is_running') for t in app_state['active_tasks'].values())
                 app_state['status_text'] = 'Đã dừng tiến trình.' if not app_state['is_running'] else 'Đang chạy'
@@ -846,6 +1038,49 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'nine_router_online': is_nine_router_online(),
                 'gemini_cli_status': get_gemini_cli_status(),
                 'message': "Đã lưu cấu hình thành công!"
+            })
+
+        elif path == '/api/opencode/set-model':
+            new_model = str(body.get('model') or '').strip()
+            new_effort = str(body.get('effort') or '').strip().lower()
+            if not new_model:
+                self.send_json({'success': False, 'message': 'Thiếu tham số model'})
+                return
+            clean_model = re.sub(r'-(low|medium|high)$', '', new_model, flags=re.IGNORECASE)
+            with state_lock:
+                st = dict(app_state.get('settings', load_settings()))
+                st['opencode_model'] = clean_model
+                if new_effort in ('low', 'medium', 'high'):
+                    st['effort'] = new_effort
+                saved = save_settings(st)
+                app_state['settings'] = saved
+            sync_active_task_models(saved)
+            self.send_json({
+                'success': True,
+                'message': f'Đã chuyển sang mô hình OpenCode: {clean_model}',
+                'opencode_model': clean_model,
+                'settings': saved
+            })
+
+        elif path == '/api/gemini/set-model':
+            new_model = str(body.get('model') or '').strip()
+            new_effort = str(body.get('effort') or '').strip().lower()
+            if not new_model:
+                self.send_json({'success': False, 'message': 'Thiếu tham số model'})
+                return
+            with state_lock:
+                st = dict(app_state.get('settings', load_settings()))
+                st['model'] = new_model
+                if new_effort in ('low', 'medium', 'high', 'xhigh', 'max'):
+                    st['effort'] = new_effort
+                saved = save_settings(st)
+                app_state['settings'] = saved
+            sync_active_task_models(saved)
+            self.send_json({
+                'success': True,
+                'message': f'Đã chuyển sang mô hình Gemini CLI: {new_model}',
+                'model': new_model,
+                'settings': saved
             })
 
         elif path in ('/api/9router/start', '/api/engine/start-9router'):
@@ -910,8 +1145,42 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             import studio.mcp_ops as mcp_ops
             conn_url = str(body.get('url') or body.get('conn_url') or '').strip()
             name = str(body.get('name') or 'mysql').strip()
+            host = str(body.get('host') or '').strip()
+            port = body.get('port') or 3306
+            user = str(body.get('user') or body.get('username') or '').strip()
+            password = str(body.get('password') or '')
+            database = str(body.get('database') or body.get('schema') or '').strip()
             try:
-                res = mcp_ops.save_mysql_mcp_preset(conn_url, server_name=name)
+                res = mcp_ops.save_mysql_mcp_preset(
+                    conn_url=conn_url,
+                    server_name=name,
+                    host=host,
+                    port=port,
+                    user=user,
+                    password=password,
+                    database=database,
+                )
+                self.send_json(res)
+            except Exception as e:
+                self.send_json({'success': False, 'message': str(e)}, 400)
+
+        elif path == '/api/mcp/test-mysql':
+            import studio.mcp_ops as mcp_ops
+            conn_url = str(body.get('url') or body.get('conn_url') or '').strip()
+            host = str(body.get('host') or '').strip()
+            port = body.get('port') or 3306
+            user = str(body.get('user') or body.get('username') or '').strip()
+            password = str(body.get('password') or '')
+            database = str(body.get('database') or body.get('schema') or '').strip()
+            try:
+                res = mcp_ops.test_mysql_connection(
+                    host=host,
+                    port=port,
+                    user=user,
+                    password=password,
+                    database=database,
+                    conn_url=conn_url,
+                )
                 self.send_json(res)
             except Exception as e:
                 self.send_json({'success': False, 'message': str(e)}, 400)
@@ -943,6 +1212,14 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             name = str(body.get('name') or '').strip()
             try:
                 res = mcp_ops.remove_mcp_server(name)
+                if name.lower() == 'jira':
+                    with state_lock:
+                        saved = save_settings({
+                            'jira_host': '',
+                            'jira_email': '',
+                            'jira_api_token': '',
+                        })
+                        app_state['settings'] = saved
                 self.send_json(res)
             except Exception as e:
                 self.send_json({'success': False, 'message': str(e)}, 400)
@@ -956,6 +1233,63 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 self.send_json(res)
             except Exception as e:
                 self.send_json({'success': False, 'message': str(e)}, 400)
+
+        elif path == '/api/jira/comment':
+            import studio.jira_ops as jira_ops
+            key = str(body.get('key') or body.get('issue_key') or '').strip()
+            comment_text = str(body.get('comment') or body.get('body') or '').strip()
+            res = jira_ops.add_jira_comment(key, comment_text)
+            self.send_json(res)
+
+        elif path == '/api/jira/transition':
+            import studio.jira_ops as jira_ops
+            key = str(body.get('key') or body.get('issue_key') or '').strip()
+            tid = str(body.get('transition_id') or body.get('id') or '').strip()
+            target_status = str(body.get('status') or body.get('target_status') or '').strip()
+            comment_text = str(body.get('comment') or '').strip()
+            res = jira_ops.transition_jira_issue(key, transition_id=tid, comment=comment_text, target_status=target_status)
+            self.send_json(res)
+
+        elif path == '/api/jira/create-subtask':
+            import studio.jira_ops as jira_ops
+            parent_key = str(body.get('parent_key') or body.get('key') or '').strip()
+            summary = str(body.get('summary') or body.get('title') or '').strip()
+            description = str(body.get('description') or '').strip()
+            target_status = str(body.get('status') or body.get('target_status') or '').strip()
+            transition_id = str(body.get('transition_id') or '').strip()
+            assignee_id = str(body.get('assignee_id') or body.get('assignee_account_id') or body.get('assignee') or '').strip()
+            res = jira_ops.create_jira_subtask(parent_key, summary, description, target_status=target_status, transition_id=transition_id, assignee_account_id=assignee_id)
+            self.send_json(res)
+
+        elif path == '/api/jira/assign':
+            import studio.jira_ops as jira_ops
+            key = str(body.get('key') or body.get('issue_key') or '').strip()
+            account_id = body.get('account_id')
+            res = jira_ops.assign_jira_issue(key, account_id=account_id)
+            self.send_json(res)
+
+        elif path == '/api/jira/note':
+            import studio.jira_ops as jira_ops
+            key = str(body.get('key') or body.get('issue_key') or '').strip()
+            note = str(body.get('note') or '')
+            res = jira_ops.save_jira_note(key, note)
+            self.send_json(res)
+
+        elif path == '/api/notes':
+            from studio.services.notes_service import save_note
+            res = save_note(body)
+            self.send_json(res)
+
+        elif path == '/api/notes/delete':
+            from studio.services.notes_service import delete_note
+            note_id = body.get('id')
+            res = delete_note(note_id)
+            self.send_json(res)
+
+        elif path == '/api/jira/rovo-analyze':
+            import studio.jira_ops as jira_ops
+            res = jira_ops.analyze_jira_issue_with_rovo(body)
+            self.send_json(res)
 
         elif path == '/api/mcp/test-jira':
             import studio.mcp_ops as mcp_ops
@@ -1073,22 +1407,23 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             branch = body.get('branch', '').strip()
             create_new = bool(body.get('create_new', False))
             base_branch = body.get('base_branch', '').strip()
+            switch_branch = bool(body.get('switch_branch', True))
             if not branch:
                 self.send_json({'success': False, 'message': 'Vui lòng chọn hoặc nhập tên nhánh.'}, 400)
                 return
 
             results = []
             all_ok = True
-            action_name = "Tạo nhánh" if create_new else "Chuyển nhánh"
+            action_name = "Tạo nhánh & chuyển" if (create_new and switch_branch) else ("Tạo nhánh" if create_new else "Chuyển nhánh")
 
             if target in ('fe', 'both'):
-                ok, msg = switch_git_branch(get_fe_workspace(), branch, create_new=create_new, base_branch=base_branch)
+                ok, msg = switch_git_branch(get_fe_workspace(), branch, create_new=create_new, base_branch=base_branch, switch_branch=switch_branch)
                 results.append(f"Frontend: {msg}")
                 add_work_log('GIT_SWITCH', f"{action_name} Frontend sang '{branch}'", msg, 'SUCCESS' if ok else 'ERROR', target='fe')
                 if not ok: all_ok = False
 
             if target in ('be', 'both'):
-                ok, msg = switch_git_branch(get_be_workspace(), branch, create_new=create_new, base_branch=base_branch)
+                ok, msg = switch_git_branch(get_be_workspace(), branch, create_new=create_new, base_branch=base_branch, switch_branch=switch_branch)
                 results.append(f"Backend: {msg}")
                 add_work_log('GIT_SWITCH', f"{action_name} Backend sang '{branch}'", msg, 'SUCCESS' if ok else 'ERROR', target='be')
                 if not ok: all_ok = False
@@ -1102,6 +1437,39 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'success': all_ok,
                 'message': '\n'.join(results)
             })
+
+        elif path == '/api/git/rename-branch':
+            target = body.get('target', 'fe')
+            old_branch = body.get('old_branch', '').strip()
+            new_branch = body.get('new_branch', '').strip()
+            if not new_branch:
+                self.send_json({'success': False, 'message': 'Vui lòng nhập tên nhánh mới.'}, 400)
+                return
+
+            results = []
+            all_ok = True
+
+            if target in ('fe', 'both'):
+                ok, msg = rename_git_branch(get_fe_workspace(), new_branch, old_name=old_branch)
+                results.append(f"Frontend: {msg}")
+                add_work_log('GIT_RENAME', f"Đổi tên nhánh Frontend thành '{new_branch}'", msg, 'SUCCESS' if ok else 'ERROR', target='fe')
+                if not ok: all_ok = False
+
+            if target in ('be', 'both'):
+                ok, msg = rename_git_branch(get_be_workspace(), new_branch, old_name=old_branch)
+                results.append(f"Backend: {msg}")
+                add_work_log('GIT_RENAME', f"Đổi tên nhánh Backend thành '{new_branch}'", msg, 'SUCCESS' if ok else 'ERROR', target='be')
+                if not ok: all_ok = False
+
+            # Xóa cache sơ đồ
+            with state_lock:
+                app_state['diagram_cache'] = None
+                app_state['diagram_cache_key'] = None
+
+            self.send_json({
+                'success': all_ok,
+                'message': '\n'.join(results)
+            }, 200 if all_ok else 400)
 
         elif path == '/api/git/fetch':
             target = body.get('target', 'both')
@@ -1192,6 +1560,48 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 app_state['diagram_cache'] = None
                 app_state['diagram_cache_key'] = None
             self.send_json(res)
+
+        elif path == '/api/git/checkout-switch':
+            data = body or {}
+            current_branch = (data.get('current_branch') or '').strip()
+            target_branch = (data.get('target_branch') or '').strip()
+            target_workspace = (data.get('target_workspace') or '').strip() or 'both'
+
+            if not current_branch or not target_branch:
+                self.send_json({'success': False, 'message': 'Thiếu thông tin nhánh current/target.'}, 400)
+                return
+
+            # Chỉ cho phép checkout nếu target_branch không phải là current_branch
+            if current_branch.lower() == target_branch.lower():
+                self.send_json({'success': False, 'message': 'Nhánh đích không được giống nhánh hiện tại.'}, 400)
+                return
+
+            results = []
+            all_ok = True
+
+            # Checkout Frontend
+            if target_workspace in ('fe', 'both'):
+                ok, msg = switch_git_branch(get_fe_workspace(), target_branch, base_branch=current_branch)
+                results.append(f"Frontend: {msg}")
+                add_work_log('GIT_SWITCH', f'Checkout FE sang "{target_branch}" từ "{current_branch}"', msg, 'SUCCESS' if ok else 'ERROR', target='fe')
+                if not ok: all_ok = False
+
+            # Checkout Backend
+            if target_workspace in ('be', 'both'):
+                ok, msg = switch_git_branch(get_be_workspace(), target_branch, base_branch=current_branch)
+                results.append(f"Backend: {msg}")
+                add_work_log('GIT_SWITCH', f'Checkout BE sang "{target_branch}" từ "{current_branch}"', msg, 'SUCCESS' if ok else 'ERROR', target='be')
+                if not ok: all_ok = False
+
+            # Xóa cache sơ đồ
+            with state_lock:
+                app_state['diagram_cache'] = None
+                app_state['diagram_cache_key'] = None
+
+            self.send_json({
+                'success': all_ok,
+                'message': '\n'.join(results)
+            })
 
         elif path == '/api/git/push':
             target = body.get('target', 'fe')
@@ -1311,6 +1721,22 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'message': '\n'.join([f"{'Frontend' if k=='fe' else 'Backend'}: {v.get('message')}" for k, v in results.items()])
             })
 
+        elif path == '/api/git/stash/pop':
+            target = body.get('target', 'fe')
+            stash_index = body.get('stash_index', None)
+            ws = get_workspace(target)
+            repo_label = 'Frontend' if target == 'fe' else 'Backend'
+            res = execute_git_stash_pop(ws, stash_index=stash_index)
+            stash_ref = stash_index or 'stash@{0}'
+            add_work_log(
+                'GIT_STASH_POP',
+                f"Lấy code từ Stash {repo_label} ({stash_ref})",
+                res.get('message', ''),
+                'SUCCESS' if res.get('success') else 'ERROR',
+                target=target
+            )
+            self.send_json(res)
+
         elif path == '/api/git/merge':
             target = body.get('target', 'fe')
             source_branch = body.get('source_branch', '').strip()
@@ -1377,6 +1803,18 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 app_state['diagram_cache'] = None
                 app_state['diagram_cache_key'] = None
             self.send_json(res)
+
+        elif path == '/api/git/merge/diff':
+            target = body.get('target', 'fe')
+            base_commit = body.get('base_commit', '')
+            head_commit = body.get('head_commit', '')
+            ws = get_workspace(target)
+            diff_data = compute_merge_diff(ws, base_commit=base_commit, head_commit=head_commit)
+            self.send_json({
+                'success': True,
+                'target': target,
+                'merge_diff': diff_data
+            })
 
         elif path == '/api/git/conflict/resolve':
             target = body.get('target', 'fe')

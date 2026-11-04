@@ -1,0 +1,50 @@
+  <!-- TAB 5: LOG LỊCH SỬ (WORK LOGS & AUDIT TRAIL) -->
+  <main id="view_log" class="hidden flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-4">
+    <div
+      class="flex flex-wrap items-center justify-between gap-4 bg-[#101e38] border border-[#244170] rounded-lg p-4 shadow-sm">
+      <div class="flex items-center gap-3">
+        <div
+          class="w-8 h-8 rounded bg-[#182c4f] border border-[#244170] flex items-center justify-center text-amber-400">
+          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+            <path
+              d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-sm font-semibold text-white">Lịch sử hoạt động</h2>
+          <p class="text-xs text-slate-400">Ghi lại toàn bộ phiên thực thi task, chẩn đoán lỗi và thao tác Git</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="flex items-center bg-[#0e192c] border border-[#244170] rounded-md p-0.5 text-xs space-x-0.5">
+          <button id="logFilter_all" onclick="setLogTypeFilter('all')"
+            class="active-log-filter px-2.5 py-1 rounded bg-[rgb(25,156,255)] text-white font-bold text-xs shadow-sm cursor-pointer select-none">Tất
+            cả</button>
+          <button id="logFilter_TASK" onclick="setLogTypeFilter('TASK')"
+            class="px-2.5 py-1 rounded text-slate-300 hover:text-white text-xs transition cursor-pointer select-none">Tác
+            vụ</button>
+          <button id="logFilter_GIT" onclick="setLogTypeFilter('GIT')"
+            class="px-2.5 py-1 rounded text-slate-300 hover:text-white text-xs transition cursor-pointer select-none">Điều
+            khiển Git</button>
+        </div>
+
+        <input type="text" id="logSearchInput" oninput="renderFilteredLogs()" placeholder="Tìm kiếm log..."
+          class="bg-[#0e192c] border border-[#244170] rounded-md px-3 py-1.5 text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-cyan-500" />
+
+        <button onclick="loadWorkLogs()" class="ant-btn text-xs h-[30px]">
+          <span>Làm mới</span>
+        </button>
+        <button onclick="clearLogs()" class="ant-btn ant-btn-danger text-xs h-[30px]"
+          title="Xóa toàn bộ lịch sử hoạt động">
+          <span>Xóa tất cả lịch sử</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Danh sách log -->
+    <div id="logListContainer" class="space-y-2.5">
+      <div class="text-center py-16 text-slate-500 text-xs">Đang tải lịch sử hoạt động...</div>
+    </div>
+  </main>
+

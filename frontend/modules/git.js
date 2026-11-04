@@ -17,7 +17,7 @@ function populateBaseBranchSelect(feBranches = [], beBranches = []) {
   feBranches.forEach(b => { if (b.name) allBranches.add(b.name); });
   beBranches.forEach(b => { if (b.name) allBranches.add(b.name); });
 
-  const standardBases = ['staging', 'master', 'beta', 'main'];
+  const standardBases = ['master', 'staging', 'beta', 'main'];
   const orderedList = [];
   standardBases.forEach(b => {
     if (allBranches.has(b)) {
@@ -33,13 +33,18 @@ function populateBaseBranchSelect(feBranches = [], beBranches = []) {
   orderedList.forEach(b => {
     const opt = document.createElement('option');
     opt.value = b;
-    const tag = (b === 'staging' || b === 'master') ? ' (khuyên dùng)' : '';
+    const tag = (b === 'master') ? ' (khuyên dùng)' : '';
     opt.textContent = `${b}${tag}`;
     sel.appendChild(opt);
   });
 
+  // Mặc định checkout từ master (nhánh gốc phổ biến nhất)
   if (currentVal && orderedList.includes(currentVal)) {
     sel.value = currentVal;
+  } else if (orderedList.includes('master')) {
+    sel.value = 'master';
+  } else if (orderedList.includes('main')) {
+    sel.value = 'main';
   } else if (orderedList.includes('staging')) {
     sel.value = 'staging';
   } else if (orderedList.includes('beta')) {
@@ -51,9 +56,11 @@ async function doCreateNewBranchBoth() {
   const branchInp = document.getElementById('bothBranchInput');
   const baseSel = document.getElementById('bothBaseBranchSelect');
   const targetSel = document.getElementById('bothTargetWorkspaceSelect');
+  const switchCheckbox = document.getElementById('bothSwitchAfterCreateCheckbox');
   const newBranch = (branchInp?.value || '').trim();
-  const baseBranch = (baseSel?.value || 'staging').trim();
+  const baseBranch = (baseSel?.value || 'master').trim();
   const targetWorkspace = (targetSel?.value || 'both').trim();
+  const switchAfterCreate = switchCheckbox ? switchCheckbox.checked : true;
 
   if (!newBranch) {
     await antdAlert({
@@ -68,9 +75,13 @@ async function doCreateNewBranchBoth() {
     ? 'Frontend (easysalon-webapp)'
     : (targetWorkspace === 'be' ? 'Backend (easysalon-api)' : 'cả Frontend & Backend');
 
+  const confirmMsg = switchAfterCreate
+    ? `Bạn có chắc muốn tạo nhánh mới ${newBranch} từ nhánh ${baseBranch} và switch sang nhánh này cho ${targetLabel}?`
+    : `Bạn có chắc muốn tạo nhánh mới ${newBranch} từ nhánh ${baseBranch} cho ${targetLabel} (không switch nhánh)?`;
+
   const confirmed = await antdConfirm({
     title: 'Xác nhận tạo nhánh',
-    content: `Bạn có chắc muốn tạo nhánh mới ${newBranch} từ nhánh ${baseBranch} cho ${targetLabel}?`
+    content: confirmMsg
   });
   if (!confirmed) return;
 
@@ -95,7 +106,8 @@ async function doCreateNewBranchBoth() {
         target: targetWorkspace,
         branch: newBranch,
         create_new: true,
-        base_branch: baseBranch
+        base_branch: baseBranch,
+        switch_branch: switchAfterCreate
       })
     });
     const data = await res.json();
@@ -118,6 +130,209 @@ async function doCreateNewBranchBoth() {
   }
 }
 
+function populateRenameBranchSelect(feBranches = [], beBranches = []) {
+  const sel = document.getElementById('renameOldBranchSelect');
+  const targetSel = document.getElementById('renameTargetWorkspaceSelect');
+  if (!sel) return;
+  const target = targetSel ? targetSel.value : 'both';
+  const currentVal = sel.value;
+
+  const branchSet = new Set();
+  if (target === 'fe' || target === 'both') {
+    feBranches.forEach(b => { if (b.name) branchSet.add(b.name); });
+  }
+  if (target === 'be' || target === 'both') {
+    beBranches.forEach(b => { if (b.name) branchSet.add(b.name); });
+  }
+
+  const sortedBranches = Array.from(branchSet).sort();
+
+  sel.innerHTML = '<option value="">Nhánh hiện tại (HEAD)</option>';
+  sortedBranches.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b;
+    opt.textContent = b;
+    sel.appendChild(opt);
+  });
+
+  if (currentVal && branchSet.has(currentVal)) {
+    sel.value = currentVal;
+  }
+}
+window.populateRenameBranchSelect = populateRenameBranchSelect;
+
+function onRenameTargetWorkspaceChange() {
+  const feBranches = gitInfoData?.fe?.branches || [];
+  const beBranches = gitInfoData?.be?.branches || [];
+  populateRenameBranchSelect(feBranches, beBranches);
+}
+window.onRenameTargetWorkspaceChange = onRenameTargetWorkspaceChange;
+
+function onRenameOldBranchChange() {
+  const oldBranchSel = document.getElementById('renameOldBranchSelect');
+  const newBranchInp = document.getElementById('renameNewBranchInput');
+  const targetSel = document.getElementById('renameTargetWorkspaceSelect');
+  if (!oldBranchSel || !newBranchInp) return;
+
+  const oldBranch = oldBranchSel.value;
+  if (oldBranch) {
+    newBranchInp.value = oldBranch;
+    newBranchInp.focus();
+    newBranchInp.select();
+  } else {
+    const target = targetSel ? targetSel.value : 'both';
+    let current = '';
+    if (target === 'fe') current = gitInfoData?.fe?.current_branch || '';
+    else if (target === 'be') current = gitInfoData?.be?.current_branch || '';
+    else current = gitInfoData?.fe?.current_branch || gitInfoData?.be?.current_branch || '';
+    if (current) {
+      newBranchInp.value = current;
+      newBranchInp.focus();
+      newBranchInp.select();
+    }
+  }
+}
+window.onRenameOldBranchChange = onRenameOldBranchChange;
+
+async function doRenameBranch() {
+  const targetSel = document.getElementById('renameTargetWorkspaceSelect');
+  const oldBranchSel = document.getElementById('renameOldBranchSelect');
+  const newBranchInp = document.getElementById('renameNewBranchInput');
+
+  const target = targetSel ? targetSel.value : 'both';
+  const oldBranch = (oldBranchSel ? oldBranchSel.value : '').trim();
+  const newBranch = (newBranchInp ? newBranchInp.value : '').trim();
+
+  if (!newBranch) {
+    await antdAlert({
+      title: 'Thiếu tên nhánh mới',
+      content: 'Vui lòng nhập tên nhánh mới muốn đổi (ví dụ: feat/nvt/EAS-12373/booking-bed-room-management).',
+      type: 'error'
+    });
+    return;
+  }
+
+  if (oldBranch && oldBranch === newBranch) {
+    await antdAlert({
+      title: 'Tên nhánh trùng nhau',
+      content: 'Tên nhánh mới phải khác tên nhánh hiện tại.',
+      type: 'warning'
+    });
+    return;
+  }
+
+  const targetLabel = target === 'fe'
+    ? 'Frontend (easysalon-webapp)'
+    : (target === 'be' ? 'Backend (easysalon-api)' : 'cả Frontend & Backend');
+
+  const oldBranchDisplay = oldBranch ? `nhánh <strong>${escapeHtml(oldBranch)}</strong>` : '<strong>nhánh hiện tại (HEAD)</strong>';
+
+  const confirmed = await antdConfirm({
+    title: 'Xác nhận đổi tên nhánh',
+    content: `Bạn có chắc muốn đổi tên ${oldBranchDisplay} thành <strong class="text-cyan-300 font-mono">${escapeHtml(newBranch)}</strong> cho ${targetLabel}?`
+  });
+  if (!confirmed) return;
+
+  const btn = document.getElementById('btnRenameBranch');
+  const origText = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `
+      <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <span>Đang đổi tên...</span>
+    `;
+  }
+
+  try {
+    const res = await fetch('/api/git/rename-branch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        target,
+        old_branch: oldBranch,
+        new_branch: newBranch
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || 'Đã đổi tên nhánh thành công.', 'success');
+      if (newBranchInp) newBranchInp.value = '';
+      await loadGitBranchInfo();
+    } else {
+      await antdAlert({
+        title: 'Lỗi đổi tên nhánh',
+        content: data.message || 'Không thể đổi tên nhánh.',
+        type: 'error'
+      });
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối khi đổi tên nhánh: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origText;
+    }
+  }
+}
+window.doRenameBranch = doRenameBranch;
+
+function quickFillRename(role) {
+  const currentBranch = gitInfoData && gitInfoData[role] && gitInfoData[role].current_branch;
+  const targetSel = document.getElementById('renameTargetWorkspaceSelect');
+  const oldBranchSel = document.getElementById('renameOldBranchSelect');
+  const newBranchInp = document.getElementById('renameNewBranchInput');
+
+  if (targetSel) {
+    targetSel.value = role;
+    onRenameTargetWorkspaceChange();
+  }
+  if (oldBranchSel) {
+    oldBranchSel.value = ''; // HEAD / hiện tại
+  }
+  if (newBranchInp && currentBranch) {
+    newBranchInp.value = currentBranch;
+    newBranchInp.focus();
+    newBranchInp.select();
+  }
+  newBranchInp?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  showToast(`Đã chọn đổi tên nhánh ${role.toUpperCase()}: ${currentBranch || 'hiện tại'}`, 'info');
+}
+window.quickFillRename = quickFillRename;
+
+function quickFillRenameSelected(role) {
+  const select = document.getElementById(role + 'BranchSelect');
+  const inp = document.getElementById(role + 'BranchInput');
+  const selectedBranch = (select?.value || inp?.value || '').trim();
+
+  if (!selectedBranch) {
+    showToast('Vui lòng chọn nhánh trong danh sách trước.', 'warning');
+    return;
+  }
+
+  const targetSel = document.getElementById('renameTargetWorkspaceSelect');
+  const oldBranchSel = document.getElementById('renameOldBranchSelect');
+  const newBranchInp = document.getElementById('renameNewBranchInput');
+
+  if (targetSel) {
+    targetSel.value = role;
+    onRenameTargetWorkspaceChange();
+  }
+  if (oldBranchSel) {
+    oldBranchSel.value = selectedBranch;
+  }
+  if (newBranchInp) {
+    newBranchInp.value = selectedBranch;
+    newBranchInp.focus();
+    newBranchInp.select();
+  }
+  newBranchInp?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  showToast(`Đã chọn đổi tên nhánh ${role.toUpperCase()}: ${selectedBranch}`, 'info');
+}
+window.quickFillRenameSelected = quickFillRenameSelected;
+
 async function loadGitBranchInfo() {
   try {
     const res = await fetch('/api/git/info');
@@ -126,6 +341,7 @@ async function loadGitBranchInfo() {
     renderGitBranchCard('fe', data.fe);
     renderGitBranchCard('be', data.be);
     populateBaseBranchSelect(data.fe?.branches || [], data.be?.branches || []);
+    populateRenameBranchSelect(data.fe?.branches || [], data.be?.branches || []);
   } catch (err) {
     showGitAlert('Lỗi tải thông tin Git: ' + err.message, false);
   }
@@ -206,6 +422,47 @@ function renderGitBranchCard(role, info) {
     }
   }
 
+  // Hiển thị khu vực Stash và nút Lấy code từ stash nếu nhánh hiện tại có stash
+  const stashSection = document.getElementById(isFe ? 'feStashSection' : 'beStashSection');
+  const stashBadge = document.getElementById(isFe ? 'feStashBadge' : 'beStashBadge');
+  const popStashBtnText = document.getElementById(isFe ? 'fePopStashBtnText' : 'bePopStashBtnText');
+
+  const branchStashes = info.branch_stashes || [];
+  const hasBranchStash = Boolean(info.has_branch_stash && branchStashes.length > 0);
+
+  if (stashSection) {
+    if (hasBranchStash) {
+      const topStash = branchStashes[0];
+      const count = branchStashes.length;
+      stashSection.classList.remove('hidden');
+      stashSection.style.display = 'flex';
+      stashSection.dataset.stashRef = topStash.index;
+
+      if (stashBadge) {
+        const timeAgo = topStash.date ? ` (${formatRelativeDate(topStash.date)})` : '';
+        const desc = topStash.message || topStash.raw_subject || 'Bản cất code';
+        if (count > 1) {
+          stashBadge.textContent = `${topStash.index}: ${desc}${timeAgo} (+${count - 1} bản khác)`;
+          stashBadge.title = `Nhánh này có ${count} bản stash:\n` + branchStashes.map(s => `${s.index}: ${s.message || s.raw_subject} (${s.date})`).join('\n');
+        } else {
+          stashBadge.textContent = `${topStash.index}: ${desc}${timeAgo}`;
+          stashBadge.title = `${topStash.index}: ${desc} (${topStash.date})`;
+        }
+      }
+
+      if (popStashBtnText) {
+        popStashBtnText.textContent = count > 1 ? `Lấy code từ stash (${topStash.index})` : 'Lấy code từ stash';
+      }
+    } else {
+      stashSection.classList.add('hidden');
+      stashSection.style.display = 'none';
+      if (stashBadge) {
+        stashBadge.textContent = '';
+        stashBadge.title = '';
+      }
+    }
+  }
+
   filterBranchList(role);
 }
 
@@ -218,6 +475,8 @@ function filterBranchList(role) {
   const filterText = (input?.value || '').toLowerCase().trim();
   const branches = gitInfoData[role].branches || [];
   const currentBranch = gitInfoData[role].current_branch;
+  const stashList = gitInfoData[role].stash_list || [];
+  const branchesWithStash = new Set(stashList.map(s => s.branch).filter(Boolean));
 
   select.innerHTML = '';
   const filtered = branches.filter(b => b.name.toLowerCase().includes(filterText));
@@ -235,7 +494,8 @@ function filterBranchList(role) {
     opt.value = b.name;
     const prefix = b.name === currentBranch ? '[Hiện tại] ' : '';
     const dateStr = b.date ? ` [${formatRelativeDate(b.date)}]` : '';
-    opt.textContent = `${prefix}${b.name}${dateStr}`;
+    const stashStr = branchesWithStash.has(b.name) ? ' [Có stash]' : '';
+    opt.textContent = `${prefix}${b.name}${dateStr}${stashStr}`;
     if (b.name === currentBranch) {
       opt.className = 'font-bold text-cyan-300 bg-cyan-950/40';
     }
@@ -378,6 +638,12 @@ async function doCheckout(target) {
 
     await loadGitBranchInfo();
 
+    const roleInfo = gitInfoData?.[target];
+    if (roleInfo && roleInfo.has_branch_stash && roleInfo.branch_stashes?.length > 0) {
+      const topStash = roleInfo.branch_stashes[0];
+      showToast(`Nhánh "${selectedBranch}" có code đã cất trong ${topStash.index}. Bấm "Lấy code từ stash" để khôi phục.`);
+    }
+
     await fetchDiagramData(true);
 
     if (activeTab === 'log') loadWorkLogs();
@@ -449,6 +715,13 @@ async function doCheckoutPrevious(target) {
     showToast(data.message || (data.success ? 'Đã quay về nhánh trước đó.' : 'Lỗi khi quay lại nhánh trước.'));
 
     await loadGitBranchInfo();
+
+    const roleInfo = gitInfoData?.[target];
+    if (roleInfo && roleInfo.has_branch_stash && roleInfo.branch_stashes?.length > 0) {
+      const topStash = roleInfo.branch_stashes[0];
+      showToast(`Nhánh "${roleInfo.current_branch || prevBranch}" có code đã cất trong ${topStash.index}. Bấm "Lấy code từ stash" để khôi phục.`);
+    }
+
     await fetchDiagramData(true);
     if (activeTab === 'log') loadWorkLogs();
   } catch (err) {
@@ -459,6 +732,76 @@ async function doCheckoutPrevious(target) {
   } finally {
     if (btn) {
       btn.disabled = false;
+    }
+  }
+}
+
+async function doPopStash(role) {
+  const isFe = role === 'fe';
+  const repoName = isFe ? 'Frontend' : 'Backend';
+  const roleInfo = gitInfoData?.[role];
+  const branchStashes = roleInfo?.branch_stashes || [];
+  const stash = branchStashes[0] || roleInfo?.stash_list?.[0];
+  const stashRef = stash?.index || 'stash@{0}';
+  const stashMsg = stash?.message || stash?.raw_subject || '';
+  const currentBranch = roleInfo?.current_branch || 'nhánh hiện tại';
+
+  const confirmed = await antdConfirm({
+    title: 'Xác nhận lấy code từ Git Stash',
+    content: `Bạn có muốn lấy và áp dụng mã nguồn từ ${stashRef}${stashMsg ? ` ("${stashMsg}")` : ''} vào nhánh "${currentBranch}" (${repoName}) không?`
+  });
+  if (!confirmed) return;
+
+  const btn = document.getElementById(isFe ? 'btnPopStashFe' : 'btnPopStashBe');
+  const origHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `
+      <svg class="animate-spin -ml-1 mr-1.5 h-3.5 w-3.5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <span>Đang lấy code...</span>
+    `;
+  }
+
+  try {
+    const res = await fetch('/api/git/stash/pop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        target: role,
+        stash_index: stashRef
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || `Đã lấy code từ ${stashRef} thành công.`);
+    } else {
+      if (data.conflict) {
+        await antdAlert({
+          title: 'Xảy ra xung đột khi lấy code từ Stash',
+          content: `${data.message}\n\nCác file xung đột đã được giữ lại trên working tree. Bạn có thể mở tab Xung đột Git để xử lý.`,
+          type: 'warning'
+        });
+      } else {
+        await antdAlert({
+          title: 'Không thể lấy code từ Stash',
+          content: data.message || 'Lỗi không xác định khi thực hiện git stash pop.',
+          type: 'error'
+        });
+      }
+    }
+    await loadGitBranchInfo();
+    if (typeof activeTab !== 'undefined' && activeTab === 'log' && typeof loadWorkLogs === 'function') {
+      loadWorkLogs();
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối khi lấy code từ stash: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
     }
   }
 }
@@ -818,6 +1161,21 @@ function updateNotifBadgeUI() {
       dropdownBadge.className = 'text-xs text-slate-400 font-normal';
     }
   }
+
+  const btnMarkAll = document.getElementById('btnMarkAllNotifsAsRead');
+  if (btnMarkAll) {
+    if (unreadCount > 0) {
+      btnMarkAll.className = 'text-[11px] font-semibold text-[#199cff] hover:text-blue-700 transition cursor-pointer';
+      btnMarkAll.style.color = '#199cff';
+      btnMarkAll.disabled = false;
+      btnMarkAll.title = 'Đánh dấu tất cả thông báo là đã đọc';
+    } else {
+      btnMarkAll.className = 'text-[11px] font-semibold text-slate-400 cursor-default select-none transition';
+      btnMarkAll.style.color = '#94a3b8';
+      btnMarkAll.disabled = true;
+      btnMarkAll.title = 'Đã đọc tất cả thông báo';
+    }
+  }
 }
 window.updateNotifBadgeUI = updateNotifBadgeUI;
 
@@ -834,10 +1192,14 @@ function renderNotifFilterTabs() {
   const agentItems = all.filter(n => n.tag === 'agent');
   const agentUnread = agentItems.filter(n => !_readNotifIds.has(n.id)).length;
 
+  const jiraItems = all.filter(n => n.tag === 'jira');
+  const jiraUnread = jiraItems.filter(n => !_readNotifIds.has(n.id)).length;
+
   const tags = [
     { id: 'all', label: 'Tất cả', count: all.length, unread: allUnread },
     { id: 'git', label: 'Git', count: gitItems.length, unread: gitUnread },
-    { id: 'agent', label: 'Tác vụ Agent', count: agentItems.length, unread: agentUnread }
+    { id: 'agent', label: 'Tác vụ Agent', count: agentItems.length, unread: agentUnread },
+    { id: 'jira', label: 'Jira', count: jiraItems.length, unread: jiraUnread }
   ];
 
   container.innerHTML = tags.map(t => {
@@ -882,7 +1244,9 @@ function renderNotificationList() {
   if (filtered.length === 0) {
     const emptyMsg = _notifActiveTag === 'git'
       ? 'Không có thông báo Git nào.'
-      : (_notifActiveTag === 'agent' ? 'Không có thông báo Tác vụ Agent nào.' : 'Không có thông báo nào.');
+      : (_notifActiveTag === 'agent'
+        ? 'Không có thông báo Tác vụ Agent nào.'
+        : (_notifActiveTag === 'jira' ? 'Không có thông báo Jira nào.' : 'Không có thông báo nào.'));
     listEl.innerHTML = `
       <div class="p-6 text-center text-slate-500 space-y-2 bg-white">
         <svg class="w-8 h-8 text-emerald-500 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -917,6 +1281,16 @@ function renderNotificationList() {
         titleClass = 'notif-title-running';
         titleStyle = 'color: #d48806;';
       }
+    } else if (item.tag === 'jira') {
+      if (item.notifType === 'comment_added') {
+        tagBadge = '<span onclick="setNotifTagFilter(\'jira\', event)" class="notif-tag-badge notif-tag-jira-comment" title="Nhấp để lọc theo Jira">Jira · Bình luận</span>';
+        titleClass = 'notif-title-running';
+        titleStyle = 'color: #d48806;';
+      } else {
+        tagBadge = '<span onclick="setNotifTagFilter(\'jira\', event)" class="notif-tag-badge notif-tag-jira-task" title="Nhấp để lọc theo Jira">Jira · Task mới</span>';
+        titleClass = 'notif-title-done';
+        titleStyle = 'color: #389e0d;';
+      }
     } else {
       if (isDone) {
         tagBadge = '<span onclick="setNotifTagFilter(\'agent\', event)" class="notif-tag-badge notif-tag-done" title="Nhấp để lọc theo Tác vụ Agent">Tác vụ Agent</span>';
@@ -946,7 +1320,7 @@ function renderNotificationList() {
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2 flex-wrap min-w-0 flex-1">
             ${tagBadge}
-            <span class="font-bold text-xs ${titleClass} transition truncate" style="${isUnread ? 'color: #1677ff;' : 'color: #94a3b8;'}">
+            <span class="font-bold text-xs ${titleClass} notif-item-title transition truncate" style="${isUnread ? 'color: #1677ff !important;' : 'color: #94a3b8 !important;'}">
               ${escapeHtml(item.title)}
             </span>
           </div>
@@ -986,6 +1360,14 @@ function onNotifItemClick(notifId, event) {
     if (notif.role && notif.branch) {
       goToPullScreen(notif.role, notif.branch);
     }
+  } else if (notif.tag === 'jira') {
+    const menu = document.getElementById('notifDropdownMenu');
+    if (menu) menu.classList.add('hidden');
+    if (typeof onJiraNotificationClick === 'function') {
+      onJiraNotificationClick(notif.issueKey, notif.notifType);
+    } else if (typeof switchTab === 'function') {
+      switchTab('jira');
+    }
   } else if (notif.tag === 'agent') {
     const menu = document.getElementById('notifDropdownMenu');
     if (menu) menu.classList.add('hidden');
@@ -1024,7 +1406,7 @@ async function clearAllNotifications() {
   }
   const confirmed = await antdConfirm({
     title: 'Xóa toàn bộ lịch sử thông báo?',
-    content: 'Tất cả các thông báo Git và Tác vụ Agent đã lưu sẽ bị xóa vĩnh viễn. Bạn có chắc chắn muốn xóa?',
+    content: 'Tất cả các thông báo Git, Tác vụ Agent và Jira đã lưu sẽ bị xóa vĩnh viễn. Bạn có chắc chắn muốn xóa?',
     okText: 'Xóa tất cả lịch sử',
     cancelText: 'Hủy',
     danger: true
@@ -2172,8 +2554,14 @@ function renderBranchSyncStatus(role, branch, info) {
   }
 }
 
+let _lastSyncRemoteFetch = 0;
+
 async function checkSyncPullUpdates(doFetch = true) {
   if (_isCheckingSync) return;
+  const now = Date.now();
+  if (doFetch && (now - _lastSyncRemoteFetch < 45000)) {
+    doFetch = false;
+  }
   _isCheckingSync = true;
 
   const btn = document.getElementById('btnCheckSyncUpdates');
@@ -2194,6 +2582,9 @@ async function checkSyncPullUpdates(doFetch = true) {
     const res = await fetch(`/api/git/sync-check?fetch=${doFetch ? '1' : '0'}`);
     const data = await res.json();
     if (data && data.success) {
+      if (doFetch) {
+        _lastSyncRemoteFetch = Date.now();
+      }
       if (timeEl && data.last_checked) {
         timeEl.textContent = `(lúc ${data.last_checked})`;
       }
@@ -2904,6 +3295,11 @@ async function doExecuteMerge(role) {
       if (successLogText) {
         successLogText.innerHTML = formatGitOutputVsCode(data.output || 'Already up to date.');
       }
+      if (data.merge_diff) {
+        renderMergeDiffView(role, data.merge_diff);
+      }
+      const diffContainer = document.getElementById(role === 'fe' ? 'feMergeDiffContainer' : 'beMergeDiffContainer');
+      if (diffContainer) diffContainer.classList.add('hidden');
       showToast(`Merge thành công nhánh '${sourceBranch}' vào '${targetBranch}'!`);
     } else {
       if (errorBox) {
@@ -3016,6 +3412,11 @@ async function doMergeContinue(role) {
       if (successLogText) {
         successLogText.innerHTML = formatGitOutputVsCode(data.output || 'Merge commit created successfully.');
       }
+      if (data.merge_diff) {
+        renderMergeDiffView(role, data.merge_diff);
+      }
+      const diffContainer = document.getElementById(role === 'fe' ? 'feMergeDiffContainer' : 'beMergeDiffContainer');
+      if (diffContainer) diffContainer.classList.add('hidden');
 
       await loadMergeInfo();
       if (typeof loadGitBranchInfo === 'function') loadGitBranchInfo();
@@ -3286,6 +3687,9 @@ async function doMergePush(role) {
       // Đóng UI Merge Success Box
       const successBox = document.getElementById(role === 'fe' ? 'feMergeSuccessBox' : 'beMergeSuccessBox');
       if (successBox) successBox.classList.add('hidden');
+      const diffContainer = document.getElementById(role === 'fe' ? 'feMergeDiffContainer' : 'beMergeDiffContainer');
+      if (diffContainer) diffContainer.classList.add('hidden');
+      if (window.lastMergeDiff) window.lastMergeDiff[role] = null;
       const returnWrap = document.getElementById(role === 'fe' ? 'feMergeReturnBranchWrap' : 'beMergeReturnBranchWrap');
       if (returnWrap) returnWrap.classList.add('hidden');
 
@@ -3353,3 +3757,99 @@ async function doReturnToPrevBranch(role) {
   }
 }
 window.doReturnToPrevBranch = doReturnToPrevBranch;
+
+window.lastMergeDiff = { fe: null, be: null };
+
+function renderMergeDiffView(role, diffData) {
+  if (!diffData) return;
+  if (!window.lastMergeDiff) window.lastMergeDiff = { fe: null, be: null };
+  window.lastMergeDiff[role] = diffData;
+
+  const statEl = document.getElementById(role === 'fe' ? 'feMergeDiffStat' : 'beMergeDiffStat');
+  const filesEl = document.getElementById(role === 'fe' ? 'feMergeDiffFiles' : 'beMergeDiffFiles');
+  const bodyEl = document.getElementById(role === 'fe' ? 'feMergeDiffBody' : 'beMergeDiffBody');
+
+  if (statEl) {
+    statEl.textContent = diffData.diff_stat || (diffData.files?.length ? `${diffData.files.length} file thay đổi` : '');
+  }
+
+  if (filesEl) {
+    const files = diffData.files || [];
+    if (files.length > 0) {
+      filesEl.innerHTML = files.map(f => `
+        <button type="button" onclick="openFileEditor('${escapeHtml(f.path)}', '${escapeHtml(role)}')"
+          class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10.5px] font-mono bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 hover:border-sky-500/50 transition cursor-pointer"
+          title="Nhấp để xem file trong Editor (${escapeHtml(f.path)})">
+          <span class="truncate max-w-[220px] text-sky-300 font-sans font-medium">${escapeHtml(f.path)}</span>
+          <span class="text-emerald-400 font-semibold font-mono">+${f.adds}</span>
+          <span class="text-rose-400 font-semibold font-mono">-${f.dels}</span>
+        </button>
+      `).join('');
+    } else {
+      filesEl.innerHTML = '<span class="text-[11px] text-slate-400 font-sans italic">Không có file thay đổi riêng</span>';
+    }
+  }
+
+  if (bodyEl) {
+    if (diffData.diff && diffData.diff.trim()) {
+      bodyEl.innerHTML = typeof formatDiffColoredHtml === 'function'
+        ? formatDiffColoredHtml(diffData.diff)
+        : `<pre class="text-[#d4d4d4] p-3 whitespace-pre-wrap">${escapeHtml(diffData.diff)}</pre>`;
+    } else {
+      bodyEl.innerHTML = '<div class="text-slate-400 text-xs p-4 text-center font-sans">Không có thay đổi mã nguồn mới (Already up to date).</div>';
+    }
+  }
+}
+window.renderMergeDiffView = renderMergeDiffView;
+
+async function toggleMergeDiffView(role) {
+  const container = document.getElementById(role === 'fe' ? 'feMergeDiffContainer' : 'beMergeDiffContainer');
+  if (!container) return;
+
+  const isHidden = container.classList.contains('hidden');
+  if (!isHidden) {
+    container.classList.add('hidden');
+    return;
+  }
+
+  container.classList.remove('hidden');
+
+  if (!window.lastMergeDiff || !window.lastMergeDiff[role]) {
+    const bodyEl = document.getElementById(role === 'fe' ? 'feMergeDiffBody' : 'beMergeDiffBody');
+    if (bodyEl) {
+      bodyEl.innerHTML = '<div class="p-4 text-center text-slate-400 text-xs font-sans"><div class="inline-block w-4 h-4 border-2 border-sky-400 border-t-transparent rounded-full animate-spin mr-2 align-middle"></div>Đang tải nội dung diff...</div>';
+    }
+    try {
+      const res = await fetch(`/api/git/merge/diff?target=${role}`);
+      const data = await res.json();
+      if (data && data.success && data.merge_diff) {
+        renderMergeDiffView(role, data.merge_diff);
+      } else if (bodyEl) {
+        bodyEl.innerHTML = `<div class="text-slate-400 text-xs p-4 text-center font-sans">${escapeHtml(data?.message || 'Không có dữ liệu diff cho lần merge này.')}</div>`;
+      }
+    } catch (err) {
+      if (bodyEl) {
+        bodyEl.innerHTML = `<div class="text-rose-400 text-xs p-4 text-center font-sans">Lỗi tải diff: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+  } else {
+    renderMergeDiffView(role, window.lastMergeDiff[role]);
+  }
+
+  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+window.toggleMergeDiffView = toggleMergeDiffView;
+
+function copyMergeDiff(role) {
+  const diffData = window.lastMergeDiff && window.lastMergeDiff[role];
+  const text = (diffData && diffData.diff) || '';
+  if (!text) {
+    showToast('Chưa có nội dung diff để sao chép.');
+    return;
+  }
+  if (typeof copyToClipboard === 'function') {
+    copyToClipboard(text);
+    showToast('Đã sao chép nội dung diff vào clipboard!', 'success');
+  }
+}
+window.copyMergeDiff = copyMergeDiff;

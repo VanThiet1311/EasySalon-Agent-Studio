@@ -17,7 +17,9 @@ async function loadWorkLogs(force = false) {
     }
     lastLogsSignature = newSignature;
     cachedLogs = logsList;
-    renderFilteredLogs();
+    if (activeTab === 'log') {
+      renderFilteredLogs();
+    }
   } catch (err) {
     if (!cachedLogs || cachedLogs.length === 0) {
       container.innerHTML = `<div class="p-8 text-center text-cyan-400 text-xs">Lỗi tải nhật ký: ${escapeHtml(err.message)}</div>`;

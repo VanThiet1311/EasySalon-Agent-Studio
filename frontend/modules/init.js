@@ -12,10 +12,15 @@ fetch('/api/settings')
     }
     updateEffortUI(currentStudioSettings.effort);
     updateEngineUI(currentStudioSettings.engine, nineRouterOnline);
+    updateQuickOpencodeDisplay(currentStudioSettings.effort);
+    if (typeof fetchOpenCodeModels === 'function') {
+      fetchOpenCodeModels(true);
+    }
   })
   .catch(err => {
     updateEffortUI(currentStudioSettings.effort);
     updateEngineUI(currentStudioSettings.engine, nineRouterOnline);
+    updateQuickOpencodeDisplay(currentStudioSettings.effort);
   });
 
 runAdaptivePollLoop();
@@ -58,7 +63,7 @@ window.addEventListener('DOMContentLoaded', () => {
   try {
     savedSettingsSub = localStorage.getItem('activeSettingsSubTab');
   } catch (e) { }
-  const targetSettingsSub = window.initSettingsSubTab || urlSettingsSub || (savedSettingsSub && ['effort', 'engine', 'account', 'api', 'env'].includes(savedSettingsSub) ? savedSettingsSub : null) || activeSettingsSubTab || 'effort';
+  const targetSettingsSub = window.initSettingsSubTab || urlSettingsSub || (savedSettingsSub && ['engine', 'model', 'effort', 'mcp', 'account', 'api', 'env'].includes(savedSettingsSub) ? savedSettingsSub : null) || activeSettingsSubTab || 'engine';
   if (initialTab === 'settings') {
     window.initSettingsSubTab = targetSettingsSub;
     activeSettingsSubTab = targetSettingsSub;
@@ -69,20 +74,22 @@ window.addEventListener('DOMContentLoaded', () => {
     const subRoutes = window.GIT_SUBTAB_ROUTES || {
       'pull_sync': '/git-control',
       'branch': '/git-control/checkout-branch',
+      'switch': '/git-control/switch-branch',
       'cherry_pick': '/git-control/cherry-pick',
       'merge': '/git-control/merge'
     };
     expectedPath = subRoutes[targetSubTab] || '/git-control';
   } else if (initialTab === 'settings') {
     const subRoutes = window.SETTINGS_SUBTAB_ROUTES || {
-      'effort': '/settings/effort',
       'engine': '/settings/engine',
+      'model': '/settings/model',
+      'effort': '/settings/effort',
       'mcp': '/settings/mcp',
       'account': '/settings/account',
       'api': '/settings/api',
       'env': '/settings/env'
     };
-    expectedPath = subRoutes[targetSettingsSub] || '/settings/effort';
+    expectedPath = subRoutes[targetSettingsSub] || '/settings/engine';
   }
   if (window.location.pathname !== expectedPath) {
     try {

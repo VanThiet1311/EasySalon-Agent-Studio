@@ -450,10 +450,32 @@ body.light-mode #notifDropdownMenu {
   border: 1px solid #b7eb8f !important;
   color: #389e0d !important;
 }
-.notif-title-done { color: #389e0d !important; }
-.notif-title-running { color: #d48806 !important; }
-.notif-title-stopped { color: #1677ff !important; }
-.notif-title-default { color: #0f172a !important; }
+.notif-tag-jira-task {
+  background-color: #e6f4ff !important;
+  border: 1px solid #91caff !important;
+  color: #0958d9 !important;
+}
+.notif-tag-jira-task:hover { background-color: #bae0ff !important; }
+.notif-tag-jira-comment {
+  background-color: #f9f0ff !important;
+  border: 1px solid #d3adf7 !important;
+  color: #722ed1 !important;
+}
+.notif-tag-jira-comment:hover { background-color: #efdbff !important; }
+.notif-item.is-unread .notif-item-title,
+.notif-item.is-unread .notif-title-done,
+.notif-item.is-unread .notif-title-running,
+.notif-item.is-unread .notif-title-stopped,
+.notif-item.is-unread .notif-title-default {
+  color: #1677ff !important;
+}
+.notif-item .notif-item-title,
+.notif-item .notif-title-done,
+.notif-item .notif-title-running,
+.notif-item .notif-title-stopped,
+.notif-item .notif-title-default {
+  color: #94a3b8 !important;
+}
 
 /* ====================================================================
    ANT DESIGN MODAL (CONFIRM / ALERT DIALOG)
@@ -1591,14 +1613,17 @@ body.light-mode .markdown-body a:hover { color: #0369a1 !important; }
    GIT SUBTAB BUTTONS (Active background #1677ff, text white)
    ==================================================================== */
 #gitSubTabBtn_branch.active-git-subtab,
+#gitSubTabBtn_switch.active-git-subtab,
 #gitSubTabBtn_cherry_pick.active-git-subtab,
 #gitSubTabBtn_pull_sync.active-git-subtab,
 #gitSubTabBtn_merge.active-git-subtab,
 body.light-mode #gitSubTabBtn_branch.active-git-subtab,
+body.light-mode #gitSubTabBtn_switch.active-git-subtab,
 body.light-mode #gitSubTabBtn_cherry_pick.active-git-subtab,
 body.light-mode #gitSubTabBtn_pull_sync.active-git-subtab,
 body.light-mode #gitSubTabBtn_merge.active-git-subtab,
 body.dark-mode #gitSubTabBtn_branch.active-git-subtab,
+body.dark-mode #gitSubTabBtn_switch.active-git-subtab,
 body.dark-mode #gitSubTabBtn_cherry_pick.active-git-subtab,
 body.dark-mode #gitSubTabBtn_pull_sync.active-git-subtab,
 body.dark-mode #gitSubTabBtn_merge.active-git-subtab {
@@ -1608,14 +1633,17 @@ body.dark-mode #gitSubTabBtn_merge.active-git-subtab {
   font-weight: 700 !important;
 }
 #gitSubTabBtn_branch.active-git-subtab *,
+#gitSubTabBtn_switch.active-git-subtab *,
 #gitSubTabBtn_cherry_pick.active-git-subtab *,
 #gitSubTabBtn_pull_sync.active-git-subtab *,
 #gitSubTabBtn_merge.active-git-subtab *,
 body.light-mode #gitSubTabBtn_branch.active-git-subtab *,
+body.light-mode #gitSubTabBtn_switch.active-git-subtab *,
 body.light-mode #gitSubTabBtn_cherry_pick.active-git-subtab *,
 body.light-mode #gitSubTabBtn_pull_sync.active-git-subtab *,
 body.light-mode #gitSubTabBtn_merge.active-git-subtab *,
 body.dark-mode #gitSubTabBtn_branch.active-git-subtab *,
+body.dark-mode #gitSubTabBtn_switch.active-git-subtab *,
 body.dark-mode #gitSubTabBtn_cherry_pick.active-git-subtab *,
 body.dark-mode #gitSubTabBtn_pull_sync.active-git-subtab *,
 body.dark-mode #gitSubTabBtn_merge.active-git-subtab * {
@@ -1623,6 +1651,7 @@ body.dark-mode #gitSubTabBtn_merge.active-git-subtab * {
 }
 
 body.light-mode #gitSubTabBtn_branch,
+body.light-mode #gitSubTabBtn_switch,
 body.light-mode #gitSubTabBtn_cherry_pick,
 body.light-mode #gitSubTabBtn_pull_sync,
 body.light-mode #gitSubTabBtn_merge {
@@ -2039,6 +2068,21 @@ body.light-mode #gitSubView_merge .text-slate-300,
 body.light-mode #gitSubView_merge .text-slate-400 {
   color: #475569 !important;
 }
+#feMergeReturnCurrent ~ span,
+#beMergeReturnCurrent ~ span,
+#feMergeNoFF ~ span,
+#beMergeNoFF ~ span {
+  color: #e2e8f0;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+body.light-mode #feMergeReturnCurrent ~ span,
+body.light-mode #beMergeReturnCurrent ~ span,
+body.light-mode #feMergeNoFF ~ span,
+body.light-mode #beMergeNoFF ~ span {
+  color: #1e293b !important;
+  font-weight: 500;
+}
 body.light-mode #gitSubView_merge input[type="text"],
 body.light-mode #gitSubView_merge select {
   background-color: #ffffff !important;
@@ -2094,6 +2138,37 @@ body.light-mode #feMergeSuccessTitle,
 body.light-mode #beMergeSuccessTitle { color: #166534 !important; }
 body.light-mode #feMergeSuccessText,
 body.light-mode #beMergeSuccessText { color: #1e293b !important; }
+body.light-mode #btnFeMergeViewDiff,
+body.light-mode #btnBeMergeViewDiff {
+  background-color: #f0f7ff !important;
+  border-color: #bae0ff !important;
+  color: #0958d9 !important;
+}
+body.light-mode #btnFeMergeViewDiff:hover,
+body.light-mode #btnBeMergeViewDiff:hover {
+  background-color: #e6f4ff !important;
+  border-color: #91caff !important;
+  color: #003eb3 !important;
+}
+body.light-mode #feMergeDiffContainer,
+body.light-mode #beMergeDiffContainer {
+  border-top-color: #dcfce7 !important;
+}
+body.light-mode #feMergeDiffStat,
+body.light-mode #beMergeDiffStat {
+  color: #475569 !important;
+}
+body.light-mode #feMergeDiffFiles button,
+body.light-mode #beMergeDiffFiles button {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #1e293b !important;
+}
+body.light-mode #feMergeDiffFiles button:hover,
+body.light-mode #beMergeDiffFiles button:hover {
+  background-color: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
+}
 body.light-mode #feMergeReturnBranchWrap,
 body.light-mode #beMergeReturnBranchWrap,
 body.light-mode #feCherryReturnBranchWrap,
@@ -2233,6 +2308,97 @@ body.light-mode #beCherryTopBranch {
   background-color: rgba(16, 185, 129, 0.1) !important;
   border-color: rgba(16, 185, 129, 0.35) !important;
   color: #059669 !important;
+}
+
+/* ============================================================
+   NÚT TẠO NHÁNH: HOVER CHỈ ĐỔI MÀU XANH NHẸ, KHÔNG ĐỔI GÌ KHÁC
+   ============================================================ */
+#btnSwitchBoth {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+}
+
+#btnSwitchBoth:hover,
+#btnSwitchBoth:focus {
+  background-color: #4096ff !important; /* Xanh nhẹ */
+  border-color: #4096ff !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+#btnSwitchBoth:active {
+  background-color: #0958d9 !important;
+  border-color: #0958d9 !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ============================================================
+   NÚT ĐỔI TÊN NHÁNH: HOVER CHỈ ĐỔI MÀU XANH NHẸ, KHÔNG ĐỔI GÌ KHÁC
+   ============================================================ */
+#btnRenameBranch {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+}
+
+#btnRenameBranch:hover,
+#btnRenameBranch:focus {
+  background-color: #4096ff !important; /* Xanh nhẹ */
+  border-color: #4096ff !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+#btnRenameBranch:active {
+  background-color: #0958d9 !important;
+  border-color: #0958d9 !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Light mode for Switch & Rename View */
+body.light-mode #gitSubView_switch input[type="text"],
+body.light-mode #gitSubView_switch select {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+body.light-mode #gitSubView_switch .bg-\[\#101e38\] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-mode #gitSubView_switch .bg-\[\#0e192c\] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.light-mode #gitSubView_switch .text-white {
+  color: #0f172a !important;
+}
+
+body.light-mode #gitSubView_switch .text-slate-300,
+body.light-mode #gitSubView_switch .text-slate-400 {
+  color: #475569 !important;
+}
+
+body.light-mode #gitSubView_switch .border-\[\#244170\] {
+  border-color: #e2e8f0 !important;
 }
 
 /* ====================================================================
@@ -3042,7 +3208,8 @@ body.light-mode .opencode-active-model-card {
   border: 1.5px solid #cbd5e1 !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
-body.light-mode #quickOpencodeActiveModel {
+body.light-mode #quickOpencodeActiveModel,
+body.light-mode #activeModelDisplayBadge {
   background-color: #eff6ff !important;
   border-color: #bfdbfe !important;
   color: #0958d9 !important;
@@ -3355,7 +3522,7 @@ body.light-mode .jira-alert-box.is-error .jira-alert-title {
    ============================================================ */
 .mcp-preset-card {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1.5px solid #244170 !important;
+  border: 1px solid #244170 !important;
   background-color: #0c1628 !important;
   cursor: pointer;
 }
@@ -3375,7 +3542,7 @@ body.light-mode .jira-alert-box.is-error .jira-alert-title {
 /* Light mode for unselected preset cards */
 body.light-mode .mcp-preset-card:not(.is-selected) {
   background-color: #ffffff !important;
-  border: 1.5px solid #e2e8f0 !important;
+  border: 1px solid #e2e8f0 !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 body.light-mode .mcp-preset-card:not(.is-selected):hover {
@@ -3393,57 +3560,67 @@ body.light-mode #settingsPanel_mcp .mcp-preset-card:not(.is-selected) p,
 body.light-mode #settingsPanel_mcp .mcp-preset-card:not(.is-selected) .mcp-preset-desc {
   color: #64748b !important;
 }
-body.light-mode .mcp-preset-card:not(.is-selected) span[id^="badgePreset_"]:not(.is-connected) {
+body.light-mode .mcp-preset-card span[id^="badgePreset_"]:not(.is-connected),
+body.light-mode .mcp-preset-card:not(.is-selected) span[id^="badgePreset_"]:not(.is-connected),
+body.light-mode .mcp-preset-card.is-selected span[id^="badgePreset_"]:not(.is-connected) {
   background-color: #f1f5f9 !important;
   border: 1px solid #cbd5e1 !important;
   color: #475569 !important;
+  box-shadow: none !important;
 }
 
-/* PRESET BADGE ĐÃ KẾT NỐI - Luôn viền xanh lá nổi bật (Vivid Green Border) */
+/* PRESET BADGE ĐÃ KẾT NỐI - Giữ nguyên UI ở cả trạng thái active và không active */
 span[id^="badgePreset_"].is-connected,
-.mcp-preset-card span[id^="badgePreset_"].is-connected {
+.mcp-preset-card span[id^="badgePreset_"].is-connected,
+.mcp-preset-card.is-selected span[id^="badgePreset_"].is-connected,
+.mcp-preset-card:not(.is-selected) span[id^="badgePreset_"].is-connected {
   background-color: rgba(6, 78, 59, 0.75) !important;
-  border: 1.5px solid #10b981 !important;
+  border: 1px solid #10b981 !important;
   color: #34d399 !important;
   font-weight: 600 !important;
+  box-shadow: none !important;
 }
 
+body.light-mode span[id^="badgePreset_"].is-connected,
+body.light-mode .mcp-preset-card span[id^="badgePreset_"].is-connected,
 body.light-mode .mcp-preset-card:not(.is-selected) span[id^="badgePreset_"].is-connected,
-body.light-mode span[id^="badgePreset_"].is-connected {
+body.light-mode .mcp-preset-card.is-selected span[id^="badgePreset_"].is-connected {
   background-color: #ecfdf5 !important;
-  border: 1.5px solid #10b981 !important;
+  border: 1px solid #10b981 !important;
   color: #047857 !important;
   font-weight: 600 !important;
+  box-shadow: none !important;
 }
 
-/* ACTIVE / SELECTED PRESET CARD - Chuẩn AGENTS.md: Luôn là #1677ff (gradient), text trắng */
+/* ACTIVE / SELECTED PRESET CARD - Viền mỏng 1px xanh (#1677ff), giữ nguyên background và màu chữ tự nhiên */
 .mcp-preset-card.is-selected,
-body.light-mode .mcp-preset-card.is-selected,
 body.dark-mode .mcp-preset-card.is-selected,
-body.light-mode main .mcp-preset-card.is-selected,
 #settingsPanel_mcp .mcp-preset-card.is-selected,
+div[id^="cardPreset_"].is-selected {
+  background: #0c1628 !important;
+  border: 1px solid #1677ff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.22) !important;
+}
+
+body.light-mode .mcp-preset-card.is-selected,
+body.light-mode main .mcp-preset-card.is-selected,
 body.light-mode #settingsPanel_mcp .mcp-preset-card.is-selected,
-div[id^="cardPreset_"].is-selected,
 body.light-mode div[id^="cardPreset_"].is-selected,
 body.light-mode #settingsPanel_mcp div[id^="cardPreset_"].is-selected {
-  background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%) !important;
-  border-color: #1677ff !important;
-  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.35) !important;
+  background: #ffffff !important;
+  border: 1px solid #1677ff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.12) !important;
 }
 
-.mcp-preset-card.is-selected *,
-#settingsPanel_mcp .mcp-preset-card.is-selected *,
-body.light-mode .mcp-preset-card.is-selected *,
-body.dark-mode .mcp-preset-card.is-selected *,
-body.light-mode #settingsPanel_mcp .mcp-preset-card.is-selected *,
-body.light-mode main .mcp-preset-card.is-selected *,
-body.light-mode main .mcp-preset-card.is-selected h5,
-body.light-mode main .mcp-preset-card.is-selected p,
-body.light-mode main .mcp-preset-card.is-selected span:not([id^="badgePreset_"].is-connected),
-div[id^="cardPreset_"].is-selected *,
-body.light-mode div[id^="cardPreset_"].is-selected *,
-body.light-mode #settingsPanel_mcp div[id^="cardPreset_"].is-selected * {
+.mcp-preset-card.is-selected h5,
+#settingsPanel_mcp .mcp-preset-card.is-selected h5,
+body.dark-mode .mcp-preset-card.is-selected h5 {
   color: #ffffff !important;
+}
+
+body.light-mode .mcp-preset-card.is-selected h5,
+body.light-mode #settingsPanel_mcp .mcp-preset-card.is-selected h5 {
+  color: #0f172a !important;
 }
 
 .mcp-preset-card.is-selected p,
@@ -3451,37 +3628,26 @@ body.light-mode #settingsPanel_mcp div[id^="cardPreset_"].is-selected * {
 #settingsPanel_mcp .mcp-preset-card.is-selected p,
 #settingsPanel_mcp .mcp-preset-card.is-selected .mcp-preset-desc,
 div[id^="cardPreset_"].is-selected p,
-div[id^="cardPreset_"].is-selected .mcp-preset-desc,
+div[id^="cardPreset_"].is-selected .mcp-preset-desc {
+  color: #94a3b8 !important;
+}
+
 body.light-mode .mcp-preset-card.is-selected p,
 body.light-mode .mcp-preset-card.is-selected .mcp-preset-desc,
 body.light-mode #settingsPanel_mcp .mcp-preset-card.is-selected p,
 body.light-mode #settingsPanel_mcp .mcp-preset-card.is-selected .mcp-preset-desc,
 body.light-mode div[id^="cardPreset_"].is-selected p,
-body.light-mode div[id^="cardPreset_"].is-selected .mcp-preset-desc,
-body.light-mode #settingsPanel_mcp div[id^="cardPreset_"].is-selected p,
-body.light-mode #settingsPanel_mcp div[id^="cardPreset_"].is-selected .mcp-preset-desc,
-body.light-mode main .mcp-preset-card.is-selected p,
-body.light-mode main .mcp-preset-card.is-selected .mcp-preset-desc,
-body.light-mode main #settingsPanel_mcp .mcp-preset-card.is-selected p,
-body.light-mode main #settingsPanel_mcp .mcp-preset-card.is-selected .mcp-preset-desc {
-  color: #ffffff !important;
+body.light-mode div[id^="cardPreset_"].is-selected .mcp-preset-desc {
+  color: #64748b !important;
 }
 
+.mcp-preset-card span[id^="badgePreset_"]:not(.is-connected),
 .mcp-preset-card.is-selected span[id^="badgePreset_"]:not(.is-connected),
-body.light-mode .mcp-preset-card.is-selected span[id^="badgePreset_"]:not(.is-connected) {
-  background-color: rgba(255, 255, 255, 0.22) !important;
-  border: 1px solid rgba(255, 255, 255, 0.45) !important;
-  color: #ffffff !important;
-}
-
-/* Khi card đang active (background xanh) mà badge đã kết nối: xanh lá nổi bật trên nền xanh */
-.mcp-preset-card.is-selected span[id^="badgePreset_"].is-connected,
-body.light-mode .mcp-preset-card.is-selected span[id^="badgePreset_"].is-connected {
-  background-color: rgba(16, 185, 129, 0.28) !important;
-  border: 1.5px solid #10b981 !important;
-  color: #ffffff !important;
-  font-weight: 600 !important;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.35) !important;
+.mcp-preset-card:not(.is-selected) span[id^="badgePreset_"]:not(.is-connected) {
+  background-color: rgba(30, 41, 59, 0.7) !important;
+  border: 1px solid #334155 !important;
+  color: #94a3b8 !important;
+  box-shadow: none !important;
 }
 
 /* BẢO ĐẢM TOÀN BỘ NÚT LƯU & KÍCH HOẠT MCP LUÔN CÓ TEXT TRẮNG TRONG CẢ LIGHT VÀ DARK MODE */
@@ -3523,10 +3689,13 @@ body.light-mode .mcp-preset-card:not(.is-selected) .github-logo-svg {
   fill: #0f172a !important;
   color: #0f172a !important;
 }
-.mcp-preset-card.is-selected .github-logo-svg,
-body.light-mode .mcp-preset-card.is-selected .github-logo-svg {
+.mcp-preset-card.is-selected .github-logo-svg {
   fill: #ffffff !important;
   color: #ffffff !important;
+}
+body.light-mode .mcp-preset-card.is-selected .github-logo-svg {
+  fill: #0f172a !important;
+  color: #0f172a !important;
 }
 body.light-mode .mcp-preset-card:not(.is-selected) svg.text-slate-300 {
   color: #475569 !important;
@@ -3616,6 +3785,96 @@ body.light-mode .btn-copy-gemini-cmd:hover {
 }
 body.light-mode .btn-copy-gemini-cmd:hover * {
   color: #ffffff !important;
+}
+
+/* ============================================================
+   PANEL MODEL AI & PANEL API CONFIGURATION
+   ============================================================ */
+
+/* Model Preset Cards */
+.model-preset-card {
+  transition: all 0.2s ease;
+}
+.model-preset-card:hover {
+  border-color: #1677ff !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+body.light-mode #settingsPanel_model > div {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+body.light-mode #settingsPanel_model h3,
+body.light-mode #settingsPanel_model label {
+  color: #0f172a !important;
+}
+body.light-mode #settingsPanel_model p {
+  color: #475569 !important;
+}
+body.light-mode #settingsPanel_model select {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+body.light-mode .model-preset-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+body.light-mode .model-preset-card:hover {
+  border-color: #1677ff !important;
+  background-color: #f8fafc !important;
+  box-shadow: 0 4px 12px rgba(22, 119, 255, 0.08);
+}
+body.light-mode .model-preset-card .text-white {
+  color: #0f172a !important;
+}
+
+/* API Config Panel (Không viền gắt, phong cách Ant Design / modern SaaS) */
+#settingsPanel_api > div {
+  border: none !important;
+}
+.api-key-item-box {
+  border: none !important;
+  transition: background-color 0.15s ease;
+}
+body.light-mode #settingsPanel_api > div {
+  background-color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+body.light-mode #settingsPanel_api h3,
+body.light-mode #settingsPanel_api label:not(.text-slate-400) {
+  color: #0f172a !important;
+}
+body.light-mode #settingsPanel_api p {
+  color: #475569 !important;
+}
+body.light-mode .api-key-item-box {
+  background-color: #f8fafc !important;
+  border: none !important;
+}
+body.light-mode #settingsPanel_api input {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+body.light-mode #settingsPanel_api input:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.18) !important;
+}
+body.light-mode #settingsPanel_api input::placeholder {
+  color: #94a3b8 !important;
+}
+body.light-mode #settingsPanel_api .ant-btn {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+body.light-mode #settingsPanel_api .ant-btn:hover {
+  background-color: #f0f7ff !important;
+  border-color: #1677ff !important;
+  color: #1677ff !important;
 }
 
 
@@ -3714,4 +3973,1940 @@ body.dark-mode .log-item-delete-btn svg,
 body.dark-mode .log-item-delete-btn svg * {
   stroke: #ffffff !important;
   color: #ffffff !important;
+}
+
+
+/* ============================================================
+   JIRA TASKS WORKSPACE - PHONG CÁCH TRẮNG XANH (WHITE & BLUE)
+   ============================================================ */
+
+/* 1. Card Ticket List */
+.jira-card-item {
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: #0c1628;
+  border: 1px solid rgba(36, 65, 112, 0.7);
+  cursor: pointer;
+  user-select: none;
+}
+
+.jira-card-item:hover {
+  border-color: #1677ff;
+  background-color: #101e38;
+}
+
+.jira-card-item.is-selected {
+  border: 1.5px solid #1677ff !important;
+  background-color: #142646 !important;
+  box-shadow: 0 2px 10px rgba(22, 119, 255, 0.25) !important;
+}
+
+/* Light mode for Jira cards: Trắng xanh thanh lịch chuẩn modern SaaS */
+body.light-mode .jira-card-item {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+body.light-mode .jira-card-item:hover {
+  border-color: #91caff !important;
+  background-color: #f8fbff !important;
+}
+
+body.light-mode .jira-card-item.is-selected {
+  border: 1.5px solid #1677ff !important;
+  background-color: #eff6ff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.16) !important;
+}
+
+/* Titles inside cards */
+.jira-card-item .jira-card-title {
+  color: #f1f5f9;
+  font-weight: 500;
+}
+
+body.light-mode .jira-card-item .jira-card-title {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode .jira-card-item.is-selected .jira-card-title {
+  color: #0958d9 !important;
+  font-weight: 700 !important;
+}
+
+/* Meta info inside cards */
+.jira-card-item .jira-card-meta {
+  color: #94a3b8;
+  border-color: rgba(36, 65, 112, 0.45);
+}
+
+body.light-mode .jira-card-item .jira-card-meta {
+  color: #64748b !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.light-mode .jira-card-item.is-selected .jira-card-meta {
+  color: #475569 !important;
+  border-color: #bfdbfe !important;
+}
+
+/* 2. Status Badges */
+.jira-status-done {
+  background-color: rgba(6, 78, 59, 0.75);
+  border: 1px solid #10b981;
+  color: #34d399;
+}
+
+body.light-mode .jira-status-done {
+  background-color: #ecfdf5 !important;
+  border: 1px solid #10b981 !important;
+  color: #047857 !important;
+}
+
+.jira-status-inprogress {
+  background-color: rgba(30, 58, 138, 0.75);
+  border: 1px solid #3b82f6;
+  color: #60a5fa;
+}
+
+body.light-mode .jira-status-inprogress {
+  background-color: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+  color: #1d4ed8 !important;
+}
+
+.jira-status-todo {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  color: #94a3b8;
+}
+
+body.light-mode .jira-status-todo {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+/* 3. Issue Type Badges */
+.jira-type-bug {
+  background-color: rgba(22, 119, 255, 0.18);
+  border: 1px solid #1677ff;
+  color: #69b1ff;
+}
+
+body.light-mode .jira-type-bug {
+  background-color: #e6f4ff !important;
+  border: 1px solid #91caff !important;
+  color: #0958d9 !important;
+}
+
+.jira-type-story {
+  background-color: rgba(6, 78, 59, 0.75);
+  border: 1px solid #10b981;
+  color: #34d399;
+}
+
+body.light-mode .jira-type-story {
+  background-color: #ecfdf5 !important;
+  border: 1px solid #a7f3d0 !important;
+  color: #047857 !important;
+}
+
+.jira-type-task,
+.jira-type-subtask {
+  background-color: rgba(30, 58, 138, 0.75);
+  border: 1px solid #3b82f6;
+  color: #60a5fa;
+}
+
+body.light-mode .jira-type-task,
+body.light-mode .jira-type-subtask {
+  background-color: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+  color: #1d4ed8 !important;
+}
+
+.jira-type-noncoding {
+  background-color: rgba(51, 65, 85, 0.75);
+  border: 1px solid #475569;
+  color: #94a3b8;
+}
+
+body.light-mode .jira-type-noncoding {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #64748b !important;
+}
+
+/* 4. Panels & Containers in Light Mode */
+body.light-mode #view_jira .bg-\[\#101e38\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-mode #view_jira .bg-\[\#0c1628\] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.light-mode #view_jira .border-\[\#244170\] {
+  border-color: #e2e8f0 !important;
+}
+
+body.light-mode #view_jira h2,
+body.light-mode #view_jira h3,
+body.light-mode #view_jira h4,
+body.light-mode #view_jira h5 {
+  color: #0f172a !important;
+}
+
+/* Full height layout for Jira workspace */
+#view_jira {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 0% !important;
+  min-height: calc(100vh - 4.5rem) !important;
+  box-sizing: border-box;
+}
+
+#view_jira.hidden {
+  display: none !important;
+}
+
+#view_jira #jiraFallbackUnconfigured {
+  flex: 1 1 0% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  min-height: calc(100vh - 12.5rem) !important;
+}
+
+#view_jira #jiraFallbackUnconfigured.hidden {
+  display: none !important;
+}
+
+/* Auto Sync Status Dot (Green when connected, Red when disconnected/unconfigured/error) */
+#jiraAutoSyncDot {
+  transition: background-color 0.2s ease;
+}
+
+#jiraAutoSyncDot.is-connected {
+  background-color: #10b981 !important;
+}
+
+#jiraAutoSyncDot.is-disconnected,
+#jiraAutoSyncDot.is-error,
+#jiraAutoSyncDot.is-off {
+  background-color: #ef4444 !important;
+}
+
+body.light-mode #jiraAutoSyncDot.is-connected {
+  background-color: #10b981 !important;
+}
+
+body.light-mode #jiraAutoSyncDot.is-disconnected,
+body.light-mode #jiraAutoSyncDot.is-error,
+body.light-mode #jiraAutoSyncDot.is-off {
+  background-color: #ef4444 !important;
+}
+
+body.light-mode #view_jira #jiraAutoSyncText {
+  color: #475569 !important;
+}
+
+/* Fallback Screen: Chưa cắm Jira MCP */
+#jiraFallbackUnconfigured {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+body.light-mode #jiraFallbackUnconfigured {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-mode #jiraFallbackUnconfigured h3,
+body.light-mode #jiraFallbackUnconfigured h5 {
+  color: #0f172a !important;
+}
+
+body.light-mode #jiraFallbackUnconfigured p {
+  color: #475569 !important;
+}
+
+body.light-mode #jiraFallbackUnconfigured .bg-\[\#0c1628\] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* 5. Action Toolbar Buttons (Đưa vào Tác vụ & Tạo nhánh mới) */
+.jira-btn-branch,
+#btnCreateGitBranchJira,
+body.light-mode #btnCreateGitBranchJira,
+body.dark-mode #btnCreateGitBranchJira {
+  background-color: #059669 !important;
+  border: 1px solid #059669 !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.25) !important;
+}
+
+.jira-btn-branch:hover,
+#btnCreateGitBranchJira:hover,
+body.light-mode #btnCreateGitBranchJira:hover,
+body.dark-mode #btnCreateGitBranchJira:hover {
+  background-color: #10b981 !important;
+  border-color: #10b981 !important;
+  color: #ffffff !important;
+}
+
+.jira-btn-branch *,
+#btnCreateGitBranchJira * {
+  color: #ffffff !important;
+}
+
+#btnSendJiraToTask,
+body.light-mode #btnSendJiraToTask,
+body.dark-mode #btnSendJiraToTask {
+  background-color: #1677ff !important;
+  border: 1px solid #1677ff !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 2px rgba(22, 119, 255, 0.25) !important;
+}
+
+#btnSendJiraToTask:hover,
+body.light-mode #btnSendJiraToTask:hover,
+body.dark-mode #btnSendJiraToTask:hover {
+  background-color: #0958d9 !important;
+  border-color: #0958d9 !important;
+  color: #ffffff !important;
+}
+
+#btnSendJiraToTask * {
+  color: #ffffff !important;
+}
+
+/* Nút "Tạo Sub-task": kiểu outline nét đứt, đồng bộ phong cách Ant Design */
+.jira-btn-subtask {
+  background-color: transparent !important;
+  border: 1px dashed #33517d !important;
+  color: #cbd5e1 !important;
+  box-shadow: none !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.jira-btn-subtask:hover {
+  background-color: #182c4f !important;
+  border-color: #22d3ee !important;
+  color: #ffffff !important;
+}
+
+.jira-btn-subtask:active {
+  transform: translateY(1px);
+}
+
+.jira-btn-subtask:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 2px;
+}
+
+.jira-btn-subtask svg {
+  color: #22d3ee !important;
+}
+
+.jira-btn-subtask:hover svg {
+  color: #67e8f9 !important;
+}
+
+body.light-mode #view_jira .jira-btn-subtask {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+body.light-mode #view_jira .jira-btn-subtask:hover {
+  background-color: #eff6ff !important;
+  border-color: #1677ff !important;
+  color: #0958d9 !important;
+}
+
+body.light-mode #view_jira .jira-btn-subtask svg {
+  color: #1677ff !important;
+}
+
+body.light-mode #view_jira .jira-btn-subtask:hover svg {
+  color: #0958d9 !important;
+}
+
+/* Nút xác nhận trong modal Tạo Sub-task */
+#btnSubmitCreateSubtask {
+  background-color: #1677ff !important;
+  border: 1px solid #1677ff !important;
+  color: #ffffff !important;
+}
+
+#btnSubmitCreateSubtask:hover:not(:disabled) {
+  background-color: #0958d9 !important;
+  border-color: #0958d9 !important;
+}
+
+#btnSubmitCreateSubtask:disabled {
+  opacity: 0.6;
+  cursor: not-allowed !important;
+}
+
+#btnSubmitCreateSubtask svg,
+#btnSubmitCreateSubtask span {
+  color: #ffffff !important;
+}
+
+/* ============================================================
+   BỘ LỌC NHANH (CHECKBOX DROPDOWN) - DANH SÁCH TICKETS
+   ============================================================ */
+.jira-local-filter-btn {
+  background-color: #182c4f;
+  border: 1px solid #244170;
+  color: #cbd5e1;
+}
+
+.jira-local-filter-btn:hover {
+  border-color: #1677ff;
+  color: #ffffff;
+  background-color: #1b3358;
+}
+
+.jira-local-filter-btn.is-active {
+  border-color: #1677ff;
+  color: #ffffff;
+  background-color: rgba(22, 119, 255, 0.18);
+}
+
+.jira-local-filter-menu {
+  background-color: #101e38;
+  border: 1px solid #244170;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(2, 8, 20, 0.55);
+  overflow: hidden;
+}
+
+.jira-local-filter-group-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  padding: 2px 6px 5px;
+}
+
+.jira-local-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #cbd5e1;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.jira-local-filter-item:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.jira-local-filter-checkbox,
+.jira-local-filter-radio {
+  width: 13px;
+  height: 13px;
+  accent-color: #1677ff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.jira-local-filter-date-btn {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  color: #94a3b8;
+  background-color: transparent;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.jira-local-filter-date-btn:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.jira-local-filter-date-btn.is-active {
+  background-color: #1677ff !important;
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+.jira-date-custom-box {
+  background-color: #0c1628;
+  border: 1px solid #244170;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.jira-date-custom-input {
+  width: 100%;
+  background-color: #101e38;
+  border: 1px solid #244170;
+  border-radius: 5px;
+  padding: 3px 6px;
+  font-size: 11px;
+  color: #e2e8f0;
+  outline: none;
+  color-scheme: dark;
+  transition: border-color 0.15s ease;
+}
+
+.jira-date-custom-input:focus {
+  border-color: #1677ff;
+}
+
+.jira-local-filter-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jira-local-filter-count {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.jira-local-filter-empty {
+  font-size: 11px;
+  font-style: italic;
+  color: #64748b;
+  padding: 2px 6px 4px;
+}
+
+.jira-local-filter-footer {
+  border-color: #244170 !important;
+  background-color: #0c1628;
+}
+
+body.light-mode #view_jira .jira-local-filter-btn {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+body.light-mode #view_jira .jira-local-filter-btn:hover,
+body.light-mode #view_jira .jira-local-filter-btn.is-active {
+  background-color: #e6f4ff !important;
+  border-color: #1677ff !important;
+  color: #0958d9 !important;
+}
+
+body.light-mode #view_jira .jira-local-filter-menu {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14) !important;
+}
+
+body.light-mode #view_jira .jira-local-filter-group-title {
+  color: #64748b !important;
+}
+
+body.light-mode #view_jira .jira-local-filter-item {
+  color: #334155 !important;
+}
+
+body.light-mode #view_jira .jira-local-filter-item:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #view_jira .jira-local-filter-count {
+  color: #94a3b8 !important;
+}
+
+body.light-mode #view_jira .jira-local-filter-empty {
+  color: #94a3b8 !important;
+}
+
+body.light-mode #view_jira .jira-local-filter-date-btn {
+  color: #64748b !important;
+}
+
+body.light-mode #view_jira .jira-local-filter-date-btn:hover {
+  color: #0f172a !important;
+  background-color: #f1f5f9 !important;
+}
+
+body.light-mode #view_jira .jira-local-filter-date-btn.is-active {
+  background-color: #1677ff !important;
+  color: #ffffff !important;
+}
+
+body.light-mode #view_jira .jira-date-custom-box {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.light-mode #view_jira .jira-date-custom-input {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  color-scheme: light;
+}
+
+body.light-mode #view_jira .jira-date-custom-input:focus {
+  border-color: #1677ff !important;
+}
+
+body.light-mode #view_jira .jira-local-filter-footer {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* ============================================================
+   JIRA DETAIL DESCRIPTION TYPOGRAPHY & SPACING
+   ============================================================ */
+#jiraDetailDescription {
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: #e2e8f0;
+  word-break: break-word;
+}
+
+#jiraDetailDescription.is-plaintext {
+  white-space: pre-wrap;
+  line-height: 1.8;
+}
+
+#jiraDetailDescription p {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  line-height: 1.8;
+}
+
+#jiraDetailDescription p:last-child {
+  margin-bottom: 0;
+}
+
+#jiraDetailDescription h1,
+#jiraDetailDescription h2,
+#jiraDetailDescription h3,
+#jiraDetailDescription h4,
+#jiraDetailDescription h5,
+#jiraDetailDescription h6 {
+  font-weight: 700;
+  line-height: 1.45;
+  margin-top: 1.35rem;
+  margin-bottom: 0.65rem;
+  color: #ffffff;
+}
+
+#jiraDetailDescription h1 { font-size: 16px; border-bottom: 1px solid rgba(36, 65, 112, 0.5); padding-bottom: 4px; }
+#jiraDetailDescription h2 { font-size: 15px; }
+#jiraDetailDescription h3 { font-size: 14px; }
+#jiraDetailDescription h4 { font-size: 13.5px; }
+
+#jiraDetailDescription b,
+#jiraDetailDescription strong {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+#jiraDetailDescription ul,
+#jiraDetailDescription ol {
+  padding-left: 1.6rem;
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+#jiraDetailDescription ul {
+  list-style-type: disc;
+}
+
+#jiraDetailDescription ol {
+  list-style-type: decimal;
+}
+
+#jiraDetailDescription li {
+  margin-bottom: 0.4rem;
+  line-height: 1.75;
+}
+
+#jiraDetailDescription img {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 8px;
+  margin: 14px 0;
+  border: 1px solid rgba(36, 65, 112, 0.7);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  display: block;
+}
+
+#jiraDetailDescription .image-wrap {
+  display: block;
+  margin: 14px 0;
+}
+
+#jiraDetailDescription .image-wrap img {
+  border: 1px solid rgba(36, 65, 112, 0.7) !important;
+}
+
+#jiraDetailDescription blockquote {
+  border-left: 3.5px solid #1677ff;
+  padding: 10px 16px;
+  background-color: rgba(22, 119, 255, 0.08);
+  margin: 14px 0;
+  border-radius: 0 6px 6px 0;
+}
+
+#jiraDetailDescription code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background-color: rgba(15, 23, 42, 0.85);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #38bdf8;
+}
+
+#jiraDetailDescription pre {
+  background-color: #08101e;
+  padding: 14px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 14px 0;
+  border: 1px solid rgba(36, 65, 112, 0.6);
+}
+
+#jiraDetailDescription pre code {
+  background: transparent;
+  padding: 0;
+}
+
+#jiraDetailDescription table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+}
+
+#jiraDetailDescription th,
+#jiraDetailDescription td {
+  border: 1px solid rgba(36, 65, 112, 0.7);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+#jiraDetailDescription th {
+  background-color: rgba(24, 44, 79, 0.8);
+  font-weight: 600;
+}
+
+/* Light mode overrides for Jira Description */
+body.light-mode #view_jira #jiraDetailDescription {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+body.light-mode #view_jira #jiraDetailDescription p {
+  color: #334155 !important;
+  line-height: 1.85 !important;
+  margin-bottom: 1rem !important;
+}
+
+body.light-mode #view_jira #jiraDetailDescription h1,
+body.light-mode #view_jira #jiraDetailDescription h2,
+body.light-mode #view_jira #jiraDetailDescription h3,
+body.light-mode #view_jira #jiraDetailDescription h4,
+body.light-mode #view_jira #jiraDetailDescription h5,
+body.light-mode #view_jira #jiraDetailDescription h6 {
+  color: #0f172a !important;
+}
+
+body.light-mode #view_jira #jiraDetailDescription h1 {
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+body.light-mode #view_jira #jiraDetailDescription b,
+body.light-mode #view_jira #jiraDetailDescription strong {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode #view_jira #jiraDetailDescription li {
+  color: #334155 !important;
+  line-height: 1.75 !important;
+}
+
+body.light-mode #view_jira #jiraDetailDescription a {
+  color: #1677ff !important;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+body.light-mode #view_jira #jiraDetailDescription img {
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+body.light-mode #view_jira #jiraDetailDescription .image-wrap img {
+  border: 1px solid #e2e8f0 !important;
+}
+
+body.light-mode #view_jira #jiraDetailDescription blockquote {
+  background-color: #eff6ff !important;
+  border-left-color: #1677ff !important;
+  color: #1e40af !important;
+}
+
+body.light-mode #view_jira #jiraDetailDescription code {
+  background-color: #f1f5f9 !important;
+  color: #0958d9 !important;
+  border: 1px solid #e2e8f0;
+}
+
+body.light-mode #view_jira #jiraDetailDescription pre {
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+body.light-mode #view_jira #jiraDetailDescription th,
+body.light-mode #view_jira #jiraDetailDescription td {
+  border: 1px solid #e2e8f0 !important;
+}
+
+body.light-mode #view_jira #jiraDetailDescription th {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #view_jira .jira-comment-box {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+body.light-mode #view_jira .jira-comment-box * {
+  color: #334155 !important;
+}
+
+body.light-mode #view_jira #jiraNewCommentText {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #view_jira #jiraSearchInput {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #view_jira #jiraProjectSelect {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #view_jira #jiraDetailTransitionSelect {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+/* Ticket không thuộc quyền của người dùng: khoá dropdown Trạng thái */
+#jiraDetailTransitionSelect.is-locked {
+  opacity: 0.65;
+  cursor: not-allowed;
+  background-color: #131c2e !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+body.light-mode #view_jira #jiraDetailTransitionSelect.is-locked {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #94a3b8 !important;
+}
+
+body.light-mode #view_jira .jira-filter-wrapper {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.light-mode #view_jira .jira-filter-btn:not(.is-active) {
+  color: #475569 !important;
+}
+
+body.light-mode #view_jira .jira-filter-btn:not(.is-active):hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Rovo AI Analysis Box Styles */
+#jiraRovoAnalysisBox {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(9, 17, 34, 0.98) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+}
+
+#jiraRovoAnalysisContent {
+  color: #e2e8f0;
+}
+
+#jiraRovoAnalysisContent h1,
+#jiraRovoAnalysisContent h2,
+#jiraRovoAnalysisContent h3,
+.rovo-heading-3 {
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-top: 0.85rem;
+  margin-bottom: 0.35rem;
+  color: #818cf8 !important;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+#jiraRovoAnalysisContent h1:first-child,
+#jiraRovoAnalysisContent h2:first-child,
+#jiraRovoAnalysisContent h3:first-child {
+  margin-top: 0;
+}
+
+#jiraRovoAnalysisContent ul {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+#jiraRovoAnalysisContent li,
+.rovo-bullet-item {
+  margin-bottom: 0.25rem;
+  line-height: 1.55;
+  color: #cbd5e1;
+}
+
+#jiraRovoAnalysisContent p {
+  margin-bottom: 0.45rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+}
+
+#jiraRovoAnalysisContent strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+#jiraRovoAnalysisContent code {
+  background-color: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.85em;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.rovo-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.3rem 0;
+  color: #cbd5e1;
+}
+
+.rovo-checkbox-box {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid #6366f1;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.rovo-checkbox-box.is-checked {
+  background-color: #6366f1;
+  color: #ffffff;
+}
+
+/* Light Mode for Rovo Box */
+body.light-mode #view_jira #jiraRovoAnalysisBox {
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%) !important;
+  border: 1px solid #c7d2fe !important;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.08) !important;
+}
+
+body.light-mode #view_jira #jiraRovoAnalysisContent {
+  color: #1e293b !important;
+}
+
+body.light-mode #view_jira #jiraRovoAnalysisContent h1,
+body.light-mode #view_jira #jiraRovoAnalysisContent h2,
+body.light-mode #view_jira #jiraRovoAnalysisContent h3,
+body.light-mode #view_jira .rovo-heading-3 {
+  color: #3730a3 !important;
+}
+
+body.light-mode #view_jira #jiraRovoAnalysisContent li,
+body.light-mode #view_jira #jiraRovoAnalysisContent p,
+body.light-mode #view_jira .rovo-bullet-item,
+body.light-mode #view_jira .rovo-checkbox-item {
+  color: #334155 !important;
+}
+
+body.light-mode #view_jira #jiraRovoAnalysisContent strong {
+  color: #0f172a !important;
+}
+
+body.light-mode #view_jira #jiraRovoAnalysisContent code {
+  background-color: #ede9fe !important;
+  color: #4338ca !important;
+  border-color: #c7d2fe !important;
+}
+
+body.light-mode #view_jira #jiraRovoEngineBadge {
+  background-color: #ede9fe !important;
+  color: #6366f1 !important;
+  border-color: #c7d2fe !important;
+}
+
+/* Sub-tasks styles */
+.jira-subtask-card {
+  transition: all 0.15s ease-in-out;
+}
+
+.jira-subtask-card:hover {
+  border-color: #3b82f6;
+  background-color: rgba(30, 58, 138, 0.2);
+}
+
+body.light-mode .jira-subtask-card {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+body.light-mode .jira-subtask-card:hover {
+  background-color: #eff6ff !important;
+  border-color: #93c5fd !important;
+}
+
+body.light-mode .jira-subtask-card * {
+  color: #334155 !important;
+}
+
+body.light-mode #jiraCreateSubtaskModal .bg-\[\#101e38\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #jiraCreateSubtaskModal input,
+body.light-mode #jiraCreateSubtaskModal select,
+body.light-mode #jiraCreateSubtaskModal textarea {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+/* Sub-task Status Transition Dropdown */
+.jira-subtask-status-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.35rem center;
+  background-size: 0.6rem;
+  padding-right: 1.25rem !important;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.jira-subtask-status-select:hover {
+  filter: brightness(1.15);
+}
+
+.jira-subtask-status-select option {
+  background-color: #0c1628;
+  color: #f1f5f9;
+}
+
+body.light-mode .jira-subtask-status-select option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+/* Interactive Notification Toast */
+.jira-notif-toast {
+  pointer-events: auto;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.25);
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.jira-notif-toast:hover {
+  transform: translateY(-2px);
+}
+
+body.light-mode .jira-notif-toast {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+body.light-mode #view_jira .jira-filter-btn.is-active {
+  background-color: #1677ff !important;
+  color: #ffffff !important;
+}
+
+body.light-mode #view_jira .jira-toolbar-action-box {
+  background-color: #f0f7ff !important;
+  border-color: #bfdbfe !important;
+}
+
+body.light-mode #view_jira .jira-secondary-btn {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+body.light-mode #view_jira .jira-secondary-btn:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Jira Assignee Controls */
+.jira-subtask-assignee-select,
+#jiraDetailTransitionSelect,
+#jiraProjectSelect,
+#jiraSubtaskAssigneeSelect,
+#jiraSubtaskStatusSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px 14px;
+  padding-right: 26px !important;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.jira-subtask-assignee-select:focus,
+#jiraDetailTransitionSelect:focus,
+#jiraProjectSelect:focus,
+#jiraSubtaskAssigneeSelect:focus,
+#jiraSubtaskStatusSelect:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2);
+}
+
+body.light-mode #view_jira .jira-subtask-assignee-select,
+body.light-mode #view_jira #jiraDetailTransitionSelect,
+body.light-mode #view_jira #jiraProjectSelect,
+body.light-mode #jiraCreateSubtaskModal #jiraSubtaskAssigneeSelect,
+body.light-mode #jiraCreateSubtaskModal #jiraSubtaskStatusSelect {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23475569'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+}
+
+/* Jira Assignee Custom Dropdown */
+.jira-assignee-trigger,
+.jira-subtask-assignee-trigger {
+  background-color: #0c1628;
+  border-color: #244170;
+  color: #f1f5f9;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.jira-assignee-trigger:hover,
+.jira-subtask-assignee-trigger:hover {
+  border-color: #1677ff;
+  background-color: #101e38;
+}
+
+.jira-assignee-dropdown-menu {
+  background-color: #101e38;
+  border-color: #244170;
+  box-shadow: 0 12px 32px rgba(2, 8, 20, 0.65);
+}
+
+.jira-assignee-search {
+  background-color: #0c1628 !important;
+  border-color: #244170 !important;
+  color: #f1f5f9 !important;
+}
+
+.jira-assignee-search:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2) !important;
+}
+
+.jira-assignee-option {
+  color: #cbd5e1;
+}
+
+.jira-assignee-option:hover {
+  background-color: rgba(22, 119, 255, 0.14);
+  color: #ffffff;
+}
+
+.jira-assignee-option.is-selected {
+  background-color: rgba(22, 119, 255, 0.2);
+  color: #1677ff;
+  font-weight: 600;
+}
+
+.jira-assignee-option-email {
+  color: #94a3b8;
+}
+
+body.light-mode #view_jira .jira-assignee-trigger,
+body.light-mode #view_jira .jira-subtask-assignee-trigger,
+body.light-mode #jiraSubtaskAssigneeFloatingMenu .jira-subtask-assignee-trigger {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-mode #view_jira .jira-assignee-trigger:hover,
+body.light-mode #view_jira .jira-subtask-assignee-trigger:hover {
+  border-color: #1677ff !important;
+  background-color: #f8fafc !important;
+}
+
+body.light-mode #view_jira #jiraDetailAssignee {
+  color: #0f172a !important;
+}
+
+body.light-mode #view_jira .jira-assignee-dropdown-menu,
+body.light-mode #jiraSubtaskAssigneeFloatingMenu {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.15), 0 4px 12px rgba(15, 23, 42, 0.08) !important;
+}
+
+body.light-mode #view_jira .jira-assignee-search,
+body.light-mode #jiraSubtaskAssigneeFloatingMenu .jira-assignee-search {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #view_jira .jira-assignee-search:focus,
+body.light-mode #jiraSubtaskAssigneeFloatingMenu .jira-assignee-search:focus {
+  background-color: #ffffff !important;
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15) !important;
+}
+
+body.light-mode #view_jira .jira-assignee-option,
+body.light-mode #jiraSubtaskAssigneeFloatingMenu .jira-assignee-option {
+  color: #334155 !important;
+}
+
+body.light-mode #view_jira .jira-assignee-option-name,
+body.light-mode #jiraSubtaskAssigneeFloatingMenu .jira-assignee-option-name {
+  color: #334155 !important;
+}
+
+body.light-mode #view_jira .jira-assignee-option-email,
+body.light-mode #jiraSubtaskAssigneeFloatingMenu .jira-assignee-option-email {
+  color: #64748b !important;
+}
+
+body.light-mode #view_jira .jira-assignee-option:hover,
+body.light-mode #jiraSubtaskAssigneeFloatingMenu .jira-assignee-option:hover {
+  background-color: #f1f5f9 !important;
+  color: #0958d9 !important;
+}
+
+body.light-mode #view_jira .jira-assignee-option:hover .jira-assignee-option-name,
+body.light-mode #jiraSubtaskAssigneeFloatingMenu .jira-assignee-option:hover .jira-assignee-option-name {
+  color: #0958d9 !important;
+}
+
+body.light-mode #view_jira .jira-assignee-option:hover .jira-assignee-option-email,
+body.light-mode #jiraSubtaskAssigneeFloatingMenu .jira-assignee-option:hover .jira-assignee-option-email {
+  color: #1d4ed8 !important;
+}
+
+body.light-mode #view_jira .jira-assignee-option.is-selected,
+body.light-mode #jiraSubtaskAssigneeFloatingMenu .jira-assignee-option.is-selected {
+  background-color: #e6f4ff !important;
+  color: #0958d9 !important;
+  font-weight: 600;
+}
+
+body.light-mode #view_jira .jira-assignee-option.is-selected .jira-assignee-option-name,
+body.light-mode #jiraSubtaskAssigneeFloatingMenu .jira-assignee-option.is-selected .jira-assignee-option-name {
+  color: #0958d9 !important;
+  font-weight: 600;
+}
+
+body.light-mode #view_jira .jira-assignee-option.is-selected .jira-assignee-option-email,
+body.light-mode #jiraSubtaskAssigneeFloatingMenu .jira-assignee-option.is-selected .jira-assignee-option-email {
+  color: #1677ff !important;
+}
+
+body.light-mode #view_jira #btnAssignToMe {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #1d4ed8 !important;
+}
+
+body.light-mode #view_jira #btnAssignToMe:hover {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+}
+
+/* Jira Video Evidence & Media Players (mp4, webm, mov, mkv) */
+.jira-video-embed,
+.jira-evidence-video-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.jira-video-embed:hover,
+.jira-evidence-video-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.jira-video-embed video,
+.jira-evidence-video-card video {
+  outline: none;
+  background-color: #000000;
+}
+
+body.light-mode .jira-video-embed,
+body.light-mode .jira-evidence-video-card {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+body.light-mode .jira-video-embed:hover,
+body.light-mode .jira-evidence-video-card:hover {
+  border-color: #1677ff !important;
+}
+
+body.light-mode .jira-video-embed span,
+body.light-mode .jira-evidence-video-card span {
+  color: #0f172a !important;
+}
+
+
+/* ====================================================================
+   NOTES TAB STYLING (DARK MODE & LIGHT MODE)
+   ==================================================================== */
+
+/* --- Top Action Banner --- */
+#view_notes .notes-banner-icon {
+  background-color: #182c4f;
+  border: 1px solid #244170;
+  color: #60a5fa;
+}
+
+body.light-mode #view_notes .notes-banner-icon {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #1677ff !important;
+}
+
+/* Primary Button: Tạo ghi chú mới */
+#view_notes #btnNewNote {
+  background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%) !important;
+  border: 1px solid #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 4px rgba(22, 119, 255, 0.25) !important;
+}
+
+#view_notes #btnNewNote:hover {
+  background: linear-gradient(135deg, #4096ff 0%, #1677ff 100%) !important;
+  border-color: #4096ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 6px rgba(22, 119, 255, 0.35) !important;
+}
+
+#view_notes #btnNewNote:active {
+  background: #0958d9 !important;
+}
+
+/* Secondary Action Button: Đưa vào Tác vụ */
+#view_notes #btnSendNoteToTask {
+  background-color: #152c54 !important;
+  border: 1px solid #1d4ed8 !important;
+  color: #60a5fa !important;
+  font-weight: 600 !important;
+}
+
+#view_notes #btnSendNoteToTask:hover {
+  background-color: #1e3a8a !important;
+  border-color: #3b82f6 !important;
+  color: #93c5fd !important;
+}
+
+#view_notes #btnSendNoteToTask:active {
+  background-color: #172554 !important;
+}
+
+body.light-mode #view_notes #btnSendNoteToTask {
+  background-color: #eff6ff !important;
+  border: 1px solid #93c5fd !important;
+  color: #1677ff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(22, 119, 255, 0.08) !important;
+}
+
+body.light-mode #view_notes #btnSendNoteToTask:hover {
+  background-color: #dbeafe !important;
+  border-color: #1677ff !important;
+  color: #0958d9 !important;
+  box-shadow: 0 2px 4px rgba(22, 119, 255, 0.15) !important;
+}
+
+body.light-mode #view_notes #btnSendNoteToTask:active {
+  background-color: #bfdbfe !important;
+}
+
+/* Default Action Buttons: Sao chép, Tải .md */
+#view_notes #btnCopyNote,
+#view_notes #btnExportNote {
+  background-color: #182c4f !important;
+  border: 1px solid #2e528f !important;
+  color: #e2e8f0 !important;
+  font-weight: 500 !important;
+}
+
+#view_notes #btnCopyNote:hover,
+#view_notes #btnExportNote:hover {
+  background-color: #203a66 !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+}
+
+#view_notes #btnCopyNote:active,
+#view_notes #btnExportNote:active {
+  background-color: #152745 !important;
+}
+
+body.light-mode #view_notes #btnCopyNote,
+body.light-mode #view_notes #btnExportNote {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+body.light-mode #view_notes #btnCopyNote:hover,
+body.light-mode #view_notes #btnExportNote:hover {
+  background-color: #f8fafc !important;
+  border-color: #1677ff !important;
+  color: #1677ff !important;
+  box-shadow: 0 2px 4px rgba(22, 119, 255, 0.1) !important;
+}
+
+body.light-mode #view_notes #btnCopyNote:active,
+body.light-mode #view_notes #btnExportNote:active {
+  background-color: #f1f5f9 !important;
+}
+
+/* Danger Button: Xóa */
+#view_notes #btnDeleteNote {
+  background-color: rgba(127, 29, 29, 0.45) !important;
+  border: 1px solid rgba(239, 68, 68, 0.5) !important;
+  color: #fca5a5 !important;
+  font-weight: 500 !important;
+}
+
+#view_notes #btnDeleteNote:hover {
+  background-color: rgba(185, 28, 28, 0.65) !important;
+  border-color: #ef4444 !important;
+  color: #ffffff !important;
+}
+
+#view_notes #btnDeleteNote:active {
+  background-color: rgba(153, 27, 27, 0.8) !important;
+}
+
+body.light-mode #view_notes #btnDeleteNote {
+  background-color: #fff1f0 !important;
+  border: 1px solid #ffa39e !important;
+  color: #cf1322 !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 2px rgba(207, 19, 34, 0.06) !important;
+}
+
+body.light-mode #view_notes #btnDeleteNote:hover {
+  background-color: #ff4d4f !important;
+  border-color: #ff4d4f !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 4px rgba(255, 77, 79, 0.25) !important;
+}
+
+body.light-mode #view_notes #btnDeleteNote:active {
+  background-color: #d9363e !important;
+}
+
+/* --- Category Filter Pills --- */
+.notes-filter-pill {
+  background-color: #182c4f;
+  border: 1px solid #244170;
+  color: #cbd5e1;
+  font-weight: 500;
+  transition: all 0.15s ease-in-out;
+}
+
+.notes-filter-pill:hover {
+  background-color: #203a66;
+  border-color: #2e528f;
+  color: #ffffff;
+}
+
+.notes-filter-pill.is-active {
+  background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%) !important;
+  border: 1px solid #1677ff !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(22, 119, 255, 0.3) !important;
+}
+
+body.light-mode .notes-filter-pill {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+  font-weight: 500 !important;
+}
+
+body.light-mode .notes-filter-pill:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode .notes-filter-pill.is-active {
+  background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%) !important;
+  border: 1px solid #1677ff !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 4px rgba(22, 119, 255, 0.25) !important;
+}
+
+/* --- Markdown Formatting Toolbar --- */
+.notes-markdown-toolbar {
+  background-color: #0c1628;
+  border: 1px solid #244170;
+}
+
+.notes-toolbar-btn {
+  background-color: #142442;
+  border: 1px solid #244170;
+  color: #cbd5e1;
+  font-size: 11.5px;
+  transition: all 0.15s ease-in-out;
+}
+
+.notes-toolbar-btn:hover {
+  background-color: #1f3763;
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.notes-toolbar-btn:active {
+  background-color: #101e38;
+}
+
+.notes-toolbar-divider {
+  background-color: #244170;
+}
+
+body.light-mode .notes-markdown-toolbar {
+  background-color: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+body.light-mode .notes-toolbar-btn {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-mode .notes-toolbar-btn:hover {
+  background-color: #eff6ff !important;
+  border-color: #1677ff !important;
+  color: #1677ff !important;
+  box-shadow: 0 1px 3px rgba(22, 119, 255, 0.12) !important;
+}
+
+body.light-mode .notes-toolbar-btn:active {
+  background-color: #dbeafe !important;
+}
+
+body.light-mode .notes-toolbar-divider {
+  background-color: #cbd5e1 !important;
+}
+
+/* --- Note Item Cards in Left Panel --- */
+.note-item-card {
+  background-color: #0c1628;
+  border: 1px solid #244170;
+  color: #cbd5e1;
+  transition: all 0.15s ease-in-out;
+}
+
+.note-item-card:hover {
+  border-color: #1677ff;
+  background-color: #101e38;
+}
+
+.note-item-card .note-card-title {
+  color: #f1f5f9;
+}
+
+.note-item-card .note-card-time {
+  color: #94a3b8;
+}
+
+.note-item-card .note-card-snippet {
+  color: #94a3b8;
+}
+
+.note-item-card .note-card-badge {
+  background-color: #182c4f;
+  border-color: #244170;
+  color: #94a3b8;
+}
+
+.note-item-card .note-card-jira {
+  background-color: #172554;
+  border-color: #1e40af;
+  color: #93c5fd;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-item-card .note-card-delete-btn {
+  color: #94a3b8;
+  opacity: 0.6;
+  transition: all 0.15s ease-in-out;
+}
+
+.note-item-card:hover .note-card-delete-btn,
+.note-item-card .note-card-delete-btn:hover {
+  opacity: 1;
+}
+
+.note-item-card .note-card-delete-btn:hover {
+  color: #f43f5e;
+  background-color: rgba(244, 63, 94, 0.15);
+}
+
+.note-item-card.is-active .note-card-delete-btn {
+  color: #bfdbfe;
+  opacity: 0.8;
+}
+
+.note-item-card.is-active .note-card-delete-btn:hover {
+  color: #fda4af;
+  background-color: rgba(244, 63, 94, 0.25);
+}
+
+/* Active Note Card (Dark Mode) */
+.note-item-card.is-active {
+  background: linear-gradient(135deg, rgba(22, 119, 255, 0.22) 0%, rgba(9, 88, 217, 0.12) 100%) !important;
+  border: 1.5px solid #1677ff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.2) !important;
+}
+
+.note-item-card.is-active .note-card-title {
+  color: #60a5fa !important;
+  font-weight: 700 !important;
+}
+
+.note-item-card.is-active .note-card-time {
+  color: #93c5fd !important;
+}
+
+.note-item-card.is-active .note-card-snippet {
+  color: #cbd5e1 !important;
+}
+
+.note-item-card.is-active .note-card-badge {
+  background-color: #1e3a8a !important;
+  border-color: #2563eb !important;
+  color: #bfdbfe !important;
+}
+
+.note-item-card.is-active .note-card-jira {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+}
+
+/* Note Cards in Light Mode */
+body.light-mode #view_notes .note-item-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #1e293b !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.light-mode #view_notes .note-item-card:hover {
+  background-color: #f8fafc !important;
+  border-color: #93c5fd !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-mode #view_notes .note-item-card .note-card-title {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode #view_notes .note-item-card .note-card-time {
+  color: #64748b !important;
+}
+
+body.light-mode #view_notes .note-item-card .note-card-snippet {
+  color: #475569 !important;
+}
+
+body.light-mode #view_notes .note-item-card .note-card-badge {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+body.light-mode #view_notes .note-item-card .note-card-jira {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #1d4ed8 !important;
+  font-weight: 600 !important;
+}
+
+/* Active Note Card (Light Mode) */
+body.light-mode #view_notes .note-item-card.is-active {
+  background-color: #eff6ff !important;
+  border: 1.5px solid #1677ff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.15) !important;
+}
+
+body.light-mode #view_notes .note-item-card.is-active .note-card-title {
+  color: #1677ff !important;
+  font-weight: 700 !important;
+}
+
+body.light-mode #view_notes .note-item-card.is-active .note-card-time {
+  color: #2563eb !important;
+}
+
+body.light-mode #view_notes .note-item-card.is-active .note-card-snippet {
+  color: #334155 !important;
+}
+
+body.light-mode #view_notes .note-item-card.is-active .note-card-badge {
+  background-color: #dbeafe !important;
+  border-color: #93c5fd !important;
+  color: #1e40af !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode #view_notes .note-item-card.is-active .note-card-jira {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode #view_notes .note-item-card .note-card-delete-btn {
+  color: #8c8c8c;
+  opacity: 0.6;
+}
+
+body.light-mode #view_notes .note-item-card:hover .note-card-delete-btn,
+body.light-mode #view_notes .note-item-card .note-card-delete-btn:hover {
+  opacity: 1;
+}
+
+body.light-mode #view_notes .note-item-card .note-card-delete-btn:hover {
+  color: #ff4d4f;
+  background-color: #fff1f0;
+}
+
+body.light-mode #view_notes .note-item-card.is-active .note-card-delete-btn {
+  color: #2563eb;
+  opacity: 0.8;
+}
+
+body.light-mode #view_notes .note-item-card.is-active .note-card-delete-btn:hover {
+  color: #ff4d4f;
+  background-color: #fff1f0;
+}
+
+/* --- Panel & Banner Containers in Light Mode --- */
+body.light-mode #view_notes .bg-\[\#101e38\] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-mode #view_notes .bg-\[\#0c1628\] {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #view_notes .notes-banner-title {
+  color: #0f172a !important;
+}
+
+body.light-mode #view_notes .notes-banner-desc {
+  color: #64748b !important;
+}
+
+body.light-mode #view_notes .notes-meta-label {
+  color: #475569 !important;
+}
+
+body.light-mode #view_notes .notes-meta-box {
+  border-color: #e2e8f0 !important;
+}
+
+body.light-mode #view_notes .notes-footer-stats {
+  border-color: #e2e8f0 !important;
+  color: #64748b !important;
+}
+
+body.light-mode #view_notes #noteLastModified {
+  color: #1e293b !important;
+}
+
+body.light-mode #view_notes .notes-search-icon {
+  color: #64748b !important;
+}
+
+/* --- Auto-save Badge in Light Mode --- */
+body.light-mode #view_notes #noteAutoSaveBadge.bg-emerald-950\/70 {
+  background-color: #ecfdf5 !important;
+  border-color: #6ee7b7 !important;
+  color: #047857 !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode #view_notes #noteAutoSaveBadge.bg-amber-950\/70 {
+  background-color: #fffbeb !important;
+  border-color: #fcd34d !important;
+  color: #b45309 !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode #view_notes #noteAutoSaveBadge.bg-blue-950\/70 {
+  background-color: #eff6ff !important;
+  border-color: #93c5fd !important;
+  color: #1d4ed8 !important;
+  font-weight: 600 !important;
+}
+
+/* --- Input & Textarea Elements in Light Mode --- */
+body.light-mode #view_notes textarea#noteContentInput {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #view_notes textarea#noteContentInput:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15) !important;
+}
+
+body.light-mode #view_notes input#noteTitleInput {
+  color: #0f172a !important;
+}
+
+body.light-mode #view_notes input#noteTitleInput::placeholder {
+  color: #94a3b8 !important;
+}
+
+body.light-mode #view_notes select#noteCategorySelect,
+body.light-mode #view_notes input#noteJiraKeyInput,
+body.light-mode #view_notes input#notesSearchInput {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode #view_notes select#noteCategorySelect:focus,
+body.light-mode #view_notes input#noteJiraKeyInput:focus,
+body.light-mode #view_notes input#notesSearchInput:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15) !important;
+}
+
+body.light-mode #view_notes select#noteCategorySelect option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Jira Link Button beside Jira Key Input */
+#view_notes #noteJiraKeyLinkBtn {
+  background-color: rgba(22, 119, 255, 0.15) !important;
+  border: 1px solid rgba(59, 130, 246, 0.4) !important;
+  color: #60a5fa !important;
+  font-weight: 500 !important;
+}
+
+#view_notes #noteJiraKeyLinkBtn:hover {
+  background-color: rgba(22, 119, 255, 0.3) !important;
+  border-color: #3b82f6 !important;
+  color: #ffffff !important;
+}
+
+body.light-mode #view_notes #noteJiraKeyLinkBtn {
+  background-color: #eff6ff !important;
+  border: 1px solid #93c5fd !important;
+  color: #1677ff !important;
+  font-weight: 600 !important;
+}
+
+body.light-mode #view_notes #noteJiraKeyLinkBtn:hover {
+  background-color: #dbeafe !important;
+  border-color: #1677ff !important;
+  color: #0958d9 !important;
 }

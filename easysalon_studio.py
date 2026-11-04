@@ -97,6 +97,7 @@ def main():
     class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         daemon_threads = True
         allow_reuse_address = True
+        request_queue_size = 128
 
     try:
         server = ThreadedHTTPServer((host, port), AgentStudioHandler)

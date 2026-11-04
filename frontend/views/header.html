@@ -1,0 +1,97 @@
+  <!-- Header: Tông màu chủ đạo #182c4f và #ffffff -->
+  <header
+    class="border-b border-[#244170] bg-[#182c4f] text-white sticky top-0 z-30 px-6 py-2.5 flex items-center justify-between shadow-md">
+    <div class="flex items-center gap-2 cursor-pointer select-none" onclick="switchTab('task')" title="Về trang Tác vụ">
+      <img src="/logo-my.png" alt="EasySalon Logo" class="h-7 md:h-8 w-auto object-contain" />
+    </div>
+
+    <!-- Mode Navigation Tabs & Nút chuyển Sáng / Tối -->
+    <div class="flex items-center gap-2.5">
+      <div class="flex items-center bg-[#0d1c33] p-1 rounded-md border border-[#244170] text-xs font-medium space-x-1">
+        <button id="tabBtn_task" type="button" onclick="switchTab('task')"
+          class="px-3.5 py-1.5 rounded bg-white text-[#182c4f] font-semibold transition text-xs cursor-pointer select-none">
+          Tác vụ
+        </button>
+        <button id="tabBtn_jira" type="button" onclick="switchTab('jira')"
+          class="px-3.5 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition text-xs cursor-pointer select-none">
+          Jira Tasks
+        </button>
+        <button id="tabBtn_branch" type="button" onclick="switchTab('branch')"
+          class="px-3.5 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition text-xs cursor-pointer select-none">
+          Điều khiển Git
+        </button>
+        <button id="tabBtn_diagram" type="button" onclick="switchTab('diagram')"
+          class="px-3.5 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition text-xs cursor-pointer select-none">
+          Sơ đồ liên kết
+        </button>
+        <button id="tabBtn_log" type="button" onclick="switchTab('log')"
+          class="px-3.5 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition text-xs cursor-pointer select-none">
+          Lịch sử
+        </button>
+        <button id="tabBtn_notes" type="button" onclick="switchTab('notes')"
+          class="px-3.5 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition text-xs cursor-pointer select-none">
+          Ghi chú
+        </button>
+        <button id="tabBtn_settings" type="button" onclick="switchTab('settings')"
+          class="px-3.5 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition text-xs cursor-pointer select-none">
+          Cài đặt
+        </button>
+      </div>
+
+      <!-- Nút Thông báo Git Updates kèm Badge đỏ -->
+      <div class="relative" id="notifWrap">
+        <button id="notifBellBtn" type="button" onclick="toggleNotifDropdown()"
+          class="p-1.5 rounded-lg bg-transparent hover:bg-white/10 text-white transition flex items-center justify-center cursor-pointer select-none relative"
+          title="Thông báo cập nhật commit Git">
+          <svg id="notifBellIcon" class="w-5 h-5 fill-current text-white origin-top" viewBox="0 0 24 24">
+            <path
+              d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
+          </svg>
+          <span id="notifBadge"
+            class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold font-mono flex items-center justify-center border-2 border-[#182c4f] shadow-md">0</span>
+        </button>
+
+        <!-- Dropdown Menu Thông báo (Giao diện sáng, viền tinh tế) -->
+        <div id="notifDropdownMenu"
+          class="hidden absolute right-0 top-full mt-2 w-80 md:w-96 z-50 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col text-slate-900">
+          <div class="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[#199cff]"></span>
+              <span class="font-bold text-xs text-black">Thông báo</span>
+              <span id="notifDropdownBadge" class="text-xs text-slate-400 font-normal hidden">0 chưa đọc</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" id="btnMarkAllNotifsAsRead" onclick="markAllNotificationsAsRead()"
+                class="text-[11px] font-semibold text-[#199cff] hover:text-blue-700 transition cursor-pointer"
+                title="Đánh dấu tất cả thông báo là đã đọc">Đọc tất cả</button>
+              <button type="button" onclick="clearAllNotifications()"
+                class="text-[11px] font-semibold text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                title="Xóa toàn bộ lịch sử thông báo">Xóa tất cả lịch sử</button>
+            </div>
+          </div>
+
+          <!-- Bộ lọc Tag: Tất cả / Git / Tác vụ Agent / Jira (Nền trắng, tab chọn màu xanh chữ trắng) -->
+          <div id="notifFilterTabs"
+            class="px-3 py-2 bg-white border-b border-slate-200 flex items-center gap-2 text-[11px] overflow-x-auto scrollbar-thin">
+            <!-- Rendered by JS -->
+          </div>
+
+          <!-- Danh sách thông báo -->
+          <div id="notifItemsList" class="max-h-80 overflow-y-auto divide-y divide-slate-100 text-xs bg-white">
+            <div class="p-4 text-center text-slate-500 text-xs">
+              Đang tải danh sách thông báo...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nút chuyển Dark / Light Mode -->
+      <button id="themeToggleBtn" type="button" onclick="toggleTheme()"
+        class="h-[31px] px-2.5 py-1 rounded-md bg-[#0d1c33] hover:bg-[#142647] border border-[#244170] text-slate-200 hover:text-white transition text-xs flex items-center gap-1.5 cursor-pointer select-none"
+        title="Chuyển chế độ Giao diện Sáng / Tối">
+        <span id="themeToggleIcon" class="flex items-center text-xs">☀️</span>
+        <span id="themeToggleText" class="font-medium text-[11px]">Sáng</span>
+      </button>
+    </div>
+  </header>
+

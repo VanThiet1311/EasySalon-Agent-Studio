@@ -558,7 +558,8 @@ body.light-mode .opencode-active-model-card {
   border: 1.5px solid #cbd5e1 !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
-body.light-mode #quickOpencodeActiveModel {
+body.light-mode #quickOpencodeActiveModel,
+body.light-mode #activeModelDisplayBadge {
   background-color: #eff6ff !important;
   border-color: #bfdbfe !important;
   color: #0958d9 !important;
@@ -871,7 +872,7 @@ body.light-mode .jira-alert-box.is-error .jira-alert-title {
    ============================================================ */
 .mcp-preset-card {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1.5px solid #244170 !important;
+  border: 1px solid #244170 !important;
   background-color: #0c1628 !important;
   cursor: pointer;
 }
@@ -891,7 +892,7 @@ body.light-mode .jira-alert-box.is-error .jira-alert-title {
 /* Light mode for unselected preset cards */
 body.light-mode .mcp-preset-card:not(.is-selected) {
   background-color: #ffffff !important;
-  border: 1.5px solid #e2e8f0 !important;
+  border: 1px solid #e2e8f0 !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 body.light-mode .mcp-preset-card:not(.is-selected):hover {
@@ -909,57 +910,67 @@ body.light-mode #settingsPanel_mcp .mcp-preset-card:not(.is-selected) p,
 body.light-mode #settingsPanel_mcp .mcp-preset-card:not(.is-selected) .mcp-preset-desc {
   color: #64748b !important;
 }
-body.light-mode .mcp-preset-card:not(.is-selected) span[id^="badgePreset_"]:not(.is-connected) {
+body.light-mode .mcp-preset-card span[id^="badgePreset_"]:not(.is-connected),
+body.light-mode .mcp-preset-card:not(.is-selected) span[id^="badgePreset_"]:not(.is-connected),
+body.light-mode .mcp-preset-card.is-selected span[id^="badgePreset_"]:not(.is-connected) {
   background-color: #f1f5f9 !important;
   border: 1px solid #cbd5e1 !important;
   color: #475569 !important;
+  box-shadow: none !important;
 }
 
-/* PRESET BADGE ĐÃ KẾT NỐI - Luôn viền xanh lá nổi bật (Vivid Green Border) */
+/* PRESET BADGE ĐÃ KẾT NỐI - Giữ nguyên UI ở cả trạng thái active và không active */
 span[id^="badgePreset_"].is-connected,
-.mcp-preset-card span[id^="badgePreset_"].is-connected {
+.mcp-preset-card span[id^="badgePreset_"].is-connected,
+.mcp-preset-card.is-selected span[id^="badgePreset_"].is-connected,
+.mcp-preset-card:not(.is-selected) span[id^="badgePreset_"].is-connected {
   background-color: rgba(6, 78, 59, 0.75) !important;
-  border: 1.5px solid #10b981 !important;
+  border: 1px solid #10b981 !important;
   color: #34d399 !important;
   font-weight: 600 !important;
+  box-shadow: none !important;
 }
 
+body.light-mode span[id^="badgePreset_"].is-connected,
+body.light-mode .mcp-preset-card span[id^="badgePreset_"].is-connected,
 body.light-mode .mcp-preset-card:not(.is-selected) span[id^="badgePreset_"].is-connected,
-body.light-mode span[id^="badgePreset_"].is-connected {
+body.light-mode .mcp-preset-card.is-selected span[id^="badgePreset_"].is-connected {
   background-color: #ecfdf5 !important;
-  border: 1.5px solid #10b981 !important;
+  border: 1px solid #10b981 !important;
   color: #047857 !important;
   font-weight: 600 !important;
+  box-shadow: none !important;
 }
 
-/* ACTIVE / SELECTED PRESET CARD - Chuẩn AGENTS.md: Luôn là #1677ff (gradient), text trắng */
+/* ACTIVE / SELECTED PRESET CARD - Viền mỏng 1px xanh (#1677ff), giữ nguyên background và màu chữ tự nhiên */
 .mcp-preset-card.is-selected,
-body.light-mode .mcp-preset-card.is-selected,
 body.dark-mode .mcp-preset-card.is-selected,
-body.light-mode main .mcp-preset-card.is-selected,
 #settingsPanel_mcp .mcp-preset-card.is-selected,
+div[id^="cardPreset_"].is-selected {
+  background: #0c1628 !important;
+  border: 1px solid #1677ff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.22) !important;
+}
+
+body.light-mode .mcp-preset-card.is-selected,
+body.light-mode main .mcp-preset-card.is-selected,
 body.light-mode #settingsPanel_mcp .mcp-preset-card.is-selected,
-div[id^="cardPreset_"].is-selected,
 body.light-mode div[id^="cardPreset_"].is-selected,
 body.light-mode #settingsPanel_mcp div[id^="cardPreset_"].is-selected {
-  background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%) !important;
-  border-color: #1677ff !important;
-  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.35) !important;
+  background: #ffffff !important;
+  border: 1px solid #1677ff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.12) !important;
 }
 
-.mcp-preset-card.is-selected *,
-#settingsPanel_mcp .mcp-preset-card.is-selected *,
-body.light-mode .mcp-preset-card.is-selected *,
-body.dark-mode .mcp-preset-card.is-selected *,
-body.light-mode #settingsPanel_mcp .mcp-preset-card.is-selected *,
-body.light-mode main .mcp-preset-card.is-selected *,
-body.light-mode main .mcp-preset-card.is-selected h5,
-body.light-mode main .mcp-preset-card.is-selected p,
-body.light-mode main .mcp-preset-card.is-selected span:not([id^="badgePreset_"].is-connected),
-div[id^="cardPreset_"].is-selected *,
-body.light-mode div[id^="cardPreset_"].is-selected *,
-body.light-mode #settingsPanel_mcp div[id^="cardPreset_"].is-selected * {
+.mcp-preset-card.is-selected h5,
+#settingsPanel_mcp .mcp-preset-card.is-selected h5,
+body.dark-mode .mcp-preset-card.is-selected h5 {
   color: #ffffff !important;
+}
+
+body.light-mode .mcp-preset-card.is-selected h5,
+body.light-mode #settingsPanel_mcp .mcp-preset-card.is-selected h5 {
+  color: #0f172a !important;
 }
 
 .mcp-preset-card.is-selected p,
@@ -967,37 +978,26 @@ body.light-mode #settingsPanel_mcp div[id^="cardPreset_"].is-selected * {
 #settingsPanel_mcp .mcp-preset-card.is-selected p,
 #settingsPanel_mcp .mcp-preset-card.is-selected .mcp-preset-desc,
 div[id^="cardPreset_"].is-selected p,
-div[id^="cardPreset_"].is-selected .mcp-preset-desc,
+div[id^="cardPreset_"].is-selected .mcp-preset-desc {
+  color: #94a3b8 !important;
+}
+
 body.light-mode .mcp-preset-card.is-selected p,
 body.light-mode .mcp-preset-card.is-selected .mcp-preset-desc,
 body.light-mode #settingsPanel_mcp .mcp-preset-card.is-selected p,
 body.light-mode #settingsPanel_mcp .mcp-preset-card.is-selected .mcp-preset-desc,
 body.light-mode div[id^="cardPreset_"].is-selected p,
-body.light-mode div[id^="cardPreset_"].is-selected .mcp-preset-desc,
-body.light-mode #settingsPanel_mcp div[id^="cardPreset_"].is-selected p,
-body.light-mode #settingsPanel_mcp div[id^="cardPreset_"].is-selected .mcp-preset-desc,
-body.light-mode main .mcp-preset-card.is-selected p,
-body.light-mode main .mcp-preset-card.is-selected .mcp-preset-desc,
-body.light-mode main #settingsPanel_mcp .mcp-preset-card.is-selected p,
-body.light-mode main #settingsPanel_mcp .mcp-preset-card.is-selected .mcp-preset-desc {
-  color: #ffffff !important;
+body.light-mode div[id^="cardPreset_"].is-selected .mcp-preset-desc {
+  color: #64748b !important;
 }
 
+.mcp-preset-card span[id^="badgePreset_"]:not(.is-connected),
 .mcp-preset-card.is-selected span[id^="badgePreset_"]:not(.is-connected),
-body.light-mode .mcp-preset-card.is-selected span[id^="badgePreset_"]:not(.is-connected) {
-  background-color: rgba(255, 255, 255, 0.22) !important;
-  border: 1px solid rgba(255, 255, 255, 0.45) !important;
-  color: #ffffff !important;
-}
-
-/* Khi card đang active (background xanh) mà badge đã kết nối: xanh lá nổi bật trên nền xanh */
-.mcp-preset-card.is-selected span[id^="badgePreset_"].is-connected,
-body.light-mode .mcp-preset-card.is-selected span[id^="badgePreset_"].is-connected {
-  background-color: rgba(16, 185, 129, 0.28) !important;
-  border: 1.5px solid #10b981 !important;
-  color: #ffffff !important;
-  font-weight: 600 !important;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.35) !important;
+.mcp-preset-card:not(.is-selected) span[id^="badgePreset_"]:not(.is-connected) {
+  background-color: rgba(30, 41, 59, 0.7) !important;
+  border: 1px solid #334155 !important;
+  color: #94a3b8 !important;
+  box-shadow: none !important;
 }
 
 /* BẢO ĐẢM TOÀN BỘ NÚT LƯU & KÍCH HOẠT MCP LUÔN CÓ TEXT TRẮNG TRONG CẢ LIGHT VÀ DARK MODE */
@@ -1039,10 +1039,13 @@ body.light-mode .mcp-preset-card:not(.is-selected) .github-logo-svg {
   fill: #0f172a !important;
   color: #0f172a !important;
 }
-.mcp-preset-card.is-selected .github-logo-svg,
-body.light-mode .mcp-preset-card.is-selected .github-logo-svg {
+.mcp-preset-card.is-selected .github-logo-svg {
   fill: #ffffff !important;
   color: #ffffff !important;
+}
+body.light-mode .mcp-preset-card.is-selected .github-logo-svg {
+  fill: #0f172a !important;
+  color: #0f172a !important;
 }
 body.light-mode .mcp-preset-card:not(.is-selected) svg.text-slate-300 {
   color: #475569 !important;
@@ -1132,5 +1135,95 @@ body.light-mode .btn-copy-gemini-cmd:hover {
 }
 body.light-mode .btn-copy-gemini-cmd:hover * {
   color: #ffffff !important;
+}
+
+/* ============================================================
+   PANEL MODEL AI & PANEL API CONFIGURATION
+   ============================================================ */
+
+/* Model Preset Cards */
+.model-preset-card {
+  transition: all 0.2s ease;
+}
+.model-preset-card:hover {
+  border-color: #1677ff !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+body.light-mode #settingsPanel_model > div {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+body.light-mode #settingsPanel_model h3,
+body.light-mode #settingsPanel_model label {
+  color: #0f172a !important;
+}
+body.light-mode #settingsPanel_model p {
+  color: #475569 !important;
+}
+body.light-mode #settingsPanel_model select {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+body.light-mode .model-preset-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+body.light-mode .model-preset-card:hover {
+  border-color: #1677ff !important;
+  background-color: #f8fafc !important;
+  box-shadow: 0 4px 12px rgba(22, 119, 255, 0.08);
+}
+body.light-mode .model-preset-card .text-white {
+  color: #0f172a !important;
+}
+
+/* API Config Panel (Không viền gắt, phong cách Ant Design / modern SaaS) */
+#settingsPanel_api > div {
+  border: none !important;
+}
+.api-key-item-box {
+  border: none !important;
+  transition: background-color 0.15s ease;
+}
+body.light-mode #settingsPanel_api > div {
+  background-color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+body.light-mode #settingsPanel_api h3,
+body.light-mode #settingsPanel_api label:not(.text-slate-400) {
+  color: #0f172a !important;
+}
+body.light-mode #settingsPanel_api p {
+  color: #475569 !important;
+}
+body.light-mode .api-key-item-box {
+  background-color: #f8fafc !important;
+  border: none !important;
+}
+body.light-mode #settingsPanel_api input {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+body.light-mode #settingsPanel_api input:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.18) !important;
+}
+body.light-mode #settingsPanel_api input::placeholder {
+  color: #94a3b8 !important;
+}
+body.light-mode #settingsPanel_api .ant-btn {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+body.light-mode #settingsPanel_api .ant-btn:hover {
+  background-color: #f0f7ff !important;
+  border-color: #1677ff !important;
+  color: #1677ff !important;
 }
 

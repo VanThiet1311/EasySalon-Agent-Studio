@@ -1,0 +1,191 @@
+  <!-- TAB 6: SƠ ĐỒ LIÊN KẾT (ARCHITECTURE DIAGRAM & MODULE MAP) -->
+  <main id="view_diagram" class="hidden flex-1 w-full max-w-none p-4 md:p-6 space-y-5">
+    <!-- Card Sơ đồ tổng thể -->
+    <div class="bg-[#101e38] border border-[#244170] rounded-lg p-4 md:p-5 shadow-sm">
+      <div
+        class="border-b border-[#244170] pb-3 mb-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-semibold text-white">
+            Sơ đồ kiến trúc liên kết: Frontend (React) ↔ Backend (.NET Web API)
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Mô hình hóa kết nối qua RESTful API Routes thực tế và quan hệ phụ
+            thuộc Import/Export trong code.</p>
+        </div>
+      </div>
+
+      <!-- Toolbar Sơ đồ liên kết -->
+      <div
+        class="flex flex-wrap items-center justify-between gap-3 mb-3 bg-[#0e192c] border border-[#244170] rounded-md p-2.5">
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Chuyển đổi giữa Flowchart & Tree View (Đã bỏ bớt border lồng nhau) -->
+          <div class="inline-flex items-center gap-1 bg-[#101e38] p-1 rounded-md">
+            <button id="tabBtn_flowchart" onclick="switchDiagramViewTab('flowchart')"
+              class="ant-btn ant-btn-primary text-xs h-[30px] font-bold px-3 border-0">
+              <span>Sơ đồ kiến trúc liên kết (Flowchart)</span>
+            </button>
+            <button id="tabBtn_tree" onclick="switchDiagramViewTab('tree')"
+              class="ant-btn text-xs h-[30px] text-slate-300 px-3 border-0">
+              <span>Sơ đồ cây 4 cấp (Tree View)</span>
+            </button>
+          </div>
+
+          <!-- Nút điều khiển Mở rộng / Thu gọn tất cả cho Tree View -->
+          <div id="treeViewControls" class="hidden items-center gap-1.5 ml-2">
+            <button id="btnExpandAll" onclick="expandAllTreeNodes()" class="ant-btn text-xs h-[30px] px-2.5">
+              <span>Mở rộng tất cả</span>
+            </button>
+            <button id="btnCollapseAll" onclick="collapseAllTreeNodes()" class="ant-btn text-xs h-[30px] px-2.5">
+              <span>Thu gọn tất cả</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div class="hidden sm:flex items-center gap-2 text-xs text-slate-400">
+            <span>Đồng bộ: <span id="scanTimestamp" class="font-mono text-cyan-400">...</span></span>
+          </div>
+          <button id="btnRescanDiagram" onclick="doManualRescanDiagram()"
+            class="ant-btn ant-btn-primary text-xs h-[30px]">
+            <svg id="rescanSpinner" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>Quét lại Source Code</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mermaid Diagram Container with Zoom & Pan Controls -->
+      <div id="diagramContainerWrapper"
+        class="relative bg-[#0e192c] rounded-md border border-[#244170] overflow-hidden">
+        <!-- Floating Zoom Toolbar -->
+        <div
+          class="absolute top-3 right-3 z-20 flex items-center gap-1 bg-[#101e38]/90 backdrop-blur border border-[#244170] rounded-md px-2 py-1 shadow-md">
+          <button id="diagramZoomIn" onclick="diagramZoomIn()" title="Phóng to"
+            class="p-1 hover:bg-[#182c4f] text-slate-300 hover:text-white rounded transition text-xs font-bold">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+          <button id="diagramZoomOut" onclick="diagramZoomOut()" title="Thu nhỏ"
+            class="p-1 hover:bg-[#182c4f] text-slate-300 hover:text-white rounded transition text-xs font-bold">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+            </svg>
+          </button>
+          <span id="diagramZoomLevel"
+            class="text-[11px] font-mono text-cyan-400 px-1 min-w-[36px] text-center select-none">100%</span>
+          <button id="diagramZoomReset" onclick="diagramZoomReset()" title="Đặt lại 100%"
+            class="px-1.5 py-0.5 hover:bg-[#182c4f] text-slate-300 hover:text-white rounded text-[11px] font-mono transition">
+            100%
+          </button>
+          <button id="diagramFitView" onclick="diagramFitView()" title="Vừa vặn khung nhìn"
+            class="px-1.5 py-0.5 hover:bg-[#182c4f] text-cyan-300 hover:text-white rounded text-[11px] font-medium transition">
+            Fit
+          </button>
+        </div>
+
+        <!-- Hint drag instruction at bottom left -->
+        <div
+          class="absolute bottom-2 left-3 z-20 pointer-events-none text-[10px] text-slate-400 bg-[#0e192c]/90 px-2 py-0.5 rounded border border-[#244170]">
+          Kéo để di chuyển • Cuộn chuột để thu phóng • Nhấp vào Node để xem chi tiết
+        </div>
+
+        <!-- Zoomable & Pannable Viewport -->
+        <div id="diagramViewport"
+          class="w-full h-[580px] overflow-hidden cursor-grab active:cursor-grabbing select-none flex items-center justify-center p-4">
+          <div id="diagramCanvas" class="transition-transform duration-75 origin-center inline-block">
+            <div id="mermaidDiagram"
+              class="mermaid flex items-center justify-center p-12 text-slate-400 text-xs font-medium">
+              <svg class="animate-spin w-4 h-4 mr-2 text-cyan-400 inline-block" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+              </svg>
+              <span>Đang phân tích mã nguồn và dựng sơ đồ liên kết...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sơ đồ cây 4 cấp (Tree View Container: Module -> Frontend -> API Contract -> Backend) -->
+      <div id="treeViewContainer"
+        class="hidden p-4 bg-[#0e192c] rounded-md border border-[#244170] overflow-y-auto max-h-[580px] space-y-3 font-sans">
+        <div id="treeContent" class="space-y-3">
+          <!-- Rendered by renderTreeView -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Mỗi module một hàng: Frontend | API | Backend -->
+    <div class="bg-[#101e38] border border-[#244170] rounded-lg p-4 md:p-5 shadow-sm relative">
+      <!-- Định nghĩa Gradient chạy dọc từ đầu mũi tên đến cuối mũi tên -->
+      <svg class="w-0 h-0 absolute pointer-events-none overflow-hidden" aria-hidden="true">
+        <defs>
+          <linearGradient id="flowGradFeToApi" gradientUnits="userSpaceOnUse" x1="-70" y1="12" x2="10" y2="12">
+            <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.1" />
+            <stop offset="40%" stop-color="#06b6d4" stop-opacity="1" />
+            <stop offset="75%" stop-color="#38bdf8" stop-opacity="1" />
+            <stop offset="92%" stop-color="#a855f7" stop-opacity="1" />
+            <stop offset="100%" stop-color="#a855f7" stop-opacity="0.1" />
+            <animate attributeName="x1" from="-70" to="80" dur="1.2s" repeatCount="indefinite" />
+            <animate attributeName="x2" from="10" to="160" dur="1.2s" repeatCount="indefinite" />
+          </linearGradient>
+          <linearGradient id="flowGradApiToBe" gradientUnits="userSpaceOnUse" x1="-70" y1="12" x2="10" y2="12">
+            <stop offset="0%" stop-color="#a855f7" stop-opacity="0.1" />
+            <stop offset="40%" stop-color="#a855f7" stop-opacity="1" />
+            <stop offset="75%" stop-color="#199cff" stop-opacity="1" />
+            <stop offset="92%" stop-color="#10b981" stop-opacity="1" />
+            <stop offset="100%" stop-color="#10b981" stop-opacity="0.1" />
+            <animate attributeName="x1" from="-70" to="80" dur="1.2s" repeatCount="indefinite" />
+            <animate attributeName="x2" from="10" to="160" dur="1.2s" repeatCount="indefinite" />
+          </linearGradient>
+        </defs>
+      </svg>
+
+      <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-3 mb-3.5">
+        <div>
+          <h3 class="text-sm font-semibold text-white">
+            Chi tiết Module: Frontend ↔ API Contract ↔ Backend (.NET)
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5 max-w-3xl">Liên kết trực tiếp các hàm tương tác API ở Frontend qua
+            từng phương thức GET, POST, PUT, DELETE tới hàm xử lý ở Backend.</p>
+        </div>
+        <div class="flex items-center gap-2 w-full lg:w-auto">
+          <span id="diagramMatchCount"
+            class="shrink-0 text-[11px] font-mono text-slate-200 bg-[#0e192c] border border-[#244170] rounded px-2.5 py-1">—</span>
+          <input type="text" id="diagramSearchInput" oninput="filterDiagramModules()"
+            placeholder="Tìm module, hàm FE, API, hàm BE..."
+            class="w-full lg:w-72 bg-[#0e192c] border border-[#244170] rounded-md px-3 py-1 text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-cyan-500" />
+        </div>
+      </div>
+
+      <div class="diagram-flow-header mb-2 px-3">
+        <div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-cyan-300">
+          <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+          Frontend · Hàm tương tác API
+        </div>
+        <div></div>
+        <div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-purple-300">
+          <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+          API Contract · GET / POST / PUT / DELETE
+        </div>
+        <div></div>
+        <div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          Backend · Hàm xử lý (.NET Actions)
+        </div>
+      </div>
+
+      <div id="diagramModuleEmpty"
+        class="hidden text-center text-sm text-slate-400 py-12 border border-dashed border-slate-700 rounded-md">
+        Không có module nào khớp từ khóa.
+      </div>
+      <div id="moduleLookupList" class="space-y-3">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </main>
+

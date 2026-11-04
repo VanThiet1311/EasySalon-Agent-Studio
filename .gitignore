@@ -15,6 +15,8 @@ active_dialogue.json
 messages.json
 queue_state.json
 settings.json
+storage/*.json
+storage/*.tmp
 *.tmp
 *.log
 

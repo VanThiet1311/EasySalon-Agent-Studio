@@ -1,0 +1,184 @@
+  <!-- TAB 1: TÁC VỤ (LÀM TASK / FIX BUG) -->
+  <main id="view_task" class="flex-1 max-w-[1550px] w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+    <div class="lg:col-span-5 flex flex-col h-auto lg:h-[78vh]">
+      <div class="bg-[#101e38] border border-[#244170] rounded-lg p-4 md:p-5 shadow-sm flex flex-col h-auto lg:h-full relative">
+        <div class="flex items-center justify-between mb-2.5 shrink-0">
+          <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+            <span>Tác vụ thực hiện</span>
+          </h2>
+          <button type="button" onclick="addNewParallelTask()" title="Thêm tác vụ thực hiện mới"
+            class="flex items-center gap-1 text-[11px] font-semibold bg-[#199cff]/20 hover:bg-[#199cff] text-[#199cff] hover:text-white px-2.5 py-1 rounded transition border border-[#199cff]/40 shadow-sm">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+            </svg>
+            <span>Thêm tác vụ</span>
+          </button>
+        </div>
+
+        <!-- Task queue tabs list -->
+        <div id="parallelTaskTabs" class="flex items-center gap-1.5 overflow-x-auto pb-2 mb-3 scrollbar-thin shrink-0">
+          <!-- Rendered dynamically by JS -->
+        </div>
+
+        <!-- Option chọn Loại tác vụ: Làm task vs Fix bug vs Refactor code -->
+        <div class="space-y-1 mb-3 shrink-0">
+          <label class="text-xs font-medium text-slate-300">Loại tác vụ:</label>
+          <select id="taskTypeSelect" onchange="setTaskActionType(this.value)"
+            class="w-full bg-[#0e192c] border border-[#244170] rounded-md p-2 text-xs text-slate-100 focus:outline-none focus:border-[#38bdf8] font-medium">
+            <option value="task" selected>Làm task</option>
+            <option value="fixbug">Fix bug</option>
+            <option value="refactor">Refactor code</option>
+          </select>
+        </div>
+
+        <!-- Tùy chọn Nơi thực hiện / Phạm vi: FE, BE, hoặc Cả hai -->
+        <div class="space-y-1 mb-3 shrink-0">
+          <label id="taskTargetLabel" class="text-xs font-medium text-slate-300">Nơi thực hiện:</label>
+          <select id="taskTargetSelect" onchange="onTaskTargetChange()"
+            class="w-full bg-[#0e192c] border border-[#244170] rounded-md p-2 text-xs text-slate-100 focus:outline-none focus:border-[#38bdf8]">
+            <option value="both" selected>Cả hai (Frontend ↔ Backend phối hợp)</option>
+            <option value="fe">Chỉ Frontend (easysalon-webapp)</option>
+            <option value="be">Chỉ Backend (easysalon-api)</option>
+          </select>
+        </div>
+
+        <!-- Multi-Skill Selector cho Làm task & Fix bug -->
+        <div class="mb-3 space-y-1 relative shrink-0">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-medium text-slate-300">Skill trọng tâm:</label>
+            <span id="taskSkillCount" class="text-[11px] font-mono text-cyan-400">0 đã chọn</span>
+          </div>
+
+          <div id="taskSkillPickerTrigger" onclick="toggleSkillDropdown('task')"
+            class="w-full min-h-[38px] bg-[#0e192c] border border-[#244170] hover:border-[#38bdf8] rounded-md p-2 text-xs text-slate-100 cursor-pointer flex items-center justify-between gap-2 transition">
+            <div id="taskSelectedTags" class="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+              <span class="text-slate-400 text-xs italic">-- Chọn một hoặc nhiều skill --</span>
+            </div>
+            <div class="text-slate-400 px-1 shrink-0">
+              <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                <path d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Dropdown danh sách skill -->
+          <div id="taskSkillDropdown"
+            class="hidden absolute top-full left-0 right-0 mt-1 bg-[#0e192c] border border-[#244170] rounded-md shadow-xl z-50 p-2.5 max-h-72 flex flex-col space-y-2">
+            <div class="flex items-center gap-2 pb-2 border-b border-[#244170]">
+              <input type="text" id="taskSkillSearch" oninput="filterSkillOptions('task')"
+                placeholder="Tìm kiếm skill..."
+                class="flex-1 bg-[#101e38] border border-[#244170] rounded px-2.5 py-1 text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-[#38bdf8]" />
+              <button onclick="selectAllSkills('task')" type="button"
+                class="text-[11px] text-cyan-400 hover:text-white px-2 py-0.5 rounded hover:bg-white/5 font-medium">Chọn
+                hết</button>
+              <button onclick="clearAllSkills('task')" type="button"
+                class="text-[11px] text-slate-400 hover:text-white px-2 py-0.5 rounded hover:bg-white/5 font-medium">Bỏ
+                chọn</button>
+            </div>
+            <div id="taskSkillOptionList" class="overflow-y-auto space-y-1 flex-1 pr-1 max-h-52">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Nội dung task / Hiện tượng lỗi -->
+        <div class="space-y-1 flex-1 flex flex-col min-h-0">
+          <div class="flex items-center justify-between shrink-0">
+            <label id="taskPromptLabel" class="text-xs font-medium text-slate-300">Yêu cầu / Mô tả chi tiết:</label>
+            <button type="button" onclick="formatTaskPromptInput()"
+              class="text-[11px] text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer select-none transition hover:underline"
+              title="Định dạng lại nội dung theo chuẩn BDD / Gherkin và phân đoạn dễ nhìn">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h10M4 18h16" />
+              </svg>
+              <span>Định dạng lại</span>
+            </button>
+          </div>
+          <textarea id="taskPromptInput" oninput="onTaskPromptInput()"
+            placeholder="Ví dụ: Thêm API và Component hiển thị trạng thái giường cho BedRoomPosition..."
+            class="w-full flex-1 min-h-[140px] bg-[#0e192c] border border-[#244170] focus:border-[#38bdf8] rounded-md p-2.5 text-xs text-slate-100 placeholder-slate-400 focus:outline-none transition resize-none leading-relaxed"></textarea>
+        </div>
+
+        <!-- Ô mã code lỗi console / Exception (chỉ hiển thị khi chọn fix bug) -->
+        <div id="taskLogContainer" class="space-y-1 mt-2.5 hidden shrink-0">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-medium text-slate-300">Mã lỗi / Console log / Exception:</label>
+            <span class="text-[10px] text-slate-400 italic font-mono">Không bắt buộc</span>
+          </div>
+          <textarea id="taskLogInput" rows="3" oninput="onTaskLogInput()"
+            placeholder="Dán mã lỗi HTTP (400, 500...), Exception, JSON response, hoặc console error tại đây (nếu có)..."
+            class="w-full h-24 bg-[#0e192c] border border-[#244170] focus:border-[#38bdf8] rounded-md p-2.5 text-xs font-mono text-slate-200 placeholder-slate-400 focus:outline-none transition resize-none"></textarea>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="mt-4 pt-1 space-y-2 shrink-0">
+          <div class="flex items-center gap-2">
+            <button id="btnStartTask" onclick="startCurrentTask()"
+              class="ant-btn ant-btn-primary flex-1 h-[36px] text-white rounded-md inline-flex items-center justify-center gap-2"
+              style="color: #ffffff !important;">
+              <svg class="w-3.5 h-3.5 fill-current text-white shrink-0" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <span id="btnStartTaskText" class="text-white font-medium" style="color: #ffffff !important;">Bắt đầu tác
+                vụ này</span>
+            </button>
+            <button id="btnStopTask" onclick="stopCurrentTask()"
+              class="hidden ant-btn ant-btn-danger flex-1 h-[36px] rounded-md inline-flex items-center justify-center gap-2">
+              <svg class="w-3.5 h-3.5 fill-current text-white shrink-0" viewBox="0 0 24 24">
+                <path d="M6 6h12v12H6z" />
+              </svg>
+              <span>Dừng tác vụ này</span>
+            </button>
+          </div>
+          <button id="btnStopAllParallel" onclick="stopAllTasks()"
+            class="hidden w-full h-[32px] rounded text-[11px] font-semibold bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/40 transition flex items-center justify-center gap-1.5">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+              <path d="M6 6h12v12H6z" />
+            </svg>
+            <span>Dừng tất cả tác vụ</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feed hiển thị diễn biến task -->
+    <div
+      class="lg:col-span-7 flex flex-col h-[78vh] bg-[#101e38] border border-[#244170] rounded-lg shadow-sm overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-[#244170] bg-[#182c4f] flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+          <span id="taskFeedTitle" class="font-semibold text-xs text-white">Diễn biến thực thi</span>
+          <span id="taskFeedEngineBadge"
+            class="text-[10px] px-2 py-0.5 rounded font-sans font-medium border bg-[#52c41a]/20 text-[#95de64] border-[#52c41a]/40"
+            title="Bộ máy thực thi hiện tại">Gemini CLI</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div id="feedTaskFilterTabs"
+            class="flex items-center gap-1 bg-[#0e192c] p-0.5 rounded border border-[#244170] overflow-x-auto max-w-[520px] scrollbar-thin">
+            <!-- Rendered dynamically by JS: [Tất cả] [Task 1] [Task 2] -->
+          </div>
+        </div>
+      </div>
+      <div id="taskFeed" class="flex-1 overflow-y-auto p-4 space-y-4">
+        <div id="taskEmptyState"
+          class="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400">
+          <h3 id="taskEmptyTitle" class="text-xs font-semibold text-slate-300">Chưa có tác vụ nào đang chạy</h3>
+          <p id="taskEmptySubtitle" class="text-xs text-slate-400 max-w-sm mt-1">Cấu hình thông tin bên trái và nhấn
+            "Bắt đầu tác vụ".</p>
+        </div>
+      </div>
+      <div id="taskTypingIndicator"
+        class="hidden px-4 py-2.5 border-t border-[#244170] bg-[#0b1322] flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2.5">
+          <div class="wave-dots">
+            <span class="wave-dot"></span>
+            <span class="wave-dot"></span>
+            <span class="wave-dot"></span>
+          </div>
+          <span id="taskTypingText" class="text-cyan-400 font-mono text-[11px]">AI Terminal đang thực thi tiến trình
+            ngầm...</span>
+        </div>
+      </div>
+    </div>
+  </main>
+

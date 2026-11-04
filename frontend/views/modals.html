@@ -1,0 +1,231 @@
+  <!-- Ant Design Modal Root (Confirm / Alert Dialog) -->
+  <div id="antdModalRoot"
+    class="hidden fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm transition-opacity duration-150">
+    <div id="antdModalCard"
+      class="bg-[#101e38] border border-[#244170] rounded-lg shadow-2xl max-w-md w-full p-5 text-white transform transition-all duration-150 scale-95 opacity-0">
+      <div class="flex items-start gap-3">
+        <div id="antdModalIcon" class="shrink-0 mt-0.5"></div>
+        <div class="flex-1 min-w-0">
+          <h3 id="antdModalTitle" class="text-sm font-semibold text-white leading-snug"></h3>
+          <div id="antdModalContent" class="text-xs text-slate-300 mt-2 leading-relaxed whitespace-pre-wrap"></div>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 mt-5 pt-1">
+        <button id="antdModalCancelBtn" type="button"
+          class="ant-btn text-xs h-[32px] px-3.5 text-slate-300 hover:text-white">
+          Hủy
+        </button>
+        <button id="antdModalOkBtn" type="button" class="ant-btn ant-btn-primary text-xs h-[32px] px-3.5">
+          Xác nhận
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- In-app Full File Editor Modal (VS Code Simulator) -->
+  <div id="fileEditorModalRoot"
+    class="hidden fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-5 bg-black/85 backdrop-blur-md">
+    <div id="fileEditorModalCard"
+      class="bg-[#1e1e1e] border border-[#3c3c3c] rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden text-[#cccccc] font-sans">
+
+      <!-- 1. VS Code Window Titlebar -->
+      <div
+        class="h-[34px] px-3 bg-[#1f1f1f] border-b border-[#2d2d2d] flex items-center justify-between gap-3 shrink-0 select-none">
+        <!-- Window Traffic Light Dots & Title -->
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="flex items-center gap-1.5 shrink-0 pr-1">
+            <span onclick="closeFileEditor()"
+              class="w-3 h-3 rounded-full bg-[#ff5f56] hover:brightness-110 cursor-pointer inline-block"
+              title="Đóng (Esc)"></span>
+            <span class="w-3 h-3 rounded-full bg-[#ffbd2e] inline-block opacity-80"></span>
+            <span class="w-3 h-3 rounded-full bg-[#27c93f] inline-block opacity-80"></span>
+          </div>
+          <!-- VS Code Blue Ribbon Icon -->
+          <svg class="w-4 h-4 text-[#007acc] shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M17.583 2.167L8.917 9.875 3.5 5.583.5 7.417v9.166l3 1.834 5.417-4.292 8.666 7.708 6-2.833V5zM17.583 17.5L10.5 12l7.083-5.5v11z" />
+          </svg>
+          <span id="fileEditorWindowTitle" class="font-mono text-xs text-[#999999] truncate font-medium">settings.json -
+            EasySalon VS Code Studio</span>
+        </div>
+
+        <!-- Window Actions -->
+        <div class="flex items-center gap-2 shrink-0">
+          <button type="button" onclick="openInNativeVSCode()"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#2a2d2e] hover:bg-[#37373d] text-sky-300 hover:text-white border border-[#3c3c3c] text-xs font-sans transition cursor-pointer shadow-sm"
+            title="Mở trực tiếp file này trong phần mềm Visual Studio Code trên máy tính">
+            <svg class="w-3.5 h-3.5 text-[#007acc]" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M17.583 2.167L8.917 9.875 3.5 5.583.5 7.417v9.166l3 1.834 5.417-4.292 8.666 7.708 6-2.833V5zM17.583 17.5L10.5 12l7.083-5.5v11z" />
+            </svg>
+            <span>Mở bằng VS Code</span>
+          </button>
+          <button id="fileEditorSaveBtn" type="button" onclick="saveActiveFileEditor()"
+            class="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#0e639c] hover:bg-[#1177bb] text-white text-xs font-semibold shadow-sm transition cursor-pointer"
+            title="Lưu file vào ổ đĩa (Ctrl+S)">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+            </svg>
+            <span>Lưu (Ctrl+S)</span>
+          </button>
+          <button id="fileEditorCloseBtn" type="button" onclick="closeFileEditor()"
+            class="p-1 rounded text-[#858585] hover:text-white hover:bg-white/10 transition cursor-pointer"
+            title="Đóng (Esc)">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. VS Code Tab Bar -->
+      <div
+        class="h-[35px] bg-[#181818] border-b border-[#252526] flex items-center justify-between px-2 pt-1 shrink-0 select-none">
+        <div class="flex items-center h-full">
+          <!-- Active Tab -->
+          <div
+            class="h-full bg-[#1e1e1e] border-t-2 border-[#007acc] text-white px-3.5 rounded-t text-xs font-mono flex items-center gap-2 border-r border-[#252526] shadow-inner">
+            <span id="fileEditorTabIcon" class="text-amber-400 font-bold text-xs">{ }</span>
+            <span id="fileEditorTabFileName" class="text-slate-100 font-medium">settings.json</span>
+            <span id="fileEditorTabDirtyDot" class="w-2 h-2 rounded-full bg-amber-400 hidden"
+              title="Có thay đổi chưa lưu"></span>
+            <button type="button" onclick="closeFileEditor()"
+              class="text-slate-400 hover:text-white text-xs ml-1 p-0.5 rounded hover:bg-white/10 transition">✕</button>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 text-slate-400 text-xs px-2">
+          <span id="fileEditorLineCount" class="hidden sm:inline text-[11px] font-mono text-[#858585]"></span>
+          <span id="fileEditorStatus" class="text-[11px]"></span>
+        </div>
+      </div>
+
+      <!-- 3. VS Code Breadcrumbs Navigation Bar -->
+      <div
+        class="h-[26px] bg-[#1e1e1e] border-b border-[#282828] px-3 flex items-center justify-between text-[11px] text-[#969696] font-mono shrink-0 select-none">
+        <div class="flex items-center gap-1.5 min-w-0 flex-1 truncate">
+          <span id="fileEditorRepoBadge"
+            class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#007acc]/20 text-[#38bdf8] border border-[#007acc]/40 shrink-0 font-sans"></span>
+          <span class="text-[#555555]">›</span>
+          <span id="fileEditorBreadcrumbPath" class="text-slate-300 truncate"></span>
+          <span id="fileEditorFilePath" class="hidden"></span>
+        </div>
+        <div id="fileEditorAuthorInfo"
+          class="hidden md:flex items-center gap-2 text-[11px] font-sans text-slate-400 shrink-0 select-none"></div>
+      </div>
+
+      <!-- 4. Editor Code Container: Gutter + Editor Area + Minimap -->
+      <div class="flex-1 min-h-0 relative flex flex-row bg-[#1e1e1e] overflow-hidden">
+        <!-- Gutter (Line Numbers) -->
+        <div id="fileEditorLineNumbers"
+          class="py-3 px-2 select-none text-right font-mono text-[12px] leading-[20px] text-[#858585] bg-[#1e1e1e] border-r border-[#2d2d2d] overflow-hidden whitespace-pre shrink-0 min-w-[54px] z-20">
+          1</div>
+
+        <!-- Code Editing Surface -->
+        <div class="flex-1 h-full relative overflow-hidden bg-[#1e1e1e]">
+          <!-- Active Line Highlight -->
+          <div id="fileEditorActiveLineHighlight" class="file-editor-active-line">
+            <div id="fileEditorInlineBlame" class="file-editor-inline-blame" title="Xem chi tiết commit (GitLens)">
+            </div>
+          </div>
+
+          <!-- Indent Guides Layer -->
+          <div id="fileEditorIndentGuides"
+            class="file-editor-indent-layer pointer-events-none absolute inset-0 overflow-hidden font-mono text-[12px] leading-[20px] py-3 px-3.5 select-none whitespace-pre z-[6]">
+          </div>
+
+          <!-- Syntax Highlighting Layer (VS Code Dark+ tokens) -->
+          <pre id="fileEditorSyntaxPre"
+            class="file-editor-syntax-pre pointer-events-none absolute inset-0 overflow-hidden font-mono text-[12px] leading-[20px] py-3 px-3.5 whitespace-pre m-0 border-0 z-[7] bg-transparent"><code id="fileEditorSyntaxCode" class="file-editor-syntax-code font-mono text-[12px] leading-[20px] whitespace-pre bg-transparent"></code></pre>
+
+          <!-- Interactive Textarea -->
+          <textarea id="fileEditorTextarea"
+            class="file-editor-textarea w-full h-full py-3 px-3.5 bg-transparent font-mono text-[12px] leading-[20px] resize-none focus:outline-none border-0 overflow-auto select-text whitespace-pre relative z-10"
+            spellcheck="false" placeholder="Nội dung mã nguồn..."></textarea>
+        </div>
+
+        <!-- 5. VS Code Minimap -->
+        <div id="fileEditorMinimap"
+          class="w-[86px] shrink-0 h-full bg-[#1e1e1e] border-l border-[#282828] relative overflow-hidden select-none cursor-pointer hidden md:block"
+          title="VS Code Minimap (nhấn để cuộn nhanh)">
+          <div id="fileEditorMinimapCanvas"
+            class="w-full absolute top-0 left-0 pointer-events-none p-1 font-mono text-[3px] leading-[4px] text-slate-500 overflow-hidden opacity-60">
+          </div>
+          <div id="fileEditorMinimapSlider"
+            class="absolute left-0 right-0 bg-white/10 hover:bg-white/15 border border-white/20 rounded-xs transition-colors cursor-grab pointer-events-auto">
+          </div>
+        </div>
+      </div>
+
+      <!-- GitLens Commit Details Hover Card (VS Code simulation) -->
+      <div id="fileEditorGitLensCard"
+        class="hidden absolute z-50 bg-[#1f1f1f] border border-[#454545] rounded-md shadow-2xl p-3 text-white max-w-lg w-[480px] pointer-events-auto select-text font-sans">
+        <div class="flex items-center justify-between text-[11px] text-[#cccccc] pb-1.5 mb-2 border-b border-[#3c3c3c]">
+          <div class="flex items-center gap-1.5 truncate">
+            <svg class="w-3.5 h-3.5 text-sky-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <span id="gitLensCardAuthor" class="font-semibold text-white"></span>
+            <span id="gitLensCardTime" class="text-[#999999]"></span>
+            <span id="gitLensCardDate" class="text-[#888888] hidden sm:inline"></span>
+          </div>
+          <div class="flex items-center gap-1 text-[11px] shrink-0 font-mono text-sky-400">
+            <span>•</span>
+            <span id="gitLensCardHash"></span>
+          </div>
+        </div>
+        <div id="gitLensCardTitle" class="font-semibold text-[12px] text-white leading-snug mb-2 font-sans select-text">
+        </div>
+        <div id="gitLensCardBody"
+          class="text-[11.5px] text-[#cccccc] font-sans space-y-1 max-h-[190px] overflow-y-auto leading-relaxed whitespace-pre-wrap select-text">
+        </div>
+        <div
+          class="mt-2.5 pt-1.5 border-t border-[#333333] flex items-center justify-between text-[10.5px] text-[#888888]">
+          <span id="gitLensCardEmail" class="truncate font-mono text-[10px]"></span>
+          <span class="text-slate-400 text-[10px] shrink-0 font-sans">EasySalon GitLens</span>
+        </div>
+      </div>
+
+      <!-- 6. VS Code Status Bar (Bottom Blue Ribbon) -->
+      <div
+        class="h-[24px] px-3 bg-[#007acc] text-white flex items-center justify-between text-[11px] select-none font-sans shrink-0">
+        <div class="flex items-center gap-3">
+          <!-- Remote indicator -->
+          <div
+            class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/20 font-mono text-[10px] font-bold text-sky-200">
+            <span>&gt;&lt;</span>
+            <span id="fileEditorStatusRepo">Dev</span>
+          </div>
+          <!-- Git Branch -->
+          <div class="flex items-center gap-1 text-white/90">
+            <svg class="w-3 h-3 fill-current opacity-80" viewBox="0 0 24 24">
+              <path
+                d="M19 13a3 3 0 0 0-2.82 2H15a2 2 0 0 1-2-2V9.82A3 3 0 0 0 14 7a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 1 2.82V15a4 4 0 0 0 4 4h3.18A3 3 0 0 0 19 21a3 3 0 0 0 3-3 3 3 0 0 0-3-3zm-10-6a1 1 0 1 1 1 1 1 1 0 0 1-1-1zm0 12a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm10 0a1 1 0 1 1 1-1 1 1 0 0 1-1 1z" />
+            </svg>
+            <span id="fileEditorStatusBranch" class="font-mono text-[11px]">HEAD</span>
+          </div>
+          <!-- Error/Warning diagnostics -->
+          <div class="hidden sm:flex items-center gap-2 text-white/80 text-[10.5px]">
+            <span class="flex items-center gap-0.5"><span class="opacity-75">⨂</span> 0</span>
+            <span class="flex items-center gap-0.5"><span class="opacity-75">⚠</span> 0</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 text-white/90">
+          <div id="fileEditorDirtyStatus" class="hidden text-amber-200 font-semibold flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-300"></span>
+            <span>Có thay đổi chưa lưu</span>
+          </div>
+          <span id="fileEditorCursorPos" class="font-mono">Ln 1, Col 1</span>
+          <span class="hidden sm:inline">Spaces: 2</span>
+          <span class="hidden sm:inline">UTF-8</span>
+          <span class="hidden sm:inline">LF</span>
+          <span id="fileEditorLangBadge" class="font-semibold text-white">JSON</span>
+          <span class="hidden md:inline opacity-80">Prettier ✓</span>
+          <span class="opacity-80 cursor-pointer hover:opacity-100" title="GitLens">GitLens</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
