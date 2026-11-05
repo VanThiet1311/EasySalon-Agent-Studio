@@ -377,6 +377,8 @@ body.light-mode #notifDropdownMenu {
   background-color: #ffffff !important;
   border-color: #cbd5e1 !important;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+  width: 580px !important;
+  max-width: calc(100vw - 24px) !important;
 }
 #notifDropdownMenu > div:first-child {
   background-color: #f8fafc !important;
@@ -4075,6 +4077,18 @@ body.light-mode .jira-status-inprogress {
   color: #1d4ed8 !important;
 }
 
+.jira-status-testing {
+  background-color: rgba(124, 58, 237, 0.25);
+  border: 1px solid #8b5cf6;
+  color: #c4b5fd;
+}
+
+body.light-mode .jira-status-testing {
+  background-color: #f5f3ff !important;
+  border: 1px solid #ddd6fe !important;
+  color: #6d28d9 !important;
+}
+
 .jira-status-todo {
   background-color: #1e293b;
   border: 1px solid #334155;
@@ -4288,19 +4302,21 @@ body.dark-mode #btnSendJiraToTask:hover {
   color: #ffffff !important;
 }
 
-/* Nút "Tạo Sub-task": kiểu outline nét đứt, đồng bộ phong cách Ant Design */
+/* Nút "Tạo Sub-task": phong cách Ant Design Button */
 .jira-btn-subtask {
-  background-color: transparent !important;
-  border: 1px dashed #33517d !important;
-  color: #cbd5e1 !important;
-  box-shadow: none !important;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  background-color: #101e38 !important;
+  border: 1px solid #244170 !important;
+  color: #60a5fa !important;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.15s ease-in-out;
 }
 
 .jira-btn-subtask:hover {
-  background-color: #182c4f !important;
-  border-color: #22d3ee !important;
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
   color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.35) !important;
 }
 
 .jira-btn-subtask:active {
@@ -4313,31 +4329,36 @@ body.dark-mode #btnSendJiraToTask:hover {
 }
 
 .jira-btn-subtask svg {
-  color: #22d3ee !important;
+  color: #60a5fa !important;
+  transition: color 0.15s ease;
 }
 
 .jira-btn-subtask:hover svg {
-  color: #67e8f9 !important;
+  color: #ffffff !important;
 }
 
 body.light-mode #view_jira .jira-btn-subtask {
   background-color: #ffffff !important;
-  border-color: #cbd5e1 !important;
-  color: #475569 !important;
+  border: 1px solid #bfdbfe !important;
+  color: #1677ff !important;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(22, 119, 255, 0.06) !important;
 }
 
 body.light-mode #view_jira .jira-btn-subtask:hover {
-  background-color: #eff6ff !important;
+  background-color: #1677ff !important;
   border-color: #1677ff !important;
-  color: #0958d9 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.25) !important;
 }
 
 body.light-mode #view_jira .jira-btn-subtask svg {
   color: #1677ff !important;
+  transition: color 0.15s ease;
 }
 
 body.light-mode #view_jira .jira-btn-subtask:hover svg {
-  color: #0958d9 !important;
+  color: #ffffff !important;
 }
 
 /* Nút xác nhận trong modal Tạo Sub-task */
@@ -4987,35 +5008,260 @@ body.light-mode #view_jira #jiraRovoEngineBadge {
   border-color: #c7d2fe !important;
 }
 
-/* Sub-tasks styles */
+/* ==========================================================================
+   Sub-tasks Components (Modern Ant Design SaaS Aesthetic)
+   ========================================================================== */
+
+/* Header & Counters */
+.subtask-header-icon {
+  background-color: #101e38;
+  border: 1px solid #244170;
+  color: #60a5fa;
+}
+
+body.light-mode .subtask-header-icon {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #1677ff !important;
+}
+
+.subtask-header-title {
+  color: #cbd5e1;
+}
+
+body.light-mode .subtask-header-title {
+  color: #1e293b !important;
+}
+
+.subtask-count-badge {
+  background-color: #132238;
+  color: #60a5fa;
+  border: 1px solid #244170;
+}
+
+body.light-mode .subtask-count-badge {
+  background-color: #eff6ff !important;
+  color: #1677ff !important;
+  border: 1px solid #bfdbfe !important;
+}
+
+/* Empty State */
+.jira-subtasks-empty {
+  background-color: rgba(12, 22, 40, 0.4);
+  border-color: #1e3354;
+}
+
+body.light-mode .jira-subtasks-empty {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-mode .jira-subtasks-empty p {
+  color: #475569 !important;
+}
+
+body.light-mode .jira-subtasks-empty span {
+  color: #64748b !important;
+}
+
+/* Sub-task Card Row */
 .jira-subtask-card {
+  background-color: #0b1526;
+  border: 1px solid #1e3354;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
   transition: all 0.15s ease-in-out;
 }
 
 .jira-subtask-card:hover {
   border-color: #3b82f6;
-  background-color: rgba(30, 58, 138, 0.2);
+  background-color: #101e36;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+}
+
+.jira-subtask-card.is-done {
+  opacity: 0.85;
 }
 
 body.light-mode .jira-subtask-card {
-  background-color: #f8fafc !important;
-  border-color: #e2e8f0 !important;
-  color: #1e293b !important;
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
 body.light-mode .jira-subtask-card:hover {
-  background-color: #eff6ff !important;
+  background-color: #ffffff !important;
   border-color: #93c5fd !important;
+  box-shadow: 0 3px 12px rgba(22, 119, 255, 0.08) !important;
 }
 
-body.light-mode .jira-subtask-card * {
+body.light-mode .jira-subtask-card.is-done {
+  background-color: #f8fafc !important;
+}
+
+/* Ticket Key Badge */
+.jira-subtask-key-badge {
+  background-color: rgba(22, 119, 255, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #60a5fa !important;
+  text-decoration: none !important;
+}
+
+.jira-subtask-key-badge:hover {
+  background-color: rgba(22, 119, 255, 0.25);
+  border-color: #3b82f6;
+  color: #93c5fd !important;
+}
+
+body.light-mode .jira-subtask-key-badge {
+  background-color: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+  color: #0958d9 !important;
+}
+
+body.light-mode .jira-subtask-key-badge:hover {
+  background-color: #dbeafe !important;
+  border-color: #1677ff !important;
+  color: #1677ff !important;
+}
+
+/* Sub-task Summary */
+.jira-subtask-summary {
+  color: #e2e8f0;
+}
+
+.jira-subtask-summary.is-done {
+  color: #64748b;
+}
+
+body.light-mode .jira-subtask-summary {
+  color: #1e293b !important;
+}
+
+body.light-mode .jira-subtask-summary.is-done {
+  color: #94a3b8 !important;
+}
+
+/* Assignee Pill Trigger */
+.jira-subtask-assignee-trigger {
+  background-color: #0c1628;
+  border: 1px solid #244170;
+  color: #cbd5e1;
+}
+
+.jira-subtask-assignee-trigger:hover {
+  border-color: #3b82f6;
+  background-color: #101e38;
+  color: #ffffff;
+}
+
+.jira-subtask-assignee-trigger .subtask-avatar-box {
+  background-color: #1e3a5f;
+  color: #93c5fd;
+}
+
+body.light-mode .jira-subtask-assignee-trigger {
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
   color: #334155 !important;
 }
 
+body.light-mode .jira-subtask-assignee-trigger:hover {
+  background-color: #eff6ff !important;
+  border-color: #93c5fd !important;
+  color: #0958d9 !important;
+}
+
+body.light-mode .jira-subtask-assignee-trigger .subtask-avatar-box {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+body.light-mode .jira-subtask-assignee-trigger .subtask-name-box {
+  color: #334155 !important;
+}
+
+body.light-mode .jira-subtask-assignee-trigger:hover .subtask-name-box {
+  color: #0958d9 !important;
+}
+
+/* Sub-task Status Transition Dropdown */
+.jira-subtask-status-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.45rem center;
+  background-size: 0.65rem;
+  padding-right: 1.4rem !important;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.jira-subtask-status-select:hover {
+  filter: brightness(1.12);
+  transform: translateY(-0.5px);
+}
+
+.jira-subtask-status-select option {
+  background-color: #0c1628;
+  color: #f1f5f9;
+}
+
+body.light-mode .jira-subtask-status-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23475569'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+}
+
+body.light-mode .jira-subtask-status-select option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+/* Delete Sub-task Action Button */
+.jira-subtask-delete-btn {
+  background-color: #101e38;
+  border: 1px solid #244170;
+  color: #94a3b8;
+  border-radius: 6px;
+  transition: all 0.15s ease-in-out;
+}
+
+.jira-subtask-delete-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2) !important;
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.45) !important;
+  transform: scale(1.05);
+}
+
+.jira-subtask-delete-btn:active {
+  transform: scale(0.96);
+}
+
+body.light-mode .jira-subtask-delete-btn {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #94a3b8 !important;
+}
+
+body.light-mode .jira-subtask-delete-btn:hover {
+  background-color: #fee2e2 !important;
+  color: #ef4444 !important;
+  border-color: #fca5a5 !important;
+  transform: scale(1.05);
+}
+
+body.light-mode .jira-subtask-delete-btn:active {
+  transform: scale(0.96);
+}
+
+/* Modal Styling */
 body.light-mode #jiraCreateSubtaskModal .bg-\[\#101e38\] {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
 }
 
 body.light-mode #jiraCreateSubtaskModal input,
@@ -5026,63 +5272,131 @@ body.light-mode #jiraCreateSubtaskModal textarea {
   color: #0f172a !important;
 }
 
-/* Sub-task Status Transition Dropdown */
-.jira-subtask-status-select {
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.35rem center;
-  background-size: 0.6rem;
-  padding-right: 1.25rem !important;
-  cursor: pointer;
-  outline: none;
-  font-family: inherit;
-  transition: all 0.15s ease;
+body.light-mode #jiraCreateSubtaskModal input:focus,
+body.light-mode #jiraCreateSubtaskModal select:focus,
+body.light-mode #jiraCreateSubtaskModal textarea:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15) !important;
 }
 
-.jira-subtask-status-select:hover {
-  filter: brightness(1.15);
+body.light-mode #jiraCreateSubtaskModal label {
+  color: #334155 !important;
 }
 
-.jira-subtask-status-select option {
-  background-color: #0c1628;
-  color: #f1f5f9;
+body.light-mode #jiraCreateSubtaskModal h3 {
+  color: #0f172a !important;
 }
 
-body.light-mode .jira-subtask-status-select option {
-  background-color: #ffffff;
-  color: #0f172a;
+body.light-mode #jiraCreateSubtaskModal .border-b,
+body.light-mode #jiraCreateSubtaskModal .border-t {
+  border-color: #e2e8f0 !important;
 }
 
-/* Interactive Notification Toast */
+body.light-mode #jiraCreateSubtaskModal button[onclick="closeCreateSubtaskModal()"] {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+}
+
+body.light-mode #jiraCreateSubtaskModal button[onclick="closeCreateSubtaskModal()"]:hover {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+/* Interactive Jira Notification Toast (Slides in from top-right) */
+#jiraToastContainer {
+  pointer-events: none;
+}
+
 .jira-notif-toast {
   pointer-events: auto;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.25);
-  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  position: relative;
+  background-color: #101e38;
+  border: 1px solid #244170;
+  border-left: 4px solid #1677ff;
+  border-radius: 10px;
+  box-shadow: 0 14px 35px -4px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(22, 119, 255, 0.15);
+  padding: 12px 14px;
+  color: #ffffff;
+  font-family: 'Be Vietnam Pro', Inter, system-ui, -apple-system, sans-serif;
+  animation: jiraToastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  cursor: pointer;
+  user-select: none;
 }
 
 .jira-notif-toast:hover {
   transform: translateY(-2px);
+  border-color: #3b82f6;
+  box-shadow: 0 18px 40px -4px rgba(0, 0, 0, 0.6), 0 6px 18px rgba(22, 119, 255, 0.25);
 }
 
-body.light-mode .jira-notif-toast {
-  background-color: #ffffff !important;
-  border: 1px solid #cbd5e1 !important;
-  color: #0f172a !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+.jira-notif-toast-closing {
+  animation: jiraToastSlideOut 0.25s cubic-bezier(0.4, 0, 1, 1) forwards !important;
+  pointer-events: none !important;
 }
 
-@keyframes slideInRight {
-  from {
+@keyframes jiraToastSlideIn {
+  0% {
     opacity: 0;
-    transform: translateX(30px);
+    transform: translateX(115%);
   }
-  to {
+  75% {
+    transform: translateX(-4px);
+  }
+  100% {
     opacity: 1;
     transform: translateX(0);
   }
+}
+
+@keyframes jiraToastSlideOut {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(120%);
+  }
+}
+
+/* Light mode for Jira Toast Card */
+body.light-mode .jira-notif-toast {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-left: 4px solid #1677ff !important;
+  color: #0f172a !important;
+  box-shadow: 0 14px 35px -4px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(22, 119, 255, 0.1) !important;
+}
+
+body.light-mode .jira-notif-toast:hover {
+  border-color: #93c5fd !important;
+  box-shadow: 0 18px 40px -4px rgba(0, 0, 0, 0.16), 0 6px 16px rgba(22, 119, 255, 0.18) !important;
+}
+
+body.light-mode .jira-notif-toast .jira-toast-title {
+  color: #0f172a !important;
+}
+
+body.light-mode .jira-notif-toast .jira-toast-body {
+  color: #334155 !important;
+}
+
+body.light-mode .jira-notif-toast .jira-toast-meta {
+  color: #64748b !important;
+}
+
+body.light-mode .jira-notif-toast .jira-toast-divider {
+  border-color: #f1f5f9 !important;
+}
+
+body.light-mode .jira-notif-toast .jira-toast-close-btn {
+  color: #94a3b8 !important;
+}
+
+body.light-mode .jira-notif-toast .jira-toast-close-btn:hover {
+  color: #0f172a !important;
+  background-color: #f1f5f9 !important;
 }
 
 body.light-mode #view_jira .jira-filter-btn.is-active {

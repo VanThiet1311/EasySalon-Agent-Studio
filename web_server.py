@@ -5091,6 +5091,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       background-color: #ffffff !important;
       border-color: #e2e8f0 !important;
       color: #0f172a !important;
+      width: 580px !important;
+      max-width: calc(100vw - 24px) !important;
     }
     #notifFilterTabs,
     body.light-mode #notifFilterTabs {
@@ -6347,6 +6349,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       background-color: #ffffff !important;
       border-color: #cbd5e1 !important;
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+      width: 580px !important;
+      max-width: calc(100vw - 24px) !important;
     }
     #notifDropdownMenu > div:first-child {
       background-color: #f8fafc !important;
@@ -6883,8 +6887,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           <span id="notifBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold font-mono flex items-center justify-center border-2 border-[#182c4f] shadow-md">0</span>
         </button>
 
-        <!-- Dropdown Menu Thông báo (Giao diện sáng, viền tinh tế) -->
-        <div id="notifDropdownMenu" class="hidden absolute right-0 top-full mt-2 w-80 md:w-96 z-50 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col text-slate-900">
+        <!-- Dropdown Menu Thông báo (Giao diện sáng, viền tinh tế, chiều rộng rộng rãi) -->
+        <div id="notifDropdownMenu" class="hidden absolute right-0 top-full mt-2 w-[540px] sm:w-[580px] max-w-[calc(100vw-24px)] z-50 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col text-slate-900">
           <div class="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-[#199cff]"></span>

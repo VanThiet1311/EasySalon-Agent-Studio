@@ -1393,26 +1393,72 @@
             <!-- Provider Selector Tabs -->
             <div class="space-y-2">
               <label class="text-[11px] font-semibold text-slate-300 block">Chọn Provider AI ưu tiên:</label>
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2.5">
                 <button type="button" id="btn_provider_gemini" onclick="selectActiveApiProvider('gemini')"
                   class="api-provider-btn is-active p-3 rounded-lg text-left transition select-none cursor-pointer">
-                  <div class="text-xs font-bold block">Google Gemini</div>
-                  <div class="text-[10px] text-slate-400 mt-0.5 font-sans">Flash, Pro Models</div>
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white">G</div>
+                    <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2v4l10 8-10 8v-4Z" />
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M8 12h8m-4-4h.01M12 8v8l3-3m5 0v.01" />
+                    </svg>
+                    <div class="flex-1">
+                      <div class="text-xs font-bold block">Google Gemini</div>
+                      <div class="text-[10px] text-slate-400 mt-0.5 font-sans">Flash, Pro Models</div>
+                    </div>
+                  </div>
                 </button>
                 <button type="button" id="btn_provider_claude" onclick="selectActiveApiProvider('claude')"
                   class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer">
-                  <div class="text-xs font-bold block">Anthropic Claude</div>
-                  <div class="text-[10px] text-slate-400 mt-0.5 font-sans">Sonnet, Opus Thinking</div>
+                  <div class="flex items-center gap-2.5">
+                    <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    <div class="flex-1">
+                      <div class="text-xs font-bold block">Anthropic Claude</div>
+                      <div class="text-[10px] text-slate-400 mt-0.5 font-sans">Sonnet, Opus Thinking</div>
+                    </div>
+                  </div>
                 </button>
                 <button type="button" id="btn_provider_openai" onclick="selectActiveApiProvider('openai')"
                   class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer">
-                  <div class="text-xs font-bold block">OpenAI / GPT</div>
-                  <div class="text-[10px] text-slate-400 mt-0.5 font-sans">GPT-4o, o3-mini</div>
+                  <div class="flex items-center gap-2.5">
+                    <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M22.54 2.52a23.51 23.51 0 0 0-2.09-2.16c-.45.15-1.56.58-2.69 1.15a58.68 58.68 0 0 0-2.33 1.08c-.39-.2-1.02-.36-2.01-.36-2.86 0-3.33 1.46-3.33 3.33 0 .21.03.42.05.63a4.89 4.89 0 0 0 .73 1.31l.37.33a6.95 6.95 0 0 0 1.75 1.78l-.33.37a4.92 4.92 0 0 0 1.31.73 58.58 58.58 0 0 0 1.08 2.33c.15.45.58 1.56 1.15 2.69l.82-.66a59.16 59.16 0 0 0 1.15-2.33c.2-.39.36-1.02.36-2.01a3.31 3.31 0 0 0-1.31-2.09Zm-13.6 3.36a3.92 3.92 0 0 1 1.13-.07c.92.03 1.95.38 2.91.98a3.94 3.94 0 0 1 .98 1.13c.03.92-.38 1.95-.98 2.91a3.93 3.93 0 0 1-.98-.07c-.93-.01-1.95-.38-2.91-.98a3.93 3.93 0 0 1-1.13.07Zm7.66 0a3.92 3.92 0 0 1 1.13.07c.92.03 1.95.38 2.91.98a3.94 3.94 0 0 1 .98 1.13c.03.92-.38 1.95-.98 2.91a3.93 3.93 0 0 1-.98-.07c-.93-.01-1.95-.38-2.91-.98a3.93 3.93 0 0 1-1.13.07Zm-7.66 0a3.92 3.92 0 0 1-1.13.07c-.92.03-1.95.38-2.91.98a3.93 3.93 0 0 1-.98-.07c.93.01 1.95.38 2.91.98Z" />
+                    </svg>
+                    <div class="flex-1">
+                      <div class="text-xs font-bold block">OpenAI / GPT</div>
+                      <div class="text-[10px] text-slate-400 mt-0.5 font-sans">GPT-4o, o3-mini</div>
+                    </div>
+                  </div>
+                </button>
+                <button type="button" id="btn_provider_deepseek" onclick="selectActiveApiProvider('deepseek')"
+                  class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer">
+                  <div class="flex items-center gap-2.5">
+                    <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.57l-6.18 3.21L5 12.27l-5 4.87 1.18 6.88L12 17.57l-6.18 3.21L5 12.27l6.95-2.13L12 5.24l3.78 1.92L12 2Z" />
+                    </svg>
+                    <div class="flex-1">
+                      <div class="text-xs font-bold block">DeepSeek</div>
+                      <div class="text-[10px] text-slate-400 mt-0.5 font-sans">Flash, Reasoner</div>
+                    </div>
+                  </div>
                 </button>
                 <button type="button" id="btn_provider_custom" onclick="selectActiveApiProvider('custom')"
                   class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer">
-                  <div class="text-xs font-bold block">Custom / 9router</div>
-                  <div class="text-[10px] text-slate-400 mt-0.5 font-sans">Custom Base URL</div>
+                  <div class="flex items-center gap-2.5">
+                    <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      <circle cx="12" cy="12" r="10" />
+                    </svg>
+                    <div class="flex-1">
+                      <div class="text-xs font-bold block">Custom / 9router</div>
+                      <div class="text-[10px] text-slate-400 mt-0.5 font-sans">Custom Base URL</div>
+                    </div>
+                  </div>
                 </button>
               </div>
             </div>
@@ -1512,7 +1558,43 @@
                 <p class="text-[11px] text-slate-400">Dùng cho GPT-4o, o3-mini và các dòng mô hình OpenAI native.</p>
               </div>
 
-              <!-- 4. Custom API Base URL & Key -->
+              <!-- 4. DeepSeek API Key -->
+              <div class="api-key-item-box p-4 rounded-xl bg-[#0c1628]/70 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <label for="input_deepseek_api_key" class="text-xs font-bold text-white flex items-center gap-2">
+                    <span>DeepSeek API Key</span>
+                    <span id="badge_deepseek_key_status"
+                      class="text-[10px] font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-medium">Chưa lưu</span>
+                  </label>
+                  <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer"
+                    class="text-[11px] text-sky-400 hover:text-sky-300 font-sans hover:underline">
+                    Lấy API Key từ DeepSeek Platform ↗
+                  </a>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="relative flex-1">
+                    <input type="password" id="input_deepseek_api_key" placeholder="sk-..."
+                      oninput="onSettingsOptionChanged('api')"
+                      class="w-full bg-[#101e38] border border-[#244170]/80 rounded-lg px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-[#1677ff] pr-10" />
+                    <button type="button" onclick="togglePasswordVisibility('input_deepseek_api_key', this)"
+                      class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs px-1 select-none cursor-pointer">
+                      Hiện
+                    </button>
+                  </div>
+                  <button type="button" onclick="testApiKey('deepseek')"
+                    class="ant-btn text-xs h-[34px] px-3.5 bg-[#182c4f] hover:bg-[#203a68] text-slate-200 hover:text-white shrink-0 cursor-pointer">
+                    <span>Kiểm tra kết nối</span>
+                  </button>
+                </div>
+                <p class="text-[11px] text-slate-400">
+                  Tương thích OpenAI SDK với <code class="font-mono text-[11px] text-sky-300">base_url="https://api.deepseek.com"</code>. Hỗ trợ
+                  <code class="font-mono text-[11px] text-sky-300">deepseek-flash</code>,
+                  <code class="font-mono text-[11px] text-sky-300">deepseek-chat</code>,
+                  <code class="font-mono text-[11px] text-sky-300">deepseek-reasoner</code> và chế độ Thinking.
+                </p>
+              </div>
+
+              <!-- 5. Custom API Base URL & Key -->
               <div class="api-key-item-box p-4 rounded-xl bg-[#0c1628]/70 space-y-3">
                 <div class="flex items-center justify-between">
                   <label class="text-xs font-bold text-white flex items-center gap-2">
@@ -1542,7 +1624,7 @@
                   </div>
                 </div>
                 <div class="flex items-center justify-between pt-1">
-                  <p class="text-[11px] text-slate-400">Kết nối các proxy nội bộ hoặc các dịch vụ tương thích OpenAI API (Groq, DeepSeek, OpenRouter).</p>
+                  <p class="text-[11px] text-slate-400">Kết nối các proxy nội bộ hoặc các dịch vụ tương thích OpenAI API (Groq, OpenRouter, LM Studio).</p>
                   <button type="button" onclick="testApiKey('custom')"
                     class="ant-btn text-xs h-[34px] px-3.5 bg-[#182c4f] hover:bg-[#203a68] text-slate-200 hover:text-white shrink-0 cursor-pointer">
                     <span>Kiểm tra Custom API</span>

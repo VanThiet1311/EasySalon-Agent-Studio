@@ -20,6 +20,7 @@ from studio.state import (
     load_messages,
     save_messages,
     load_settings,
+    detect_api_key_or_quota_error,
 )
 
 background_terminals = {}
@@ -672,6 +673,43 @@ def build_skill_directive(skill_input) -> str:
     return "[HƯỚNG DẪN SKILL TRỌNG TÂM]:\n" + "\n".join(bullet_points)
 
 
+def sanitize_prompt_text(text: str) -> str:
+    """Loại bỏ các tiền tố /skill-... và các tiền tố hành động bị lặp lại (Làm task:, Fix bug:, ...) để lấy nội dung yêu cầu cốt lõi."""
+    if not text:
+        return ""
+    s = text.strip()
+    while True:
+        m_slash = re.match(r'^(?:/[a-zA-Z0-9_\-]+\s*)+', s)
+        if m_slash:
+            s = s[m_slash.end():].strip()
+            continue
+        m_act = re.match(r'^(?:làm\s*task|thực\s*hiện\s*task|fix\s*bug|refactor\s*code|tái\s*cấu\s*trúc(?:\s*mã\s*nguồn)?)(?:\s*[:\-]\s*|\s+)', s, flags=re.IGNORECASE)
+        if m_act:
+            s = s[m_act.end():].strip()
+            continue
+        m_colon = re.match(r'^(?:sửa\s*lỗi)(?:\s*[:\-]\s*)', s, flags=re.IGNORECASE)
+        if m_colon:
+            s = s[m_colon.end():].strip()
+            continue
+        break
+    return s
+
+
+def extract_clean_prompt_and_log(text: str, existing_err: str = ""):
+    """Tách riêng mô tả yêu cầu sạch và log lỗi đính kèm, khử trùng lặp."""
+    if not text:
+        return "", (existing_err or "").strip()
+    s = text.strip()
+    extracted_err = (existing_err or "").strip()
+    log_match = re.search(r'\n+(?:Log\s*lỗi|\[Mã\s*lỗi[^\]]*\]):\s*\n?(.*)$', s, flags=re.IGNORECASE | re.DOTALL)
+    if log_match:
+        if not extracted_err:
+            extracted_err = log_match.group(1).strip('`\n ')
+        s = s[:log_match.start()].strip()
+    clean_desc = sanitize_prompt_text(s)
+    return clean_desc, extracted_err
+
+
 def collect_workspace_changes(workspace: str, repo_label: str, touched_paths=None, preexisting_paths=None):
     """Quét git status & git diff của workspace để lấy danh sách file thay đổi + diff chi tiết."""
     changes = []
@@ -880,6 +918,27 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
             if not last_cid:
                 last_cid = turn_data.get('conversation_id')
 
+            # Chuẩn bị proc_env kế thừa os.environ và ưu tiên các API Key người dùng đã cấu hình
+            proc_env = os.environ.copy()
+            settings_obj = app_state.get('settings', {}) if isinstance(app_state.get('settings'), dict) else load_settings()
+            if settings_obj.get('gemini_api_key'):
+                gk = str(settings_obj['gemini_api_key']).strip()
+                proc_env['GEMINI_API_KEY'] = gk
+                proc_env['GOOGLE_API_KEY'] = gk
+                proc_env['GOOGLE_GENERATIVE_AI_API_KEY'] = gk
+            if settings_obj.get('claude_api_key'):
+                proc_env['ANTHROPIC_API_KEY'] = str(settings_obj['claude_api_key']).strip()
+            if settings_obj.get('openai_api_key'):
+                proc_env['OPENAI_API_KEY'] = str(settings_obj['openai_api_key']).strip()
+            if settings_obj.get('deepseek_api_key'):
+                proc_env['DEEPSEEK_API_KEY'] = str(settings_obj['deepseek_api_key']).strip()
+                proc_env.setdefault('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
+            if settings_obj.get('custom_endpoint'):
+                proc_env['OPENAI_BASE_URL'] = str(settings_obj['custom_endpoint']).strip()
+            if settings_obj.get('custom_api_key'):
+                proc_env['CUSTOM_API_KEY'] = str(settings_obj['custom_api_key']).strip()
+                proc_env['NINE_ROUTER_API_KEY'] = str(settings_obj['custom_api_key']).strip()
+
             if is_opencode:
                 from studio.state import normalize_9router_model_id
                 opencode_bin = get_opencode_bin()
@@ -909,6 +968,7 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
                 proc = subprocess.Popen(
                     opencode_cmd,
                     cwd=cwd,
+                    env=proc_env,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
@@ -930,6 +990,7 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
                 proc = subprocess.Popen(
                     cli_cmd,
                     cwd=cwd,
+                    env=proc_env,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
@@ -1051,10 +1112,22 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
                             elif ev_type == 'error':
                                 err_obj = event_data.get('error', {})
                                 err_msg = err_obj.get('message') if isinstance(err_obj, dict) else str(err_obj)
-                                if err_msg:
-                                    content_parts.append(f"\n[Lỗi OpenCode]: {err_msg}")
+                                api_err = detect_api_key_or_quota_error(err_obj)
+                                if api_err:
                                     with state_lock:
-                                        turn_data['content'] = "".join(content_parts)
+                                        app_state['latest_api_error'] = api_err
+                                        if task_state is not None:
+                                            task_state['api_error'] = api_err
+                                            task_state['status_text'] = f"❌ {api_err['title']}"
+                                            task_state['is_running'] = False
+                                        app_state['status_text'] = f"❌ {api_err['title']}"
+                                    content_parts.append(f"\n\n> ⚠️ **{api_err['title']}**\n> {api_err['message']}\n> Chi tiết: {api_err.get('raw_error', '')}\n")
+                                elif err_msg:
+                                    content_parts.append(f"\n[Lỗi OpenCode]: {err_msg}")
+                                with state_lock:
+                                    turn_data['content'] = "".join(content_parts)
+                                if proc:
+                                    kill_process_tree(proc)
                                 break
 
                         # --- 2. XỬ LÝ EVENT TỪ GEMINI CLI (AGY) ---
@@ -1166,18 +1239,60 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
                             elif event_type == 'error':
                                 err_obj = event_data.get('error', {})
                                 err_msg = err_obj.get('message') if isinstance(err_obj, dict) else str(err_obj)
-                                if err_msg:
-                                    content_parts.append(f"\n[Lỗi từ AI Terminal]: {err_msg}")
+                                api_err = detect_api_key_or_quota_error(err_obj)
+                                if api_err:
                                     with state_lock:
-                                        turn_data['content'] = "".join(content_parts)
+                                        app_state['latest_api_error'] = api_err
+                                        if task_state is not None:
+                                            task_state['api_error'] = api_err
+                                            task_state['status_text'] = f"❌ {api_err['title']}"
+                                            task_state['is_running'] = False
+                                        app_state['status_text'] = f"❌ {api_err['title']}"
+                                    content_parts.append(f"\n\n> ⚠️ **{api_err['title']}**\n> {api_err['message']}\n> Chi tiết: {api_err.get('raw_error', '')}\n")
+                                elif err_msg:
+                                    content_parts.append(f"\n[Lỗi từ AI Terminal]: {err_msg}")
+                                with state_lock:
+                                    turn_data['content'] = "".join(content_parts)
+                                if proc:
+                                    kill_process_tree(proc)
                                 break
 
                     except Exception:
+                        api_err = detect_api_key_or_quota_error(line)
+                        if api_err:
+                            with state_lock:
+                                app_state['latest_api_error'] = api_err
+                                if task_state is not None:
+                                    task_state['api_error'] = api_err
+                                    task_state['status_text'] = f"❌ {api_err['title']}"
+                                    task_state['is_running'] = False
+                                app_state['status_text'] = f"❌ {api_err['title']}"
+                            content_parts.append(f"\n\n> ⚠️ **{api_err['title']}**\n> {api_err['message']}\n> Chi tiết: {api_err.get('raw_error', '')}\n")
+                            with state_lock:
+                                turn_data['content'] = "".join(content_parts)
+                            if proc:
+                                kill_process_tree(proc)
+                            break
                         content_parts.append(line)
                         with state_lock:
                             turn_data['content'] = "".join(content_parts)
                             turn_data['elapsed_sec'] = round(time.time() - t0, 1)
                 else:
+                    api_err = detect_api_key_or_quota_error(line)
+                    if api_err:
+                        with state_lock:
+                            app_state['latest_api_error'] = api_err
+                            if task_state is not None:
+                                task_state['api_error'] = api_err
+                                task_state['status_text'] = f"❌ {api_err['title']}"
+                                task_state['is_running'] = False
+                            app_state['status_text'] = f"❌ {api_err['title']}"
+                        content_parts.append(f"\n\n> ⚠️ **{api_err['title']}**\n> {api_err['message']}\n> Chi tiết: {api_err.get('raw_error', '')}\n")
+                        with state_lock:
+                            turn_data['content'] = "".join(content_parts)
+                        if proc:
+                            kill_process_tree(proc)
+                        break
                     content_parts.append(line)
                     with state_lock:
                         turn_data['content'] = "".join(content_parts)
@@ -1251,11 +1366,18 @@ Người dùng chỉ yêu cầu giải thích/phân tích/trả lời câu hỏi
 def is_explanation_only_request(prompt: str) -> bool:
     """
     Kiểm tra xem yêu cầu có thực sự CHỈ muốn giải thích / phân tích lý thuyết mà không muốn sửa code không.
-    Nếu người dùng yêu cầu sửa lỗi, làm task, viết code, tối ưu hoặc kiểm tra và sửa: Luôn trả về False (bắt buộc sửa code).
+
+    Quy tắc:
+    1. Nếu người dùng phủ định rõ ràng việc sửa code -> CHỈ GIẢI THÍCH.
+    2. Nếu câu có dấu hiệu hỏi đáp/giải thích ('tại sao', 'giải thích', 'nguyên nhân', '?', ...)
+       VÀ không có động từ hành động mạnh ('sửa', 'fix', 'viết', 'cập nhật', 'refactor', ...)
+       -> CHỈ GIẢI THÍCH.
+    3. Các từ chung như 'code', 'làm', 'xử lý' KHÔNG được coi là hành động mạnh, để câu hỏi
+       kiểu "giải thích đoạn code này" không bị biến thành lệnh sửa code.
     """
     if not prompt:
         return False
-    p = prompt.lower()
+    p = prompt.lower().strip()
 
     # 1. Các cụm từ phủ định rõ ràng việc sửa code -> chắc chắn CHỈ GIẢI THÍCH
     has_negated_code = any(neg in p for neg in [
@@ -1270,40 +1392,36 @@ def is_explanation_only_request(prompt: str) -> bool:
     if has_negated_code:
         return True
 
-    # 2. Các cụm từ thể hiện mục đích hỏi đáp, tìm nguyên nhân, kiểm tra phân tích
-    explain_first_patterns = [
-        'check lại cho tôi nguyên nhân', 'check nguyen nhan', 'check lại nguyên nhân',
-        'tìm nguyên nhân', 'tim nguyen nhan', 'phân tích nguyên nhân', 'phan tich nguyen nhan',
-        'kiểm tra nguyên nhân', 'kiem tra nguyen nhan', 'nguyên nhân là gì', 'nguyen nhan la gi',
-        'nguyên nhân do đâu', 'nguyen nhan do dau',
-        'chỉ giải thích', 'chi giai thich',
-        'chỉ phân tích', 'chi phan tich',
-        'chỉ cần giải thích', 'chi can giai thich',
-        'tại sao', 'tai sao',
-        'vì sao', 'vi sao',
-        'lý do tại sao', 'ly do tai sao'
+    # 2. Dấu hiệu người dùng chỉ muốn hỏi / giải thích / phân tích
+    explain_patterns = [
+        'giải thích', 'giai thich', 'explain',
+        'tại sao', 'tai sao', 'vì sao', 'vi sao', 'why',
+        'lý do', 'ly do',
+        'phân tích', 'phan tich',
+        'nguyên nhân', 'nguyen nhan',
+        'có phải', 'co phai',
+        'là gì', 'la gi', 'what is', 'how does', 'how to',
+        'như thế nào', 'nhu the nao',
+        '?'
     ]
-    if any(pat in p for pat in explain_first_patterns):
-        return True
-
-    # 3. Các từ khóa hành động code / sửa lỗi -> BẮT BUỘC SỬA CODE (trả về False)
-    has_action_intent = any(act in p for act in [
-        'sửa', 'sua', 'fix', 'code', 'triển khai', 'trien khai',
-        'viết', 'viet', 'cập nhật', 'cap nhat', 'thay đổi', 'thay doi',
-        'chỉnh', 'chinh', 'xử lý', 'xu ly', 'hoàn thiện', 'hoan thien',
-        'tạo', 'tao', 'làm', 'lam', 'thêm', 'them', 'refactor', 'debug'
-    ])
-    if has_action_intent:
+    has_explain_intent = any(pat in p for pat in explain_patterns)
+    if not has_explain_intent:
         return False
 
-    # 4. Các cụm từ thể hiện mục đích thuần túy hỏi đáp / giải thích
-    explain_only_patterns = [
-        'giải thích', 'giai thich',
-        'lý do', 'ly do',
-        'hỏi', 'hoi',
-        'explain', 'why'
+    # 3. Nếu có động từ hành động mạnh -> BẮT BUỘC SỬA CODE (trả về False)
+    strong_action_patterns = [
+        'sửa', 'sua', 'fix', 'khắc phục', 'khac phuc',
+        'triển khai', 'trien khai',
+        'viết', 'viet', 'cập nhật', 'cap nhat',
+        'thay đổi', 'thay doi', 'chỉnh sửa', 'chinh sua', 'chỉnh', 'chinh',
+        'refactor', 'debug',
+        'tạo mới', 'tao moi', 'tạo file', 'tao file', 'thêm vào', 'them vao',
+        'xóa', 'xoa', 'implement', 'apply', 'hoàn thiện', 'hoan thien'
     ]
-    return any(pat in p for pat in explain_only_patterns)
+    if any(act in p for act in strong_action_patterns):
+        return False
+
+    return True
 
 
 def format_conversation_context(turns: list) -> str:
@@ -1333,7 +1451,7 @@ def format_conversation_context(turns: list) -> str:
     return "[NGỮ CẢNH ĐOẠN CHAT & KẾT QUẢ ĐÃ ĐIỀU TRA Ở CÁC LƯỢT TRƯỚC]:\n" + "\n\n".join(lines)
 
 
-def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds: int, skill: str, original_prompt: str = ''):
+def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds: int, skill: str, original_prompt: str = '', continuation: bool = False):
     global app_state
 
     agy_bin = get_agy_bin()
@@ -1364,9 +1482,26 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
         target = 'both'
 
     current_role = starter.lower() if starter.lower() in ('fe', 'be') else 'fe'
-    max_rounds = 1 if target in ('fe', 'be') else max(1, int(rounds))
-    slash_prefix = format_slash_skills_prefix(skill)
-    converted_prompt = f"{slash_prefix} {prompt}".strip() if slash_prefix else prompt.strip()
+    # Lượt "Tiếp tục task" chỉ là một lượt hội thoại đơn, không chạy lại đa vòng FE/BE.
+    is_continuation = bool(continuation)
+    max_rounds = 1 if (is_continuation or target in ('fe', 'be')) else max(1, int(rounds))
+    # Skill chỉ nạp ở lượt khởi tạo task đầu tiên; các lượt tiếp theo đã có ngữ cảnh trong phiên.
+    slash_prefix = '' if is_continuation else format_slash_skills_prefix(skill)
+    clean_p, clean_err = extract_clean_prompt_and_log(prompt)
+    action_phrase = 'Làm task:'
+    m_act = re.match(r'^(?:làm\s*task|thực\s*hiện\s*task|fix\s*bug|refactor\s*code|tái\s*cấu\s*trúc(?:\s*mã\s*nguồn)?)(?:\s*[:\-]\s*|\s+)', prompt.strip(), flags=re.IGNORECASE)
+    if m_act:
+        act_raw = m_act.group(0).strip().rstrip(':').strip().lower()
+        if 'refactor' in act_raw or 'tái cấu trúc' in act_raw:
+            action_phrase = 'Refactor code:'
+        elif 'fix' in act_raw or 'bug' in act_raw:
+            action_phrase = 'Fix bug:'
+    if is_continuation:
+        # Giữ nguyên nội dung người dùng hỏi, không gắn nhãn "Làm task:" vào câu tiếp theo.
+        display_p = clean_p or prompt.strip()
+    else:
+        display_p = f"{action_phrase} {clean_p}".strip() if clean_p else (prompt.strip() or action_phrase)
+    converted_prompt = f"{slash_prefix} {display_p}".strip() if slash_prefix else display_p
 
     with state_lock:
         settings = app_state.get('settings', {}) if isinstance(app_state.get('settings'), dict) else load_settings()
@@ -1382,14 +1517,20 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
         existing_turns = list(existing_session.get('turns', [])) if existing_session else []
         existing_changes = list(existing_session.get('changed_files', [])) if existing_session else []
         base_round = len(existing_turns)
+        session_prompt = prompt
+        session_skill = skill
+        if is_continuation and existing_session:
+            # Không ghi đè mục tiêu gốc / skill gốc của phiên bằng câu hỏi tiếp theo.
+            session_prompt = (existing_session.get('prompt') or prompt)
+            session_skill = (existing_session.get('skill') or skill)
         session_obj = {
             'id': existing_session.get('id', session_id) if existing_session else session_id,
             'task_id': task_id,
             'type': 'TASK',
             'target': target,
-            'prompt': prompt,
+            'prompt': session_prompt,
             'converted_prompt': converted_prompt,
-            'skill': skill,
+            'skill': session_skill,
             'engine': target_engine,
             'engine_label': target_engine_label,
             'model': target_model,
@@ -1447,7 +1588,76 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
     history = list(existing_turns)
     is_consensus_reached = False
 
-    if target in ('fe', 'be'):
+    if is_continuation:
+        # Lượt tiếp theo trong cùng phiên: một lượt hội thoại duy nhất, giữ nguyên ngữ cảnh.
+        active_role = target if target in ('fe', 'be') else current_role
+        if existing_turns:
+            last_spk = str(existing_turns[-1].get('speaker') or '').strip().lower()
+            if last_spk in ('fe', 'be'):
+                active_role = last_spk
+        curr_info = role_meta[active_role]
+        curr_round_num = base_round + 1
+
+        with state_lock:
+            task_state['active_round'] = curr_round_num
+            task_state['active_speaker'] = active_role
+            task_state['status_text'] = f"[{curr_info['label']}] đang trả lời tiếp: {display_p[:55]}..."
+            app_state['status_text'] = task_state['status_text']
+
+        is_explain = is_explanation_only_request(prompt)
+        directive = EXPLAIN_ONLY_DIRECTIVE if is_explain else CODE_ACTION_DIRECTIVE
+
+        context_str = format_conversation_context(existing_turns)
+        orig_goal = original_prompt.strip() or ((existing_session.get('prompt') or existing_session.get('description') or '').strip() if existing_session else '')
+        prompt_parts = []
+        if orig_goal and orig_goal != display_p and orig_goal != clean_p:
+            prompt_parts.append(f"[MỤC TIÊU BAN ĐẦU CỦA TASK]:\n{orig_goal}")
+        if context_str:
+            prompt_parts.append(context_str)
+        prompt_parts.append(
+            "[LƯU Ý QUAN TRỌNG]: Đây là lượt TIẾP THEO trong cùng một phiên làm việc. "
+            "TUYỆT ĐỐI KHÔNG làm lại toàn bộ task từ đầu và KHÔNG cần đọc lại skill; "
+            "chỉ xử lý/trả lời yêu cầu mới dưới đây dựa trên ngữ cảnh đã có."
+        )
+        prompt_parts.append(f"[YÊU CẦU TIẾP THEO CỦA NGƯỜI DÙNG]:\n{display_p}")
+        if clean_err:
+            prompt_parts.append(f"[MÃ LỖI / CONSOLE LOG ĐÍNH KÈM]:\n```\n{clean_err}\n```")
+        # Không nạp lại skill directive ở lượt tiếp theo.
+        prompt_parts.append(directive)
+
+        agent_prompt = "\n\n".join(prompt_parts)
+        cmd = build_fallback_cli_cmd(agent_prompt)
+        turn_data = {
+            'round': curr_round_num,
+            'speaker': active_role,
+            'label': curr_info['label'],
+            'sub': curr_info['sub'],
+            'prompt_sent': display_p,
+            'timestamp': datetime.datetime.now().strftime('%H:%M:%S'),
+            'elapsed_sec': 0,
+            'step_logs': [],
+            'changed_files': [],
+            'content': '',
+            'is_streaming': True,
+            'engine': target_engine,
+            'engine_label': target_engine_label,
+            'model': target_model,
+            'effort': target_effort,
+            'is_continuation': True
+        }
+        with state_lock:
+            for prev_t in task_state.get('session', {}).get('turns', []):
+                prev_t['is_streaming'] = False
+            if task_state.get('session'):
+                task_state['session']['turns'].append(turn_data)
+            save_queue_state_unlocked()
+
+        response_text, elapsed = stream_process_turn(
+            cmd, curr_info['workspace'], turn_data, timeout=240, task_state=task_state, repo_label=curr_info['repo_label']
+        )
+        history.append(turn_data)
+
+    elif target in ('fe', 'be'):
         active_role = target
         curr_info = role_meta[active_role]
         curr_round_num = base_round + 1
@@ -1468,13 +1678,15 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
         if slash_prefix:
             prompt_parts.append(slash_prefix)
         orig_goal = original_prompt.strip() or ((existing_session.get('prompt') or existing_session.get('description') or '').strip() if existing_session else '')
-        if orig_goal and orig_goal != prompt.strip():
+        if orig_goal and orig_goal != display_p and orig_goal != clean_p:
             prompt_parts.append(f"[MỤC TIÊU BAN ĐẦU CỦA TASK]:\n{orig_goal}")
         if context_str:
             prompt_parts.append(context_str)
-            prompt_parts.append(f"[YÊU CẦU TIẾP THEO CỦA NGƯỜI DÙNG]:\n{prompt.strip()}")
+            prompt_parts.append(f"[YÊU CẦU TIẾP THEO CỦA NGƯỜI DÙNG]:\n{display_p}")
         else:
-            prompt_parts.append(f"[YÊU CẦU CỦA NGƯỜI DÙNG]:\n{prompt.strip()}")
+            prompt_parts.append(f"[YÊU CẦU CỦA NGƯỜI DÙNG]:\n{display_p}")
+        if clean_err:
+            prompt_parts.append(f"[MÃ LỖI / CONSOLE LOG ĐÍNH KÈM]:\n```\n{clean_err}\n```")
         if skill_directive:
             prompt_parts.append(skill_directive)
         prompt_parts.append(directive)
@@ -1530,14 +1742,15 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
 
             context_str = format_conversation_context(existing_turns) if base_round > 0 else ""
             orig_goal = original_prompt.strip() or ((existing_session.get('prompt') or existing_session.get('description') or '').strip() if existing_session else '')
-            orig_part = f"\n\n[MỤC TIÊU BAN ĐẦU CỦA TASK]:\n{orig_goal}" if (orig_goal and orig_goal != prompt.strip()) else ""
+            orig_part = f"\n\n[MỤC TIÊU BAN ĐẦU CỦA TASK]:\n{orig_goal}" if (orig_goal and orig_goal != display_p and orig_goal != clean_p) else ""
             context_part = f"\n\n{context_str}" if context_str else ""
+            err_part = f"\n\n[MÃ LỖI / CONSOLE LOG ĐÍNH KÈM]:\n```\n{clean_err}\n```" if clean_err else ""
             skill_directive = build_skill_directive(skill)
             skill_part = f"\n\n{skill_directive}" if skill_directive else ""
 
             if round_idx == 1:
                 agent_prompt = (
-                    f"{converted_prompt}{orig_part}{context_part}{skill_part}\n\n"
+                    f"{converted_prompt}{orig_part}{context_part}{err_part}{skill_part}\n\n"
                     f"[Phối hợp FE & BE - Lượt {curr_round_num}/{base_round + max_rounds} ({curr_info['label']})]:\n"
                     f"- Thực thi yêu cầu trên trong workspace của bạn ({curr_info['repo_label']}).\n"
                     f"- Nêu rõ API/DTO hoặc thay đổi liên quan cho {other_info['label']}.\n\n"
@@ -1547,7 +1760,7 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
                 last_turn = history[-1]
                 prev_summary = format_conversation_context(history)
                 agent_prompt = (
-                    f"{converted_prompt}{orig_part}{skill_part}\n\n"
+                    f"{converted_prompt}{orig_part}{err_part}{skill_part}\n\n"
                     f"{prev_summary}\n\n"
                     f"PHẢN HỒI MỚI NHẤT TỪ {other_info['label'].upper()}:\n"
                     f"\"\"\"\n{last_turn['content']}\n\"\"\"\n\n"
@@ -1637,7 +1850,7 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
         save_queue_state_unlocked()
 
     messages = load_messages()
-    messages.append({
+    new_entry = {
         'id': session_id,
         'task_id': task_id,
         'type': 'TASK',
@@ -1645,16 +1858,32 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
         'status': 'STOPPED' if was_stopped else 'COMPLETED',
         'target': target,
         'created_at': datetime.datetime.now().strftime('%H:%M:%S - %d/%m/%Y'),
-        'prompt': prompt,
+        'prompt': session_prompt,
         'converted_prompt': converted_prompt,
-        'module': skill,
+        'module': session_skill,
         'consensus_reached': is_consensus_reached,
         'total_duration_sec': total_time,
         'duration_sec': total_time,
         'total_turns': len(history),
         'changed_files': all_changes,
         'turns': history
-    })
+    }
+    # Cập nhật lại đúng bản ghi của task thay vì thêm bản ghi mới chứa lặp toàn bộ lịch sử
+    # mỗi lần người dùng bấm "Tiếp tục task trên AI Terminal ngầm".
+    prev_idx = None
+    for idx, m in enumerate(messages):
+        if str(m.get('task_id') or '') == str(task_id) and str(m.get('type') or '').upper() == 'TASK':
+            prev_idx = idx
+    if prev_idx is not None:
+        prev = messages[prev_idx] or {}
+        new_entry['id'] = prev.get('id') or session_id
+        new_entry['created_at'] = prev.get('created_at') or new_entry['created_at']
+        new_entry['prompt'] = prev.get('prompt') or session_prompt
+        new_entry['converted_prompt'] = prev.get('converted_prompt') or converted_prompt
+        new_entry['module'] = prev.get('module') or session_skill
+        messages[prev_idx] = new_entry
+    else:
+        messages.append(new_entry)
     save_messages(messages)
 
     if not was_stopped:
@@ -1678,7 +1907,7 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
 # -------------------------------------------------------------
 # WORKER: FIX BUG (SURGICAL DEBUG & FIX PROTOCOL)
 # -------------------------------------------------------------
-def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_log: str, original_prompt: str = ''):
+def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_log: str, original_prompt: str = '', continuation: bool = False):
     global app_state
 
     agy_bin = get_agy_bin()
@@ -1695,9 +1924,11 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
     if not skill_list:
         skill_list = ['skill-debug-fixbug']
 
+    is_continuation = bool(continuation)
     formatted_skills = [s.lstrip('/') for s in skill_list if s.strip()]
     skill_clean = ', '.join(formatted_skills)
-    slash_prefix = format_slash_skills_prefix(formatted_skills)
+    # Lượt tiếp theo dùng lại ngữ cảnh phiên, KHÔNG nạp lại /skill.
+    slash_prefix = '' if is_continuation else format_slash_skills_prefix(formatted_skills)
     scope = scope.lower() if scope.lower() in ('fe', 'be', 'both') else 'both'
 
     role_meta = {
@@ -1717,8 +1948,13 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
         }
     }
 
-    max_rounds = 2 if scope == 'both' else 1
-    preview_cmd = f"{slash_prefix} {description}".strip() if slash_prefix else description.strip()
+    max_rounds = 1 if is_continuation else (2 if scope == 'both' else 1)
+    clean_desc, extracted_err = extract_clean_prompt_and_log(description, error_log)
+    if is_continuation:
+        display_desc = clean_desc or description.strip() or 'Tiếp tục kiểm tra và hoàn thiện bản sửa lỗi này.'
+    else:
+        display_desc = f"Fix bug: {clean_desc}".strip() if clean_desc else (description.strip() or 'Fix bug')
+    preview_cmd = f"{slash_prefix} {display_desc}".strip() if slash_prefix else display_desc
 
     with state_lock:
         settings = app_state.get('settings', {}) if isinstance(app_state.get('settings'), dict) else load_settings()
@@ -1734,15 +1970,22 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
         existing_turns = list(existing_session.get('turns', [])) if existing_session else []
         existing_changes = list(existing_session.get('changed_files', [])) if existing_session else []
         base_round = len(existing_turns)
+        session_description = description
+        session_skill = skill_clean
+        session_error_log = error_log
+        if is_continuation and existing_session:
+            session_description = (existing_session.get('description') or description)
+            session_skill = (existing_session.get('skill') or skill_clean)
+            session_error_log = (existing_session.get('error_log') or error_log)
         session_obj = {
             'id': existing_session.get('id', session_id) if existing_session else session_id,
             'task_id': task_id,
             'type': 'FIX_BUG',
-            'skill': skill_clean,
+            'skill': session_skill,
             'scope': scope,
-            'description': description,
+            'description': session_description,
             'converted_prompt': preview_cmd,
-            'error_log': error_log,
+            'error_log': session_error_log,
             'engine': target_engine,
             'engine_label': target_engine_label,
             'model': target_model,
@@ -1797,7 +2040,16 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
         save_queue_state_unlocked()
 
     history = list(existing_turns)
-    roles_to_run = ['fe', 'be'] if scope == 'both' else [scope]
+    if is_continuation:
+        # Lượt tiếp theo: chỉ một agent trả lời, ưu tiên agent vừa nói ở lượt trước.
+        cont_role = scope if scope in ('fe', 'be') else 'fe'
+        if existing_turns:
+            last_spk = str(existing_turns[-1].get('speaker') or '').strip().lower()
+            if last_spk in ('fe', 'be'):
+                cont_role = last_spk
+        roles_to_run = [cont_role]
+    else:
+        roles_to_run = ['fe', 'be'] if scope == 'both' else [scope]
 
     for round_idx, r_role in enumerate(roles_to_run, start=1):
         curr_info = role_meta[r_role]
@@ -1822,20 +2074,28 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
         if slash_prefix:
             prompt_parts.append(slash_prefix)
 
-        if orig_desc and orig_desc != description.strip():
+        if orig_desc and orig_desc != display_desc and orig_desc != clean_desc:
             prompt_parts.append(f"[MỤC TIÊU BAN ĐẦU CỦA BUG]:\n{orig_desc}")
 
         if context_str:
             prompt_parts.append(context_str)
 
-        if description.strip():
-            prompt_parts.append(f"[MÔ TẢ LỖI / YÊU CẦU CẦN XỬ LÝ]:\n{description.strip()}")
+        if is_continuation:
+            prompt_parts.append(
+                "[LƯU Ý QUAN TRỌNG]: Đây là lượt TIẾP THEO trong cùng một phiên làm việc. "
+                "TUYỆT ĐỐI KHÔNG chẩn đoán lại từ đầu và KHÔNG cần đọc lại skill; "
+                "chỉ xử lý/trả lời yêu cầu mới dưới đây dựa trên ngữ cảnh đã có."
+            )
+            prompt_parts.append(f"[YÊU CẦU TIẾP THEO CỦA NGƯỜI DÙNG]:\n{display_desc}")
+        else:
+            prompt_parts.append(f"[MÔ TẢ LỖI / YÊU CẦU CẦN XỬ LÝ]:\n{display_desc}")
 
-        active_err = error_log.strip() or orig_err
+        # Lượt tiếp theo không gửi lại toàn bộ log lỗi gốc (đã nằm trong ngữ cảnh phiên).
+        active_err = extracted_err or error_log.strip() or ('' if is_continuation else orig_err)
         if active_err:
             prompt_parts.append(f"[LOG LỖI / STACK TRACE / CONSOLE]:\n{active_err}")
 
-        skill_directive = build_skill_directive(formatted_skills)
+        skill_directive = '' if is_continuation else build_skill_directive(formatted_skills)
         if skill_directive:
             prompt_parts.append(skill_directive)
 
@@ -1914,23 +2174,37 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
         save_queue_state_unlocked()
 
     messages = load_messages()
-    messages.append({
+    new_entry = {
         'id': session_id,
         'task_id': task_id,
         'type': 'FIX_BUG',
         'title': task_state.get('title') or f"Fix bug ({skill_clean}): {description[:90]}",
         'status': 'STOPPED' if was_stopped else 'COMPLETED',
         'target': scope,
-        'module': skill_clean,
+        'module': session_skill,
         'scope': scope,
         'created_at': datetime.datetime.now().strftime('%H:%M:%S - %d/%m/%Y'),
-        'description': description,
+        'description': session_description,
         'converted_prompt': preview_cmd,
         'total_duration_sec': total_time,
         'duration_sec': total_time,
         'changed_files': all_changes,
         'turns': history
-    })
+    }
+    prev_idx = None
+    for idx, m in enumerate(messages):
+        if str(m.get('task_id') or '') == str(task_id) and str(m.get('type') or '').upper() == 'FIX_BUG':
+            prev_idx = idx
+    if prev_idx is not None:
+        prev = messages[prev_idx] or {}
+        new_entry['id'] = prev.get('id') or session_id
+        new_entry['created_at'] = prev.get('created_at') or new_entry['created_at']
+        new_entry['description'] = prev.get('description') or session_description
+        new_entry['converted_prompt'] = prev.get('converted_prompt') or preview_cmd
+        new_entry['module'] = prev.get('module') or session_skill
+        messages[prev_idx] = new_entry
+    else:
+        messages.append(new_entry)
     save_messages(messages)
 
     if not was_stopped:
@@ -1961,19 +2235,31 @@ def enqueue_task_item(item_dict: dict) -> dict:
     """Đưa tác vụ vào hàng đợi (Queue) và đánh thức worker xử lý tuần tự."""
     task_id = item_dict['id']
     mode = item_dict.get('mode', 'task')
+    is_continuation = bool(item_dict.get('continuation') or item_dict.get('is_continuation'))
     default_title = 'Refactor code' if mode == 'refactor' else ('Fix bug' if mode == 'fixbug' else 'Làm task')
     title = item_dict.get('title') or default_title
     prompt = item_dict.get('prompt', '')
     skills = item_dict.get('skills', [])
     skill_str = ', '.join(skills) if isinstance(skills, list) else str(skills or '')
-    slash_prefix = format_slash_skills_prefix(skills)
+    # Lượt tiếp theo dùng lại ngữ cảnh phiên đã có, KHÔNG nạp lại /skill.
+    slash_prefix = '' if is_continuation else format_slash_skills_prefix(skills)
     raw_text = prompt if mode in ('task', 'refactor') else item_dict.get('fix_desc', '')
+    raw_err = item_dict.get('error_log', '') or item_dict.get('fix_err', '')
+    clean_text, extracted_err = extract_clean_prompt_and_log(raw_text, raw_err)
+    if extracted_err:
+        if not item_dict.get('error_log'):
+            item_dict['error_log'] = extracted_err
+        if not item_dict.get('fix_err'):
+            item_dict['fix_err'] = extracted_err
 
     # Chuẩn hóa tiền tố mở đầu theo loại tác vụ: Làm task / Fix bug / Refactor code
-    action_phrase = 'Refactor code:' if mode == 'refactor' else ('Fix bug:' if mode == 'fixbug' else 'Làm task:')
-    prefix_clean = re.sub(r'^(?:làm\s*task|thực\s*hiện\s*task|fix\s*bug|sửa\s*lỗi|refactor\s*code|tái\s*cấu\s*trúc(?:\s*mã\s*nguồn)?)(?:\s*[:\-]\s*|\s+)', '', raw_text.strip(), flags=re.IGNORECASE) if raw_text else ''
-    clean_text = f"{action_phrase} {prefix_clean}".strip() if prefix_clean else raw_text.strip()
-    converted_prompt = f"{slash_prefix} {clean_text}".strip() if slash_prefix else clean_text
+    if is_continuation:
+        # Câu hỏi/yêu cầu tiếp theo giữ nguyên văn, không gắn nhãn "Làm task:".
+        display_text = clean_text or prompt.strip() or 'Tiếp tục hoàn thiện task này.'
+    else:
+        action_phrase = 'Refactor code:' if mode == 'refactor' else ('Fix bug:' if mode == 'fixbug' else 'Làm task:')
+        display_text = f"{action_phrase} {clean_text}".strip() if clean_text else action_phrase
+    converted_prompt = f"{slash_prefix} {display_text}".strip() if slash_prefix else display_text
 
     with state_lock:
         any_running = any(t.get('is_running') for t in app_state['active_tasks'].values())
@@ -2014,10 +2300,10 @@ def enqueue_task_item(item_dict: dict) -> dict:
             'task_id': task_id,
             'type': 'REFACTOR' if mode == 'refactor' else ('FIX_BUG' if mode == 'fixbug' else 'TASK'),
             'target': item_dict.get('target', 'both') if mode in ('task', 'refactor') else item_dict.get('scope', 'both'),
-            'prompt': prompt,
+            'prompt': (existing_session.get('prompt') if (is_continuation and existing_session) else prompt),
             'description': item_dict.get('fix_desc', ''),
             'converted_prompt': converted_prompt,
-            'skill': skill_str,
+            'skill': (existing_session.get('skill') if (is_continuation and existing_session) else skill_str),
             'engine': target_engine,
             'engine_label': target_engine_label,
             'model': target_model,
@@ -2092,7 +2378,8 @@ def queue_worker_loop():
                         next_item.get('starter', 'fe'),
                         next_item.get('rounds', 4),
                         skill_str,
-                        original_prompt=orig_p
+                        original_prompt=orig_p,
+                        continuation=bool(next_item.get('continuation') or next_item.get('is_continuation'))
                     )
                 else:
                     run_fixbug_worker(
@@ -2101,7 +2388,8 @@ def queue_worker_loop():
                         next_item.get('scope', 'both'),
                         (next_item.get('fix_desc') or '').strip(),
                         (next_item.get('fix_err') or '').strip(),
-                        original_prompt=orig_p
+                        original_prompt=orig_p,
+                        continuation=bool(next_item.get('continuation') or next_item.get('is_continuation'))
                     )
             except Exception as e:
                 print(f"[Queue Worker] Error executing task {tid}: {e}")

@@ -670,10 +670,19 @@ def stream_jira_attachment(handler, attachment_id: str, filename: str = "", is_t
                 if not chunk:
                     break
                 handler.wfile.write(chunk)
+    except (BrokenPipeError, ConnectionResetError):
+        # Client đóng kết nối hoặc hủy tải file - bỏ qua không in trace lỗi
+        pass
     except urllib.error.HTTPError as e:
-        handler.send_error(e.code, f"Lỗi Jira Attachment: {e.reason}")
+        try:
+            handler.send_error(e.code, "Jira Attachment Error")
+        except Exception:
+            pass
     except Exception as e:
-        handler.send_error(500, f"Lỗi kết nối Jira Attachment: {str(e)}")
+        try:
+            handler.send_error(500, "Jira Attachment Connection Error")
+        except Exception:
+            pass
 
 
 def _normalize_issue_summary(issue: dict, host: str, my_account_id: str = "") -> dict:
@@ -720,11 +729,74 @@ def _normalize_issue_summary(issue: dict, host: str, my_account_id: str = "") ->
         "is_mine": bool(my_relation),
         "my_relation": my_relation,
         "ownership_known": bool(my_account_id),
+        # Không chặn phía client: Jira Cloud là nơi quyết định quyền chuyển trạng thái thực tế.
+        "can_transition": True,
         "created": f.get("created") or "",
         "updated": f.get("updated") or "",
         "labels": f.get("labels") or [],
         "url": f"{host}/browse/{key}" if key and host else "",
     }
+
+
+def _search_issue_keys_via_picker(cfg: dict, headers: dict, query: str, current_jql: str = None, limit: int = 50) -> list:
+    """
+    Tìm các Issue Key "gần giống" bằng Jira issue picker.
+    Hỗ trợ người dùng gõ thiếu số (ví dụ 1260 -> EAS-12601, EAS-12607, ...).
+    Kết quả của picker có thể trùng lặp giữa các section nên cần dedupe.
+    """
+    host = (cfg or {}).get("host") or ""
+    q = (query or "").strip()
+    if not host or not q:
+        return []
+
+    params = {
+        "query": q,
+        "showSubTasks": "true",
+        "showSubTaskParent": "true",
+    }
+    if current_jql:
+        params["currentJQL"] = current_jql
+
+    url = f"{host}/rest/api/3/issue/picker?" + urllib.parse.urlencode(params)
+    keys = []
+    seen = set()
+    try:
+        req = urllib.request.Request(url, headers=headers, method="GET")
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        for section in data.get("sections") or []:
+            for item in section.get("issues") or []:
+                k = (item.get("key") or "").strip().upper()
+                if k and k not in seen:
+                    seen.add(k)
+                    keys.append(k)
+                    if len(keys) >= limit:
+                        return keys
+    except Exception:
+        # Picker chỉ là kênh bổ sung; lỗi mạng/API sẽ được xử lý bởi truy vấn JQL chính.
+        return keys
+    return keys
+
+
+def _partial_key_sort_key(key: str, query: str) -> tuple:
+    """Sắp xếp key gần giống: trùng khớp tuyệt đối trước, sau đó cùng prefix và gần số nhất."""
+    q = (query or "").strip().upper().replace("_", "-").replace(" ", "-")
+    digits = re.sub(r"\D", "", q)
+    prefix_match = re.match(r"^([A-Z]+)", q)
+    prefix = prefix_match.group(1) if prefix_match else ""
+
+    m = re.match(r"^([A-Z]+)-(\d+)$", (key or "").upper())
+    if not m:
+        return (9, 9, 0, key or "")
+
+    key_prefix, num_str = m.group(1), m.group(2)
+    exact_rank = 0 if (key or "").upper() == q else 1
+    prefix_rank = 0 if (not prefix or key_prefix == prefix) else 1
+    try:
+        distance = abs(int(num_str) - int(digits)) if digits else 0
+    except Exception:
+        distance = 0
+    return (exact_rank, prefix_rank, distance, key or "")
 
 
 def search_jira_issues(
@@ -771,6 +843,8 @@ def search_jira_issues(
         jql_clauses.append("issuetype = 'Bug'")
     elif ft == "inprogress":
         jql_clauses.append("statusCategory = 'indeterminate'")
+    elif ft in ("testing", "test", "qa"):
+        jql_clauses.append("status in ('Testing', 'Test', 'QA', 'In QA', 'In Test', 'UAT')")
     elif ft == "todo":
         jql_clauses.append("statusCategory = 'new'")
     elif ft == "done":
@@ -780,33 +854,56 @@ def search_jira_issues(
         jql_clauses.append("issuetype != 'Non Coding Task'")
 
     is_key_search = False
+    sort_query = ""
+
+    # Ràng buộc nền (project + filter) dùng cho cả picker và truy vấn JQL.
+    base_clauses = list(jql_clauses)
+    base_jql = " AND ".join(base_clauses)
 
     # 3. Query text hoặc Issue key
     if query and query.strip():
         q = query.strip()
-        # Case A: Mã Ticket đầy đủ KEY-123 (ví dụ EAS-12578)
-        if re.match(r"^[A-Z0-9]+-\d+$", q, re.IGNORECASE):
-            is_key_search = True
-            jql_clauses = [f"issueKey = '{q.upper()}'"]
+        sort_query = q
+        full_key_match = re.match(r"^[A-Z0-9]+-\d+$", q, re.IGNORECASE)
+        compact_key_match = re.match(r"^([a-zA-Z]+)[\s\-_]*(\d+)$", q)
+        digits_only = re.match(r"^\d+$", q)
 
-        # Case B: Gõ liền hoặc có khoảng trắng (ví dụ eas12578, eas 12578, eas_12578)
-        elif re.match(r"^([a-zA-Z]+)[\s\-_]*(\d+)$", q):
-            m = re.match(r"^([a-zA-Z]+)[\s\-_]*(\d+)$", q)
-            exact_key = f"{m.group(1).upper()}-{m.group(2)}"
+        # Case A/B/C: Mã Ticket đầy đủ, gõ liền hoặc chỉ gõ số -> tìm gần giống
+        if full_key_match or compact_key_match or digits_only:
             is_key_search = True
-            jql_clauses = [f"issueKey = '{exact_key}'"]
+            candidate_keys = []
 
-        # Case C: Người dùng chỉ gõ số (ví dụ 12578) -> Tự động tìm chính xác Ticket theo số
-        elif re.match(r"^\d+$", q):
-            is_key_search = True
-            default_projects = ["EAS", "SSLN", "IZI", "ESORG"]
-            if project and project.upper() in default_projects:
-                proj_order = [project.upper()] + [p for p in default_projects if p != project.upper()]
+            # 3.1. Key chính xác nếu người dùng gõ đủ mã
+            if full_key_match:
+                candidate_keys.append(q.upper())
+            elif compact_key_match:
+                candidate_keys.append(f"{compact_key_match.group(1).upper()}-{compact_key_match.group(2)}")
             else:
-                proj_order = default_projects
-            keys_in_clause = ", ".join(f"'{p}-{q}'" for p in proj_order)
-            curr_p = (project or "EAS").upper()
-            jql_clauses = [f"(issueKey in ({keys_in_clause}) OR (project = '{curr_p}' AND (summary ~ '{q}' OR text ~ '{q}')))"]
+                # Chỉ gõ số -> thử ghép với các project mặc định
+                default_projects = ["EAS", "SSLN", "IZI", "ESORG"]
+                if project and project.upper() in default_projects:
+                    proj_order = [project.upper()] + [p for p in default_projects if p != project.upper()]
+                else:
+                    proj_order = default_projects
+                candidate_keys.extend(f"{p}-{q}" for p in proj_order)
+
+            # 3.2. Bổ sung các key "gần giống" từ Jira issue picker
+            picker_keys = _search_issue_keys_via_picker(cfg, headers, q, base_jql)
+            for k in picker_keys:
+                if k not in candidate_keys:
+                    candidate_keys.append(k)
+
+            if candidate_keys and (picker_keys or not digits_only):
+                keys_in_clause = ", ".join(f"'{k}'" for k in candidate_keys)
+                jql_clauses = [f"issueKey in ({keys_in_clause})"]
+            else:
+                # Picker không trả về key gần giống (hoặc lỗi mạng) -> fallback tìm theo nội dung
+                clean_q = q.replace("'", "\\'")
+                if digits_only:
+                    curr_p = (project or "EAS").upper()
+                    jql_clauses.append(f"(project = '{curr_p}' AND (summary ~ '{clean_q}' OR text ~ '{clean_q}'))")
+                else:
+                    jql_clauses.append(f'(summary ~ "{clean_q}" OR text ~ "{clean_q}")')
 
         # Case D: Tìm kiếm văn bản / nghiệp vụ thông thường
         else:
@@ -838,7 +935,11 @@ def search_jira_issues(
             raw_issues = data.get("issues", [])
             normalized = [_normalize_issue_summary(item, host) for item in raw_issues]
 
-            # Loại bỏ các Sub-task khỏi danh sách chính nếu không phải tìm đích danh mã
+            # Sắp xếp kết quả tìm theo mã: trùng khớp tuyệt đối trước, sau đó các mã gần giống
+            if is_key_search and sort_query:
+                normalized.sort(key=lambda it: _partial_key_sort_key(it.get("key") or "", sort_query))
+
+            # Loại bỏ các Sub-task khỏi danh sách chính nếu không phải tìm theo mã
             if not is_key_search:
                 normalized = [it for it in normalized if not it.get("is_subtask")]
 
@@ -942,7 +1043,7 @@ def get_jira_issue_detail(issue_key: str) -> dict:
             # Normalized summary info
             my_account_id = _get_current_user_account_id(cfg)
             base_info = _normalize_issue_summary(data, host, my_account_id)
-            base_info["can_transition"] = bool(base_info.get("is_mine")) or not my_account_id
+            base_info["can_transition"] = True
 
             # Comments
             comments_data = (f.get("comment") or {}).get("comments", [])
@@ -1253,11 +1354,8 @@ def transition_jira_issue(issue_key: str, transition_id: str = None, comment: st
     if not tid:
         return {"success": False, "message": f"Không tìm thấy transition phù hợp cho trạng thái '{status_name}' trên {key}."}
 
-    # Kiểm tra quyền: đối với subtask cho phép thực thi, Jira Cloud sẽ kiểm soát quyền
-    ownership = _resolve_issue_ownership(cfg, headers, key)
-    if not ownership.get("ok", False):
-        return {"success": False, "message": ownership.get("message") or "Bạn không có quyền đổi trạng thái Ticket này."}
-
+    # Không chặn theo assignee/reporter ở phía client.
+    # Jira Cloud sẽ kiểm tra quyền thực tế của tài khoản đang đăng nhập và trả về 403 nếu không được phép.
     payload = {"transition": {"id": tid}}
     if comment and comment.strip():
         payload["update"] = {
@@ -1357,6 +1455,25 @@ Hãy phân tích ngắn gọn, chuyên nghiệp và thực tế theo 4 mục chu
     settings = load_settings()
     engine = str(settings.get("engine") or "opencode").strip().lower()
 
+    proc_env = os.environ.copy()
+    if settings.get('gemini_api_key'):
+        gk = str(settings['gemini_api_key']).strip()
+        proc_env['GEMINI_API_KEY'] = gk
+        proc_env['GOOGLE_API_KEY'] = gk
+        proc_env['GOOGLE_GENERATIVE_AI_API_KEY'] = gk
+    if settings.get('claude_api_key'):
+        proc_env['ANTHROPIC_API_KEY'] = str(settings['claude_api_key']).strip()
+    if settings.get('openai_api_key'):
+        proc_env['OPENAI_API_KEY'] = str(settings['openai_api_key']).strip()
+    if settings.get('deepseek_api_key'):
+        proc_env['DEEPSEEK_API_KEY'] = str(settings['deepseek_api_key']).strip()
+        proc_env.setdefault('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
+    if settings.get('custom_endpoint'):
+        proc_env['OPENAI_BASE_URL'] = str(settings['custom_endpoint']).strip()
+    if settings.get('custom_api_key'):
+        proc_env['CUSTOM_API_KEY'] = str(settings['custom_api_key']).strip()
+        proc_env['NINE_ROUTER_API_KEY'] = str(settings['custom_api_key']).strip()
+
     # Thử chạy qua OpenCode CLI nhanh (timeout ngắn 1.8s để không làm đơ giao diện người dùng)
     if engine == "opencode":
         opencode_bin = get_opencode_bin()
@@ -1366,7 +1483,7 @@ Hãy phân tích ngắn gọn, chuyên nghiệp và thực tế theo 4 mục chu
             cmd.extend(["--model", model])
         cmd.append(prompt)
         try:
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=1.8)
+            res = subprocess.run(cmd, env=proc_env, capture_output=True, text=True, timeout=1.8)
             if res.returncode == 0 and res.stdout:
                 out_texts = []
                 for line in res.stdout.strip().split("\n"):
@@ -1393,6 +1510,7 @@ Hãy phân tích ngắn gọn, chuyên nghiệp và thực tế theo 4 mục chu
     try:
         res = subprocess.run(
             [agy_bin, "--dangerously-skip-permissions", "-p", prompt, "--output-format", "stream-json"],
+            env=proc_env,
             capture_output=True,
             text=True,
             timeout=1.5
@@ -1789,6 +1907,52 @@ def create_jira_subtask(parent_key: str, summary: str, description: str = "", ta
         return {"success": False, "message": f"Không thể tạo Sub-task: {err_msg}"}
     except Exception as e:
         return {"success": False, "message": f"Lỗi khi tạo Sub-task: {str(e)}"}
+
+
+def delete_jira_subtask(subtask_key: str) -> dict:
+    """Xóa Sub-task trên Jira Cloud."""
+    global _JIRA_SEEN_CACHE, _SELF_CREATED_SUBTASKS
+    cfg = get_jira_config()
+    if not cfg["is_configured"]:
+        return {"success": False, "message": "Chưa cấu hình thông tin Jira trong Cài đặt MCP."}
+
+    skey = (subtask_key or "").strip().upper()
+    if not skey:
+        return {"success": False, "message": "Thiếu mã Sub-task cần xóa."}
+
+    host = cfg["host"]
+    headers = _get_auth_headers(cfg)
+    url = f"{host}/rest/api/3/issue/{skey}"
+
+    try:
+        req = urllib.request.Request(
+            url,
+            headers=headers,
+            method="DELETE"
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            # Mã 204 No Content hoặc 200 biểu thị xóa thành công
+            if skey in _JIRA_SEEN_CACHE.get("issues", set()):
+                _JIRA_SEEN_CACHE["issues"].discard(skey)
+            if skey in _SELF_CREATED_SUBTASKS:
+                _SELF_CREATED_SUBTASKS.discard(skey)
+            return {
+                "success": True,
+                "key": skey,
+                "message": f"Đã xóa vĩnh viễn Sub-task [{skey}] trên Jira thành công!"
+            }
+    except urllib.error.HTTPError as he:
+        err_msg = ""
+        try:
+            raw_err = he.read().decode("utf-8") if hasattr(he, "read") else ""
+            if raw_err:
+                err_data = json.loads(raw_err)
+                err_msg = "; ".join(err_data.get("errorMessages", [])) or str(err_data.get("errors", {}))
+        except Exception:
+            err_msg = str(he)
+        return {"success": False, "message": f"Không thể xóa Sub-task [{skey}]: {err_msg or f'Lỗi HTTP {he.code}'}"}
+    except Exception as e:
+        return {"success": False, "message": f"Lỗi khi xóa Sub-task [{skey}]: {str(e)}"}
 
 
 def check_jira_updates(force_refresh: bool = False) -> dict:

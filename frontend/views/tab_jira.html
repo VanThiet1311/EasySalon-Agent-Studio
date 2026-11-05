@@ -126,33 +126,38 @@
         <div
           class="flex items-center bg-[#0c1628] p-1 rounded-lg border border-[#244170] text-xs font-medium space-x-1 overflow-x-auto jira-filter-wrapper">
           <button type="button" onclick="setJiraFilter('all')" id="jiraFilterBtn_all"
-            class="px-3 py-1.5 rounded bg-[#1677ff] text-white font-semibold transition cursor-pointer select-none">
+            class="px-3 py-1.5 rounded bg-[#1677ff] text-white font-semibold transition cursor-pointer select-none jira-filter-btn is-active">
             Tất cả
           </button>
           <button type="button" onclick="setJiraFilter('story')" id="jiraFilterBtn_story"
-            class="px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition cursor-pointer select-none"
+            class="px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition cursor-pointer select-none jira-filter-btn"
             title="Lọc các User Story / Tính năng phát triển">
             Tính năng (Feat)
           </button>
           <button type="button" onclick="setJiraFilter('bug')" id="jiraFilterBtn_bug"
-            class="px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition cursor-pointer select-none"
+            class="px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition cursor-pointer select-none jira-filter-btn"
             title="Lọc các Ticket Sửa lỗi (Bug)">
             Sửa lỗi (Bug)
           </button>
           <button type="button" onclick="setJiraFilter('my')" id="jiraFilterBtn_my"
-            class="px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition cursor-pointer select-none">
+            class="px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition cursor-pointer select-none jira-filter-btn">
             Của tôi
           </button>
           <button type="button" onclick="setJiraFilter('inprogress')" id="jiraFilterBtn_inprogress"
-            class="px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition cursor-pointer select-none">
+            class="px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition cursor-pointer select-none jira-filter-btn">
             Đang làm
           </button>
+          <button type="button" onclick="setJiraFilter('testing')" id="jiraFilterBtn_testing"
+            class="px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition cursor-pointer select-none jira-filter-btn"
+            title="Lọc các Ticket đang kiểm thử (Testing)">
+            Testing
+          </button>
           <button type="button" onclick="setJiraFilter('todo')" id="jiraFilterBtn_todo"
-            class="px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition cursor-pointer select-none">
+            class="px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition cursor-pointer select-none jira-filter-btn">
             Cần làm
           </button>
           <button type="button" onclick="setJiraFilter('done')" id="jiraFilterBtn_done"
-            class="px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition cursor-pointer select-none">
+            class="px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-white/5 font-medium transition cursor-pointer select-none jira-filter-btn">
             Đã xong
           </button>
         </div>
@@ -474,12 +479,21 @@
             <!-- Attachments & Video Evidence Section -->
             <div id="jiraDetailAttachmentsSection" class="hidden space-y-2 pt-2">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-300 font-sans uppercase tracking-wider flex items-center gap-1.5">
+                <button type="button" onclick="toggleJiraAttachments()"
+                  class="text-xs font-bold text-slate-300 font-sans uppercase tracking-wider flex items-center gap-1.5 cursor-pointer hover:text-white transition select-none"
+                  title="Ẩn/Hiện minh chứng video & tệp đính kèm">
                   <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                   </svg>
                   <span>Minh chứng video & Tệp đính kèm (<span id="jiraAttachmentCount">0</span>)</span>
-                </span>
+                </button>
+                <button type="button" id="btnToggleJiraAttachments" onclick="toggleJiraAttachments()"
+                  class="w-6 h-6 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-100 hover:bg-white/5 transition cursor-pointer shrink-0"
+                  title="Ẩn/Hiện minh chứng video & tệp đính kèm">
+                  <svg id="jiraAttachmentsChevron" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
               </div>
               <div id="jiraDetailAttachmentsList" class="space-y-3">
                 <!-- Video players and attachments populated by JS -->
@@ -489,14 +503,20 @@
 
           <!-- Sub-tasks Section -->
           <div class="space-y-2.5 pt-2">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between pb-1 pt-1">
               <div class="flex items-center gap-2">
-                <h4 class="text-xs font-bold text-slate-300 font-sans uppercase tracking-wider">
-                  Nhiệm vụ con (Sub-tasks) (<span id="jiraSubtaskCount">0</span>)
+                <div class="w-6 h-6 rounded bg-[#182c4f] border border-[#244170] flex items-center justify-center text-blue-400 subtask-header-icon shrink-0">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </div>
+                <h4 class="text-xs font-bold text-slate-300 font-sans uppercase tracking-wider flex items-center gap-2 subtask-header-title">
+                  <span>Nhiệm vụ con (Sub-tasks)</span>
+                  <span id="jiraSubtaskCount" class="subtask-count-badge text-[11px] font-mono px-2 py-0.5 rounded-full font-bold">0</span>
                 </h4>
               </div>
               <button type="button" id="btnCreateSubtask" onclick="openCreateSubtaskModal()"
-                class="jira-btn-subtask px-3 py-1.5 text-xs font-sans font-medium rounded-lg flex items-center gap-1.5 cursor-pointer"
+                class="jira-btn-subtask px-3 py-1.5 text-xs font-sans font-medium rounded-lg flex items-center gap-1.5 cursor-pointer shadow-sm transition"
                 title="Tạo nhiệm vụ con (Sub-task) cho Ticket này trên Jira Cloud">
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2"
                   viewBox="0 0 24 24">
@@ -506,8 +526,14 @@
               </button>
             </div>
             <!-- Sub-tasks List -->
-            <div id="jiraSubtasksList" class="space-y-1.5 max-h-[220px] overflow-y-auto custom-scrollbar">
-              <p class="text-[11px] text-slate-400 italic p-2 text-center">Chưa có Sub-task nào trên ticket này.</p>
+            <div id="jiraSubtasksList" class="space-y-1.5 max-h-[260px] overflow-y-auto custom-scrollbar">
+              <div class="jira-subtasks-empty py-5 px-3 rounded-lg border border-dashed flex flex-col items-center justify-center gap-1.5 text-center">
+                <svg class="w-5 h-5 text-slate-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <p class="text-[11.5px] font-sans text-slate-400 font-medium m-0">Chưa có Sub-task nào trên ticket này.</p>
+                <span class="text-[10.5px] font-sans text-slate-500">Bấm nút <span class="text-blue-500 font-medium">"+ Tạo Sub-task"</span> ở góc phải để thêm mới.</span>
+              </div>
             </div>
           </div>
 
@@ -548,9 +574,9 @@
       <div class="bg-[#101e38] border border-[#244170] rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-[#244170]">
           <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#1677ff]"></span>
             <h3 class="text-sm font-bold text-white font-sans">
-              Tạo Sub-task cho Ticket <span id="jiraSubtaskParentKey" class="text-cyan-400 font-mono">--</span>
+              Tạo Sub-task cho Ticket <span id="jiraSubtaskParentKey" class="text-[#1677ff] font-mono">--</span>
             </h3>
           </div>
           <button type="button" onclick="closeCreateSubtaskModal()"

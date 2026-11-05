@@ -308,7 +308,8 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                     'total_rounds': app_state.get('total_rounds', 0),
                     'active_speaker': app_state.get('active_speaker', ''),
                     'status_text': latest_status,
-                    'current_session': latest_session
+                    'current_session': latest_session,
+                    'latest_api_error': app_state.get('latest_api_error')
                 }
             self.send_json(data)
         elif path == '/api/settings':
@@ -739,6 +740,11 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             target = body.get('target', 'both')
             starter = body.get('starter', 'fe')
             rounds = body.get('rounds', 4)
+            is_continuation = bool(body.get('continuation') or body.get('is_continuation'))
+            if is_continuation:
+                # "Tiếp tục task trên AI Terminal ngầm" = một lượt hội thoại tiếp theo,
+                # không chạy lại đa vòng FE/BE và không nạp lại skill.
+                rounds = 1
             skills_raw = body.get('skills', None) or body.get('skill', None) or body.get('module', '')
             if isinstance(skills_raw, list):
                 skills_list = [str(s).strip() for s in skills_raw if str(s).strip()]
@@ -770,6 +776,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'target': target,
                 'starter': starter,
                 'rounds': rounds,
+                'continuation': is_continuation,
                 'skills': skills_list,
                 'prompt': prompt,
                 'original_prompt': original_prompt,
@@ -811,6 +818,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             description = body.get('description', '').strip()
             error_log = body.get('error_log', '').strip()
             original_prompt = body.get('original_prompt', '').strip()
+            is_continuation = bool(body.get('continuation') or body.get('is_continuation'))
 
             if not description and not error_log:
                 self.send_json({'success': False, 'message': 'Vui lòng nhập mô tả lỗi hoặc dán log lỗi.'}, 400)
@@ -840,6 +848,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'fix_desc': description,
                 'original_prompt': original_prompt,
                 'fix_err': error_log,
+                'continuation': is_continuation,
                 'createdAt': datetime.datetime.now().strftime('%H:%M:%S')
             })
             is_queued = (q_res['queue_status'] == 'queued')
@@ -1141,17 +1150,19 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_json({'success': False, 'message': str(e)}, 400)
 
-        elif path == '/api/mcp/add-mysql':
+        elif path in ('/api/mcp/add-sqlserver', '/api/mcp/add-mysql'):
             import studio.mcp_ops as mcp_ops
             conn_url = str(body.get('url') or body.get('conn_url') or '').strip()
-            name = str(body.get('name') or 'mysql').strip()
+            name = str(body.get('name') or 'sqlserver').strip()
             host = str(body.get('host') or '').strip()
-            port = body.get('port') or 3306
+            port = body.get('port') or 1433
             user = str(body.get('user') or body.get('username') or '').strip()
             password = str(body.get('password') or '')
             database = str(body.get('database') or body.get('schema') or '').strip()
+            encrypt = body.get('encrypt', True)
+            trust_cert = body.get('trust_cert', True)
             try:
-                res = mcp_ops.save_mysql_mcp_preset(
+                res = mcp_ops.save_sqlserver_mcp_preset(
                     conn_url=conn_url,
                     server_name=name,
                     host=host,
@@ -1159,27 +1170,33 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                     user=user,
                     password=password,
                     database=database,
+                    encrypt=encrypt,
+                    trust_cert=trust_cert,
                 )
                 self.send_json(res)
             except Exception as e:
                 self.send_json({'success': False, 'message': str(e)}, 400)
 
-        elif path == '/api/mcp/test-mysql':
+        elif path in ('/api/mcp/test-sqlserver', '/api/mcp/test-mysql'):
             import studio.mcp_ops as mcp_ops
             conn_url = str(body.get('url') or body.get('conn_url') or '').strip()
             host = str(body.get('host') or '').strip()
-            port = body.get('port') or 3306
+            port = body.get('port') or 1433
             user = str(body.get('user') or body.get('username') or '').strip()
             password = str(body.get('password') or '')
             database = str(body.get('database') or body.get('schema') or '').strip()
+            encrypt = body.get('encrypt', True)
+            trust_cert = body.get('trust_cert', True)
             try:
-                res = mcp_ops.test_mysql_connection(
+                res = mcp_ops.test_sqlserver_connection(
                     host=host,
                     port=port,
                     user=user,
                     password=password,
                     database=database,
                     conn_url=conn_url,
+                    encrypt=encrypt,
+                    trust_cert=trust_cert,
                 )
                 self.send_json(res)
             except Exception as e:
@@ -1261,6 +1278,12 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             res = jira_ops.create_jira_subtask(parent_key, summary, description, target_status=target_status, transition_id=transition_id, assignee_account_id=assignee_id)
             self.send_json(res)
 
+        elif path in ('/api/jira/delete-subtask', '/api/jira/delete-issue'):
+            import studio.jira_ops as jira_ops
+            key = str(body.get('key') or body.get('subtask_key') or body.get('issue_key') or '').strip()
+            res = jira_ops.delete_jira_subtask(key)
+            self.send_json(res)
+
         elif path == '/api/jira/assign':
             import studio.jira_ops as jira_ops
             key = str(body.get('key') or body.get('issue_key') or '').strip()
@@ -1318,7 +1341,13 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             res = mcp_ops.test_slack_connection(token)
             self.send_json(res)
 
+        elif path == '/api/dismiss-api-error':
+            with state_lock:
+                app_state['latest_api_error'] = None
+            self.send_json({'success': True})
+
         elif path == '/api/test-api-key':
+            from studio.state import detect_api_key_or_quota_error, sync_all_api_keys_and_providers
             provider = str(body.get('provider', 'gemini')).lower().strip()
             api_key = str(body.get('api_key', '')).strip()
             endpoint = str(body.get('endpoint', '')).strip()
@@ -1358,11 +1387,105 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                     req = urllib.request.Request(url, headers=headers)
                     with urllib.request.urlopen(req, timeout=6) as resp:
                         if resp.status == 200:
+                            if api_key and provider == 'custom':
+                                try:
+                                    probe_url = f"{base_url}/chat/completions"
+                                    probe_payload = json.dumps({
+                                        "model": "ag/gemini-3.8-flash-low",
+                                        "messages": [{"role": "user", "content": "ping"}],
+                                        "max_tokens": 1
+                                    }).encode('utf-8')
+                                    probe_req = urllib.request.Request(
+                                        probe_url,
+                                        data=probe_payload,
+                                        headers={**headers, 'Content-Type': 'application/json'}
+                                    )
+                                    with urllib.request.urlopen(probe_req, timeout=5) as probe_resp:
+                                        pass
+                                except urllib.error.HTTPError as pe:
+                                    if pe.code in (401, 403, 429):
+                                        raise pe
+                                except Exception:
+                                    pass
+
                             self.send_json({'success': True, 'message': f'Kết nối {provider.upper()} thành công! Endpoint và API Key hợp lệ.'})
+                            return
+                elif provider == 'deepseek':
+                    # Kiểm tra DeepSeek API (tương thích chuẩn OpenAI SDK, base_url: https://api.deepseek.com)
+                    base_url = 'https://api.deepseek.com'
+                    headers = {
+                        'Authorization': f'Bearer {api_key}',
+                        'User-Agent': 'EasySalonStudio'
+                    }
+                    req = urllib.request.Request(f"{base_url}/models", headers=headers)
+                    with urllib.request.urlopen(req, timeout=8) as resp:
+                        if resp.status == 200:
+                            # Đọc danh sách model để chọn model hợp lệ cho bước probe
+                            probe_model = 'deepseek-chat'
+                            try:
+                                models_payload = json.loads(resp.read().decode('utf-8'))
+                                model_ids = [
+                                    str(m.get('id')).strip()
+                                    for m in (models_payload.get('data') or [])
+                                    if isinstance(m, dict) and m.get('id')
+                                ]
+                                if model_ids:
+                                    probe_model = 'deepseek-chat' if 'deepseek-chat' in model_ids else model_ids[0]
+                            except Exception:
+                                pass
+
+                            # Probe nhẹ để xác thực quyền suy luận & số dư tài khoản
+                            try:
+                                probe_payload = json.dumps({
+                                    "model": probe_model,
+                                    "messages": [{"role": "user", "content": "ping"}],
+                                    "max_tokens": 1,
+                                    "stream": False
+                                }).encode('utf-8')
+                                probe_req = urllib.request.Request(
+                                    f"{base_url}/chat/completions",
+                                    data=probe_payload,
+                                    headers={**headers, 'Content-Type': 'application/json'}
+                                )
+                                with urllib.request.urlopen(probe_req, timeout=12) as probe_resp:
+                                    pass
+                            except urllib.error.HTTPError as pe:
+                                if pe.code in (401, 403, 402, 429):
+                                    raise pe
+                            except Exception:
+                                pass
+
+                            self.send_json({'success': True, 'message': 'Kết nối DeepSeek thành công! API Key hợp lệ và sẵn sàng sử dụng.'})
                             return
                 self.send_json({'success': False, 'message': 'Không thể kết nối đến nhà cung cấp API.'})
             except urllib.error.HTTPError as he:
-                self.send_json({'success': False, 'message': f'API Key không hợp lệ hoặc bị từ chối (HTTP {he.code}: {he.reason})'})
+                err_text = ''
+                try:
+                    err_text = he.read().decode('utf-8', errors='ignore')
+                except Exception:
+                    pass
+                detected = detect_api_key_or_quota_error(err_text)
+                if he.code == 429 or (detected and detected.get('error_type') == 'quota_exceeded'):
+                    self.send_json({
+                        'success': False,
+                        'error_type': 'quota_exceeded',
+                        'title': 'API Key Hết Token / Quota',
+                        'message': f"API Key đã hết token hoặc vượt quá quota giới hạn (HTTP {he.code}): {detected.get('message') if detected else he.reason}",
+                        'raw_error': err_text[:400] or he.reason
+                    })
+                elif he.code in (400, 401, 403) or (detected and detected.get('error_type') == 'invalid_key'):
+                    self.send_json({
+                        'success': False,
+                        'error_type': 'invalid_key',
+                        'title': 'API Key Không Hợp Lệ',
+                        'message': f"API Key không chính xác hoặc không có quyền truy cập (HTTP {he.code}): {detected.get('message') if detected else he.reason}",
+                        'raw_error': err_text[:400] or he.reason
+                    })
+                else:
+                    self.send_json({
+                        'success': False,
+                        'message': f'Lỗi kết nối API (HTTP {he.code}: {he.reason}): {err_text[:200]}'
+                    })
             except Exception as e:
                 self.send_json({'success': False, 'message': f'Lỗi kiểm tra kết nối API: {str(e)}'})
 

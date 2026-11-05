@@ -138,8 +138,12 @@ def get_all_mcp_servers() -> list:
             "postgres" in name.lower()
             or "server-postgres" in " ".join([command] + [str(a) for a in args])
         )
-        is_mysql = (
-            "mysql" in name.lower()
+        is_sqlserver = (
+            "sqlserver" in name.lower()
+            or "mssql" in name.lower()
+            or any("sqlserver" in k.lower() for k in env.keys())
+            or "mcp-sqlserver" in " ".join([command] + [str(a) for a in args])
+            or "mysql" in name.lower()
             or "server-mysql" in " ".join([command] + [str(a) for a in args])
         )
         is_gitlab = (
@@ -152,7 +156,7 @@ def get_all_mcp_servers() -> list:
             or "SLACK_BOT_TOKEN" in env
             or "server-slack" in " ".join([command] + [str(a) for a in args])
         )
-        preset_name = "jira" if is_jira else ("github" if is_github else ("postgres" if is_postgres else ("mysql" if is_mysql else ("gitlab" if is_gitlab else ("slack" if is_slack else "custom")))))
+        preset_name = "jira" if is_jira else ("github" if is_github else ("postgres" if is_postgres else ("sqlserver" if is_sqlserver else ("gitlab" if is_gitlab else ("slack" if is_slack else "custom")))))
 
         # Full command string for display
         cmd_str = ""
@@ -548,154 +552,321 @@ def save_postgres_mcp_preset(conn_url: str, server_name: str = "postgres") -> di
     return save_mcp_server(server_name, cfg, target="both")
 
 
-def save_mysql_mcp_preset(
+def parse_sqlserver_connection_string(conn_str: str) -> dict:
+    """Hỗ trợ phân tích cả định dạng ADO.NET (Server=...;Database=...;User Id=...;Password=...) và URL (mssql://user:pass@host:port/db)."""
+    import urllib.parse
+
+    conn_str = (conn_str or "").strip()
+    res = {
+        "host": "",
+        "port": 1433,
+        "user": "",
+        "password": "",
+        "database": "",
+        "encrypt": True,
+        "trust_cert": True,
+    }
+    if not conn_str:
+        return res
+
+    # 1. Định dạng ADO.NET / OLEDB (Server=...;Database=...;User Id=...;Password=...)
+    if ";" in conn_str or ("=" in conn_str and not conn_str.startswith(("sqlserver://", "mssql://", "mysql://"))):
+        parts = [p.strip() for p in conn_str.split(";") if p.strip()]
+        for p in parts:
+            if "=" in p:
+                k, v = p.split("=", 1)
+                k = k.strip().lower()
+                v = v.strip()
+                if k in ("server", "data source", "address", "addr", "network address"):
+                    if "," in v:
+                        h, pt = v.split(",", 1)
+                        res["host"] = h.replace("tcp:", "").strip()
+                        try:
+                            res["port"] = int(pt.strip())
+                        except Exception:
+                            pass
+                    elif ":" in v and not v.startswith("http"):
+                        h, pt = v.split(":", 1)
+                        res["host"] = h.replace("tcp:", "").strip()
+                        try:
+                            res["port"] = int(pt.strip())
+                        except Exception:
+                            pass
+                    else:
+                        res["host"] = v.replace("tcp:", "").strip()
+                elif k in ("database", "initial catalog"):
+                    res["database"] = v
+                elif k in ("user id", "uid", "user", "username"):
+                    res["user"] = v
+                elif k in ("password", "pwd"):
+                    res["password"] = v
+                elif k in ("encrypt",):
+                    res["encrypt"] = v.lower() in ("true", "yes", "1")
+                elif k in ("trustservercertificate", "trust_cert", "trust server certificate"):
+                    res["trust_cert"] = v.lower() in ("true", "yes", "1")
+        return res
+
+    # 2. Định dạng URL (mssql://user:pass@host:port/db hoặc sqlserver://...)
+    m = re.match(
+        r"^(?:sqlserver|mssql|mysql):\/\/(?:([^:@]+)(?::([^@]*))?@)?([^:\/\?#]+)(?::(\d+))?(?:\/([^?#]*))?(?:\?(.*))?",
+        conn_str,
+        re.IGNORECASE,
+    )
+    if m:
+        u, p, h, pt, db, q = m.groups()
+        if u:
+            res["user"] = urllib.parse.unquote(u)
+        if p:
+            res["password"] = urllib.parse.unquote(p)
+        if h:
+            res["host"] = h
+        if pt:
+            try:
+                res["port"] = int(pt)
+            except Exception:
+                pass
+        if db:
+            res["database"] = urllib.parse.unquote(db)
+        if q:
+            params = urllib.parse.parse_qs(q)
+            if "encrypt" in params:
+                res["encrypt"] = params["encrypt"][0].lower() in ("true", "yes", "1")
+            if "trustServerCertificate" in params or "trust_cert" in params:
+                val = (params.get("trustServerCertificate") or params.get("trust_cert"))[0]
+                res["trust_cert"] = val.lower() in ("true", "yes", "1")
+    return res
+
+
+def save_sqlserver_mcp_preset(
     conn_url: str = "",
-    server_name: str = "mysql",
+    server_name: str = "sqlserver",
     host: str = "",
-    port: int = 3306,
+    port: int = 1433,
     user: str = "",
     password: str = "",
     database: str = "",
+    encrypt: bool = True,
+    trust_cert: bool = True,
 ) -> dict:
-    """Helper cấu hình nhanh MySQL MCP Server chuẩn stdio npx."""
+    """Helper cấu hình nhanh Microsoft SQL Server (MSSQL) MCP Server chuẩn stdio npx @bilims/mcp-sqlserver."""
     conn_url = (conn_url or "").strip()
-    if not conn_url and (host or user):
-        import urllib.parse
-        h = (host or "127.0.0.1").strip()
-        p = str(port or 3306).strip()
-        u = (user or "root").strip()
-        auth = urllib.parse.quote(u)
-        if password:
-            auth += ":" + urllib.parse.quote(str(password))
-        conn_url = f"mysql://{auth}@{h}:{p}"
-        if database:
-            conn_url += f"/{urllib.parse.quote(str(database).strip())}"
+    parsed = parse_sqlserver_connection_string(conn_url)
+    h = (host or parsed.get("host") or "127.0.0.1").strip()
+    try:
+        p = int(port or parsed.get("port") or 1433)
+    except Exception:
+        p = 1433
+    u = (user or parsed.get("user") or "sa").strip()
+    pwd = str(password if password != "" else parsed.get("password") or "")
+    db = (database or parsed.get("database") or "master").strip()
+    enc = encrypt if encrypt is not None else parsed.get("encrypt", True)
+    tc = trust_cert if trust_cert is not None else parsed.get("trust_cert", True)
 
-    if not conn_url:
-        raise ValueError("Vui lòng nhập MySQL Connection String URL hoặc thông tin kết nối (Host, User, Port).")
+    if not h or not u:
+        raise ValueError("Vui lòng nhập thông tin kết nối SQL Server (Host, User, Port).")
+
     cfg = {
         "type": "stdio",
         "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-mysql", conn_url],
-        "env": {},
+        "args": ["-y", "@bilims/mcp-sqlserver"],
+        "env": {
+            "SQLSERVER_HOST": h,
+            "SQLSERVER_PORT": str(p),
+            "SQLSERVER_USER": u,
+            "SQLSERVER_PASSWORD": pwd,
+            "SQLSERVER_DATABASE": db,
+            "SQLSERVER_ENCRYPT": "true" if enc else "false",
+            "SQLSERVER_TRUST_CERT": "true" if tc else "false",
+        },
         "disabled": False,
     }
     return save_mcp_server(server_name, cfg, target="both")
 
 
-def test_mysql_connection(
+def _test_sqlserver_mcp_auth(host, port, user, password, database, encrypt=True, trust_cert=True, timeout=5):
+    """Gọi @bilims/mcp-sqlserver qua stdio tool call test_connection để xác thực thông tin đăng nhập."""
+    if not shutil.which("npx"):
+        return None
+    env = os.environ.copy()
+    env["SQLSERVER_HOST"] = str(host)
+    env["SQLSERVER_PORT"] = str(port)
+    env["SQLSERVER_USER"] = str(user)
+    env["SQLSERVER_PASSWORD"] = str(password)
+    env["SQLSERVER_DATABASE"] = str(database or "master")
+    env["SQLSERVER_ENCRYPT"] = "true" if encrypt else "false"
+    env["SQLSERVER_TRUST_CERT"] = "true" if trust_cert else "false"
+    env["SQLSERVER_CONNECTION_TIMEOUT"] = str(min(int(timeout * 1000), 5000))
+    try:
+        proc = subprocess.Popen(
+            ["npx", "-y", "@bilims/mcp-sqlserver"],
+            env=env,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        init_req = json.dumps({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "test", "version": "1.0"}},
+        }) + "\n"
+        call_req = json.dumps({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {"name": "test_connection", "arguments": {}},
+        }) + "\n"
+        stdout, _ = proc.communicate(input=init_req + call_req, timeout=timeout)
+        for line in stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                msg = json.loads(line)
+                if msg.get("id") == 2:
+                    res = msg.get("result", {})
+                    content = res.get("content", [])
+                    if content and isinstance(content[0], dict):
+                        text = content[0].get("text", "")
+                        return json.loads(text)
+            except Exception:
+                pass
+    except Exception as e:
+        return {"error": str(e)}
+    return None
+
+
+def test_sqlserver_connection(
     host: str = "127.0.0.1",
-    port: int = 3306,
-    user: str = "root",
+    port: int = 1433,
+    user: str = "sa",
     password: str = "",
-    database: str = "",
+    database: str = "master",
     conn_url: str = "",
+    encrypt: bool = True,
+    trust_cert: bool = True,
 ) -> dict:
-    """Kiểm tra kết nối và xác thực tới MySQL Database Server."""
+    """Kiểm tra kết nối và xác thực tới Microsoft SQL Server (MSSQL)."""
     import socket
-    import subprocess
-    import urllib.parse
 
     conn_url = (conn_url or "").strip()
     if conn_url:
-        m = re.match(
-            r"^mysql:\/\/(?:([^:@]+)(?::([^@]*))?@)?([^:\/\?#]+)(?::(\d+))?(?:\/([^?#]*))?",
-            conn_url,
-        )
-        if m:
-            u = urllib.parse.unquote(m.group(1) or "")
-            p = urllib.parse.unquote(m.group(2) or "")
-            h = m.group(3) or ""
-            pt = m.group(4) or ""
-            db = urllib.parse.unquote(m.group(5) or "")
-            if u:
-                user = u
-            if p:
-                password = p
-            if h:
-                host = h
-            if pt:
-                try:
-                    port = int(pt)
-                except Exception:
-                    pass
-            if db:
-                database = db
+        parsed = parse_sqlserver_connection_string(conn_url)
+        if parsed.get("host"):
+            host = parsed["host"]
+        if parsed.get("port"):
+            port = parsed["port"]
+        if parsed.get("user"):
+            user = parsed["user"]
+        if parsed.get("password") != "":
+            password = parsed["password"]
+        if parsed.get("database"):
+            database = parsed["database"]
+        if "encrypt" in parsed:
+            encrypt = parsed["encrypt"]
+        if "trust_cert" in parsed:
+            trust_cert = parsed["trust_cert"]
 
     host = (host or "127.0.0.1").strip()
     try:
-        port_int = int(port or 3306)
+        port_int = int(port or 1433)
     except Exception:
-        port_int = 3306
+        port_int = 1433
 
-    user = (user or "root").strip()
+    user = (user or "sa").strip()
     password = str(password or "")
-    database = str(database or "").strip()
+    database = str(database or "master").strip()
 
+    # 1. Kiểm tra mở cổng TCP (Socket Port Check)
     try:
         sock = socket.create_connection((host, port_int), timeout=4)
+        sock.close()
     except Exception as e:
         return {
             "success": False,
-            "message": f"Không thể kết nối đến máy chủ MySQL tại {host}:{port_int}. Chi tiết lỗi: {str(e)}",
+            "message": f"Không thể kết nối đến máy chủ SQL Server tại {host}:{port_int}. Chi tiết lỗi: {str(e)}",
         }
 
-    server_version = ""
-    try:
-        data = sock.recv(1024)
-        if len(data) > 5 and data[4] in (10, 9):
-            null_idx = data.find(b"\x00", 5)
-            if null_idx != -1:
-                server_version = data[5:null_idx].decode("latin1", errors="ignore")
-    except Exception:
-        pass
-    finally:
-        sock.close()
+    # 2. Xác thực bằng MCP test_connection tool
+    auth_result = _test_sqlserver_mcp_auth(
+        host=host,
+        port=port_int,
+        user=user,
+        password=password,
+        database=database,
+        encrypt=encrypt,
+        trust_cert=trust_cert,
+        timeout=6,
+    )
 
-    if shutil.which("mysql"):
-        try:
-            cmd = ["mysql", "-h", host, "-P", str(port_int), "-u", user]
-            if password:
-                cmd.append(f"--password={password}")
-            if database:
-                cmd.append(database)
-            cmd.extend(["-e", "SELECT 1;", "--connect-timeout=3"])
-            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5)
-            if proc.returncode == 0:
-                info_parts = [f"Máy chủ: {host}:{port_int}"]
-                if server_version:
-                    info_parts.append(f"MySQL version: {server_version}")
-                if user:
-                    info_parts.append(f"User: {user}")
-                if database:
-                    info_parts.append(f"Database: {database}")
-                return {
-                    "success": True,
-                    "message": f"Kết nối và xác thực MySQL thành công! ({', '.join(info_parts)})",
-                    "version": server_version,
-                }
-            else:
-                err = (proc.stderr or proc.stdout).strip()
-                err_lines = [
-                    line for line in err.splitlines()
-                    if "Using a password on the command line interface can be insecure" not in line
-                ]
-                err_clean = "\n".join(err_lines).strip()
-                return {
-                    "success": False,
-                    "message": f"Máy chủ {host}:{port_int} phản hồi, nhưng xác thực thất bại: {err_clean}",
-                }
-        except Exception:
-            pass
+    if auth_result and isinstance(auth_result, dict):
+        if auth_result.get("isConnected"):
+            return {
+                "success": True,
+                "message": f"Kết nối và xác thực SQL Server thành công! (Máy chủ: {host}:{port_int}, User: {user}, Database: {database})",
+                "details": auth_result,
+            }
+        elif "error" in auth_result:
+            err = auth_result["error"]
+            return {
+                "success": False,
+                "message": f"Máy chủ {host}:{port_int} phản hồi, nhưng xác thực thất bại: {err}",
+            }
 
     info_parts = [f"Máy chủ {host}:{port_int}"]
-    if server_version:
-        info_parts.append(f"Phiên bản: {server_version}")
+    if user:
+        info_parts.append(f"User: {user}")
+    if database:
+        info_parts.append(f"Database: {database}")
     return {
         "success": True,
-        "message": f"Kết nối cổng dịch vụ MySQL thành công! ({', '.join(info_parts)})",
-        "version": server_version,
+        "message": f"Kết nối cổng dịch vụ SQL Server thành công! ({', '.join(info_parts)})",
     }
+
+
+def save_mysql_mcp_preset(
+    conn_url: str = "",
+    server_name: str = "sqlserver",
+    host: str = "",
+    port: int = 1433,
+    user: str = "",
+    password: str = "",
+    database: str = "",
+    **kwargs,
+) -> dict:
+    """Backward compatibility alias cho save_sqlserver_mcp_preset."""
+    return save_sqlserver_mcp_preset(
+        conn_url=conn_url,
+        server_name=server_name,
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        database=database,
+        **kwargs,
+    )
+
+
+def test_mysql_connection(
+    host: str = "127.0.0.1",
+    port: int = 1433,
+    user: str = "sa",
+    password: str = "",
+    database: str = "master",
+    conn_url: str = "",
+    **kwargs,
+) -> dict:
+    """Backward compatibility alias cho test_sqlserver_connection."""
+    return test_sqlserver_connection(
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        database=database,
+        conn_url=conn_url,
+        **kwargs,
+    )
 
 
 def save_gitlab_mcp_preset(host: str, token: str, server_name: str = "gitlab") -> dict:

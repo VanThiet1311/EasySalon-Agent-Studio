@@ -1320,13 +1320,13 @@ function renderNotificationList() {
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2 flex-wrap min-w-0 flex-1">
             ${tagBadge}
-            <span class="font-bold text-xs ${titleClass} notif-item-title transition truncate" style="${isUnread ? 'color: #1677ff !important;' : 'color: #94a3b8 !important;'}">
+            <span class="font-bold text-xs ${titleClass} notif-item-title transition truncate" style="${isUnread ? 'color: #1677ff !important;' : titleStyle + ' !important;'}">
               ${escapeHtml(item.title)}
             </span>
           </div>
           ${isUnread ? '<span class="w-2 h-2 rounded-full bg-[#199cff] shrink-0" title="Chưa đọc"></span>' : ''}
         </div>
-        <p class="text-[11.5px] ${isUnread ? 'text-slate-700' : 'text-slate-400'} leading-relaxed truncate" title="${escapeHtml(item.desc)}">
+        <p class="text-[11.5px] ${isUnread ? 'text-slate-700' : 'text-slate-600'} leading-relaxed truncate" title="${escapeHtml(item.desc)}">
           ${item.hash ? `<span class="font-mono text-blue-600 font-bold">${escapeHtml(item.hash)}: </span>` : ''}${escapeHtml(item.desc)}
         </p>
         ${(item.author || item.date || item.timestamp) ? `

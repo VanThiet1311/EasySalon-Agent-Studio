@@ -3235,10 +3235,10 @@ window.removeMcpServer = removeMcpServer;
 window.toggleMcpServer = toggleMcpServer;
 
 function selectActiveApiProvider(provider) {
-  if (!['gemini', 'claude', 'openai', 'custom'].includes(provider)) provider = 'gemini';
+  if (!['gemini', 'claude', 'openai', 'deepseek', 'custom'].includes(provider)) provider = 'gemini';
   currentStudioSettings.api_provider = provider;
 
-  ['gemini', 'claude', 'openai', 'custom'].forEach(p => {
+  ['gemini', 'claude', 'openai', 'deepseek', 'custom'].forEach(p => {
     const btn = document.getElementById('btn_provider_' + p);
     if (btn) {
       if (p === provider) btn.classList.add('is-active');
@@ -3252,6 +3252,7 @@ function selectActiveApiProvider(provider) {
       'gemini': 'GOOGLE GEMINI',
       'claude': 'ANTHROPIC CLAUDE',
       'openai': 'OPENAI / GPT',
+      'deepseek': 'DEEPSEEK',
       'custom': 'CUSTOM / 9ROUTER'
     };
     tag.textContent = labels[provider] || provider.toUpperCase();
@@ -3282,6 +3283,8 @@ async function testApiKey(provider) {
     key = document.getElementById('input_claude_api_key')?.value?.trim() || '';
   } else if (provider === 'openai') {
     key = document.getElementById('input_openai_api_key')?.value?.trim() || '';
+  } else if (provider === 'deepseek') {
+    key = document.getElementById('input_deepseek_api_key')?.value?.trim() || '';
   } else if (provider === 'custom') {
     key = document.getElementById('input_custom_api_key')?.value?.trim() || '';
     endpoint = document.getElementById('input_custom_endpoint')?.value?.trim() || '';
@@ -3305,15 +3308,44 @@ async function testApiKey(provider) {
       showToast(d.message || `Kết nối ${provider.toUpperCase()} thành công!`, 'success');
       const badge = document.getElementById(`badge_${provider}_key_status`);
       if (badge) {
-        badge.textContent = 'Kết nối OK';
+        badge.textContent = 'Ưu tiên kích hoạt';
         badge.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-700 font-medium';
       }
     } else {
       showToast(d.message || `Kiểm tra ${provider.toUpperCase()} thất bại`, 'error');
       const badge = document.getElementById(`badge_${provider}_key_status`);
       if (badge) {
-        badge.textContent = 'Thất bại';
+        badge.textContent = d.error_type === 'quota_exceeded' ? 'Hết Token' : 'Thất bại';
         badge.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-rose-950 text-rose-400 border border-rose-700 font-medium';
+      }
+      if (d.error_type === 'quota_exceeded') {
+        antdConfirm({
+          title: d.title || 'API Key Hết Token / Quota',
+          content: `
+            <div class="space-y-2.5 font-sans text-left">
+              <div class="text-sm text-rose-300 font-medium">${escapeHtml(d.message)}</div>
+              ${d.raw_error ? `<div class="p-2.5 rounded bg-[#160b13] border border-rose-800 text-[11px] font-mono text-rose-300 break-all max-h-32 overflow-y-auto">${escapeHtml(d.raw_error)}</div>` : ''}
+              <div class="text-xs text-slate-300">Khóa API của bạn không còn đủ token để phục vụ các yêu cầu AI. Vui lòng nạp thêm token hoặc đổi sang khóa khác.</div>
+            </div>
+          `,
+          okText: 'Đã hiểu',
+          cancelText: 'Đóng',
+          danger: true
+        });
+      } else if (d.error_type === 'invalid_key') {
+        antdConfirm({
+          title: d.title || 'API Key Không Hợp Lệ',
+          content: `
+            <div class="space-y-2.5 font-sans text-left">
+              <div class="text-sm text-rose-300 font-medium">${escapeHtml(d.message)}</div>
+              ${d.raw_error ? `<div class="p-2.5 rounded bg-[#160b13] border border-rose-800 text-[11px] font-mono text-rose-300 break-all max-h-32 overflow-y-auto">${escapeHtml(d.raw_error)}</div>` : ''}
+              <div class="text-xs text-slate-300">Vui lòng kiểm tra lại API Key đã copy chính xác từ bảng điều khiển của nhà cung cấp chưa.</div>
+            </div>
+          `,
+          okText: 'Đã hiểu',
+          cancelText: 'Đóng',
+          danger: true
+        });
       }
     }
   } catch (err) {
@@ -3325,7 +3357,7 @@ window.testApiKey = testApiKey;
 function updateApiUI(settings) {
   if (!settings) settings = currentStudioSettings;
   const prov = settings.api_provider || 'gemini';
-  ['gemini', 'claude', 'openai', 'custom'].forEach(p => {
+  ['gemini', 'claude', 'openai', 'deepseek', 'custom'].forEach(p => {
     const btn = document.getElementById('btn_provider_' + p);
     if (btn) {
       if (p === prov) btn.classList.add('is-active');
@@ -3339,6 +3371,7 @@ function updateApiUI(settings) {
       'gemini': 'GOOGLE GEMINI',
       'claude': 'ANTHROPIC CLAUDE',
       'openai': 'OPENAI / GPT',
+      'deepseek': 'DEEPSEEK',
       'custom': 'CUSTOM / 9ROUTER'
     };
     tag.textContent = labels[prov] || prov.toUpperCase();
@@ -3355,6 +3388,10 @@ function updateApiUI(settings) {
   if (settings.openai_api_key !== undefined) {
     const el = document.getElementById('input_openai_api_key');
     if (el && !el.matches(':focus')) el.value = settings.openai_api_key || '';
+  }
+  if (settings.deepseek_api_key !== undefined) {
+    const el = document.getElementById('input_deepseek_api_key');
+    if (el && !el.matches(':focus')) el.value = settings.deepseek_api_key || '';
   }
   if (settings.custom_api_key !== undefined) {
     const el = document.getElementById('input_custom_api_key');
@@ -3385,6 +3422,7 @@ function updateApiKeyBadges(settings) {
   setBadge('badge_gemini_key_status', !!settings.gemini_api_key);
   setBadge('badge_claude_key_status', !!settings.claude_api_key);
   setBadge('badge_openai_key_status', !!settings.openai_api_key);
+  setBadge('badge_deepseek_key_status', !!settings.deepseek_api_key);
   setBadge('badge_custom_key_status', !!(settings.custom_endpoint || settings.custom_api_key), true);
 }
 
@@ -3420,6 +3458,7 @@ async function saveSettingsFromPage() {
   const gemini_api_key = document.getElementById('input_gemini_api_key')?.value?.trim() ?? (currentStudioSettings.gemini_api_key || '');
   const claude_api_key = document.getElementById('input_claude_api_key')?.value?.trim() ?? (currentStudioSettings.claude_api_key || '');
   const openai_api_key = document.getElementById('input_openai_api_key')?.value?.trim() ?? (currentStudioSettings.openai_api_key || '');
+  const deepseek_api_key = document.getElementById('input_deepseek_api_key')?.value?.trim() ?? (currentStudioSettings.deepseek_api_key || '');
   const custom_api_key = document.getElementById('input_custom_api_key')?.value?.trim() ?? (currentStudioSettings.custom_api_key || '');
   const custom_endpoint = document.getElementById('input_custom_endpoint')?.value?.trim() ?? (currentStudioSettings.custom_endpoint || '');
 
@@ -3441,6 +3480,7 @@ async function saveSettingsFromPage() {
     gemini_api_key,
     claude_api_key,
     openai_api_key,
+    deepseek_api_key,
     custom_api_key,
     custom_endpoint,
     fe_workspace,
@@ -3475,6 +3515,7 @@ async function saveSettingsFromPage() {
           gemini_api_key,
           claude_api_key,
           openai_api_key,
+          deepseek_api_key,
           custom_api_key,
           custom_endpoint,
           fe_workspace,

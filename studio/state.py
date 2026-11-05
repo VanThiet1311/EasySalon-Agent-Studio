@@ -39,10 +39,11 @@ DEFAULT_SETTINGS = {
     'effort': 'high',  # 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     'model': 'gemini-3.8-flash-high',
     'opencode_model': '9router/ag/gemini-3.8-flash',
-    'api_provider': 'gemini',  # 'gemini' | 'claude' | 'openai' | 'custom'
+    'api_provider': 'gemini',  # 'gemini' | 'claude' | 'openai' | 'deepseek' | 'custom'
     'gemini_api_key': '',
     'claude_api_key': '',
     'openai_api_key': '',
+    'deepseek_api_key': '',
     'custom_api_key': '',
     'custom_endpoint': '',
     'jira_host': '',
@@ -97,6 +98,236 @@ def get_opencode_configured_model() -> str:
     return ''
 
 
+def sync_all_api_keys_and_providers(settings: dict = None) -> dict:
+    """
+    Đồng bộ và ưu tiên các API Key của mô hình vào môi trường hệ thống và cấu hình OpenCode:
+    1. Ưu tiên các API Key người dùng cấu hình so với mặc định/fallback.
+    2. Đồng bộ sang os.environ (GEMINI_API_KEY, GOOGLE_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY,
+       ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENAI_BASE_URL, CUSTOM_API_KEY, NINE_ROUTER_API_KEY).
+    3. Đồng bộ API Key và Base URL vào provider '9router' trong ~/.config/opencode/opencode.json.
+    """
+    if settings is None:
+        try:
+            if os.path.exists(SETTINGS_FILE):
+                with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
+                    settings = json.load(f)
+        except Exception:
+            settings = dict(DEFAULT_SETTINGS)
+
+    if not isinstance(settings, dict):
+        settings = dict(DEFAULT_SETTINGS)
+
+    gemini_key = str(settings.get('gemini_api_key') or '').strip()
+    claude_key = str(settings.get('claude_api_key') or '').strip()
+    openai_key = str(settings.get('openai_api_key') or '').strip()
+    deepseek_key = str(settings.get('deepseek_api_key') or '').strip()
+    custom_key = str(settings.get('custom_api_key') or '').strip()
+    custom_endpoint = str(settings.get('custom_endpoint') or '').strip()
+
+    # 1. Đồng bộ biến môi trường hệ thống (ưu tiên key đã cấu hình)
+    if gemini_key:
+        os.environ['GEMINI_API_KEY'] = gemini_key
+        os.environ['GOOGLE_API_KEY'] = gemini_key
+        os.environ['GOOGLE_GENERATIVE_AI_API_KEY'] = gemini_key
+
+    if claude_key:
+        os.environ['ANTHROPIC_API_KEY'] = claude_key
+
+    if openai_key:
+        os.environ['OPENAI_API_KEY'] = openai_key
+
+    if deepseek_key:
+        os.environ['DEEPSEEK_API_KEY'] = deepseek_key
+        os.environ.setdefault('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
+
+    if custom_endpoint:
+        os.environ['OPENAI_BASE_URL'] = custom_endpoint
+
+    if custom_key:
+        os.environ['CUSTOM_API_KEY'] = custom_key
+        os.environ['NINE_ROUTER_API_KEY'] = custom_key
+
+    if settings.get('jira_host'):
+        os.environ['JIRA_HOST'] = str(settings['jira_host']).strip()
+    if settings.get('jira_email'):
+        os.environ['JIRA_EMAIL'] = str(settings['jira_email']).strip()
+    if settings.get('jira_api_token'):
+        os.environ['JIRA_API_TOKEN'] = str(settings['jira_api_token']).strip()
+
+    # 2. Đồng bộ cấu hình ~/.config/opencode/opencode.json
+    try:
+        config_path = os.path.expanduser('~/.config/opencode/opencode.json')
+        if os.path.exists(config_path):
+            with open(config_path, 'r', encoding='utf-8') as f:
+                cfg = json.load(f)
+            if isinstance(cfg, dict):
+                provider = cfg.setdefault('provider', {})
+                nine_router = provider.setdefault('9router', {})
+                opts = nine_router.setdefault('options', {})
+
+                changed = False
+                # Ưu tiên custom API key nếu có
+                if custom_key:
+                    if opts.get('apiKey') != custom_key:
+                        opts['apiKey'] = custom_key
+                        changed = True
+                elif not opts.get('apiKey'):
+                    opts['apiKey'] = 'sk-6507521eca6e4614-6o4r60-5aa0309e'
+                    changed = True
+
+                if custom_endpoint:
+                    if opts.get('baseURL') != custom_endpoint:
+                        opts['baseURL'] = custom_endpoint
+                        changed = True
+                elif not opts.get('baseURL'):
+                    opts['baseURL'] = 'http://127.0.0.1:20128/v1'
+                    changed = True
+
+                if changed:
+                    tmp_path = config_path + '.tmp'
+                    with open(tmp_path, 'w', encoding='utf-8') as f:
+                        json.dump(cfg, f, indent=2)
+                    os.replace(tmp_path, config_path)
+    except Exception as e:
+        pass
+
+    return settings
+
+
+def detect_api_key_or_quota_error(data) -> dict | None:
+    """
+    Phát hiện các lỗi liên quan đến API Key mô hình (hết token, quota, sai key, v.v.).
+    Trả về dict chi tiết cảnh báo hoặc None nếu không phát hiện lỗi.
+    """
+    if data is None:
+        return None
+
+    raw_str = ""
+    err_obj = {}
+
+    if isinstance(data, dict):
+        err_obj = data
+        raw_str = json.dumps(data, ensure_ascii=False)
+    elif isinstance(data, str):
+        raw_str = data.strip()
+        if (raw_str.startswith('{') and raw_str.endswith('}')) or (raw_str.startswith('[') and raw_str.endswith(']')):
+            try:
+                parsed = json.loads(raw_str)
+                if isinstance(parsed, dict):
+                    err_obj = parsed
+            except Exception:
+                pass
+    elif isinstance(data, Exception):
+        raw_str = str(data)
+    else:
+        raw_str = str(data)
+
+    if not raw_str:
+        return None
+
+    raw_lower = raw_str.lower()
+
+    # 1. QUOTA & TOKEN EXHAUSTION
+    quota_keywords = [
+        'resource_exhausted',
+        'quota exceeded',
+        'quota_exceeded',
+        'exceeded your current quota',
+        'insufficient_quota',
+        'rate_limit_exceeded',
+        'rate_limit_error',
+        'out of credits',
+        'out of tokens',
+        'credit limit reached',
+        'insufficient balance',
+        'insufficient_balance',
+        'not enough tokens',
+        'billing_hard_limit_reached',
+        'too many requests',
+        '429 too many requests',
+        'check quota',
+        'hết token',
+        'hết hạn mức',
+        'vượt quá hạn mức'
+    ]
+    is_quota = any(kw in raw_lower for kw in quota_keywords)
+
+    # 2. AUTHENTICATION & INVALID KEY
+    auth_keywords = [
+        'invalid_api_key',
+        'api_key_invalid',
+        'api key not valid',
+        'authentication_error',
+        'invalid x-api-key',
+        'incorrect api key provided',
+        '401 unauthorized',
+        'permission_denied',
+        'permissiondenied',
+        'key không hợp lệ',
+        'sai api key',
+        'unauthorized'
+    ]
+    is_auth = any(kw in raw_lower for kw in auth_keywords)
+
+    # 3. ROUTE / PROVIDER ERROR
+    route_keywords = [
+        'provider.no-route',
+        'model unavailable'
+    ]
+    is_route = any(kw in raw_lower for kw in route_keywords)
+
+    if not (is_quota or is_auth or is_route):
+        return None
+
+    now_ts = int(time.time() * 1000)
+    now_str = datetime.datetime.now().strftime("%H:%M:%S")
+
+    # Bóc tách thông điệp rõ ràng từ JSON nếu có
+    clean_msg = ""
+    if err_obj:
+        if isinstance(err_obj.get('error'), dict):
+            clean_msg = err_obj['error'].get('message') or err_obj['error'].get('reason') or ''
+        elif isinstance(err_obj.get('error'), str):
+            clean_msg = err_obj['error']
+        elif err_obj.get('message'):
+            clean_msg = str(err_obj['message'])
+
+    if is_quota:
+        return {
+            "id": f"err_quota_{now_ts}",
+            "error_type": "quota_exceeded",
+            "title": "API Key Hết Token / Quota",
+            "message": clean_msg or "Khóa API đã hết hạn mức token hoặc vượt quá giới hạn lượt gọi (Rate Limit / Quota Exceeded).",
+            "action_hint": "Vui lòng vào tab Cài đặt để cập nhật API Key mới hoặc nạp thêm token.",
+            "raw_error": raw_str[:500],
+            "timestamp": now_str
+        }
+
+    if is_auth:
+        return {
+            "id": f"err_auth_{now_ts}",
+            "error_type": "invalid_key",
+            "title": "API Key Không Hợp Lệ",
+            "message": clean_msg or "Không thể xác thực API Key với nhà cung cấp. Khóa có thể đã hết hạn, bị thu hồi hoặc nhập sai.",
+            "action_hint": "Vui lòng kiểm tra và dán lại API Key chính xác trong tab Cài đặt.",
+            "raw_error": raw_str[:500],
+            "timestamp": now_str
+        }
+
+    if is_route:
+        return {
+            "id": f"err_route_{now_ts}",
+            "error_type": "provider_error",
+            "title": "Không Thể Kết Nối Mô Hình",
+            "message": clean_msg or "Mô hình hiện tại không khả dụng hoặc chưa được hỗ trợ bởi nhà cung cấp đã chọn.",
+            "action_hint": "Vui lòng kiểm tra lại cấu hình Engine và Model trong tab Cài đặt.",
+            "raw_error": raw_str[:500],
+            "timestamp": now_str
+        }
+
+    return None
+
+
 def load_settings():
     """Tải cấu hình người dùng từ settings.json (hoặc trả về mặc định)."""
     if not os.path.exists(SETTINGS_FILE):
@@ -130,6 +361,9 @@ def load_settings():
                     merged['opencode_model'] = clean_model
     except Exception:
         pass
+
+    # Đồng bộ API key và biến môi trường ngay khi nạp cấu hình
+    sync_all_api_keys_and_providers(merged)
 
     return merged
 
@@ -701,24 +935,8 @@ def save_settings(settings_dict: dict):
         if isinstance(settings_dict, dict):
             curr.update(settings_dict)
 
-            # Đồng bộ sang os.environ để Antigravity harness và các subagent đọc được
-            if curr.get('gemini_api_key'):
-                os.environ['GEMINI_API_KEY'] = curr['gemini_api_key']
-                os.environ['GOOGLE_API_KEY'] = curr['gemini_api_key']
-            if curr.get('claude_api_key'):
-                os.environ['ANTHROPIC_API_KEY'] = curr['claude_api_key']
-            if curr.get('openai_api_key'):
-                os.environ['OPENAI_API_KEY'] = curr['openai_api_key']
-            if curr.get('custom_endpoint'):
-                os.environ['OPENAI_BASE_URL'] = curr['custom_endpoint']
-            if curr.get('custom_api_key'):
-                os.environ['CUSTOM_API_KEY'] = curr['custom_api_key']
-            if curr.get('jira_host'):
-                os.environ['JIRA_HOST'] = curr['jira_host']
-            if curr.get('jira_email'):
-                os.environ['JIRA_EMAIL'] = curr['jira_email']
-            if curr.get('jira_api_token'):
-                os.environ['JIRA_API_TOKEN'] = curr['jira_api_token']
+        # Đồng bộ và ưu tiên các API Key mô hình
+        sync_all_api_keys_and_providers(curr)
 
         with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
             json.dump(curr, f, ensure_ascii=False, indent=2)
@@ -758,6 +976,7 @@ app_state = {
     'active_tasks': {},
     'task_queue': [],
     'settings': load_settings(),
+    'latest_api_error': None,
     'diagram_cache': None,
     'diagram_cache_key': None
 }

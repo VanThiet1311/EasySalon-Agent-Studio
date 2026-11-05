@@ -119,6 +119,9 @@ window.addEventListener('DOMContentLoaded', () => {
   restoreDraft();
   updateFixBugPromptPreview();
   setupDevHotReload();
+  if (typeof startJiraNotificationWatcher === 'function') {
+    startJiraNotificationWatcher();
+  }
 
   setInterval(() => {
     checkSyncPullUpdates(true);

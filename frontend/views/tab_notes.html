@@ -1,5 +1,5 @@
   <!-- TAB 6: GHI CHÚ (NOTES & TECHNICAL SCRATCHPAD) -->
-  <main id="view_notes" class="hidden flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-4">
+  <main id="view_notes" class="hidden flex-1 w-full max-w-none p-4 md:p-6 lg:px-8 space-y-4">
     <!-- Top Action Banner -->
     <div
       class="notes-banner flex flex-wrap items-center justify-between gap-4 bg-[#101e38] border border-[#244170] rounded-lg p-4 shadow-sm">
@@ -67,9 +67,9 @@
     </div>
 
     <!-- Main 2-Column Notes Workspace -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-      <!-- Left Panel: Danh sách ghi chú & Tìm kiếm (4 cols) -->
-      <div class="notes-panel lg:col-span-4 bg-[#101e38] border border-[#244170] rounded-xl p-3.5 space-y-3 shadow-sm flex flex-col">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4.5 items-start">
+      <!-- Left Panel: Danh sách ghi chú & Tìm kiếm (3 cols on XL / 4 cols on LG) -->
+      <div class="notes-panel lg:col-span-4 xl:col-span-3 bg-[#101e38] border border-[#244170] rounded-xl p-3.5 space-y-3 shadow-sm flex flex-col">
         <!-- Search & Filter -->
         <div class="space-y-2">
           <div class="relative">
@@ -111,13 +111,13 @@
         </div>
 
         <!-- Notes List Container -->
-        <div id="notesListContainer" class="space-y-1.5 max-h-[580px] overflow-y-auto custom-scrollbar pr-1">
+        <div id="notesListContainer" class="space-y-1.5 max-h-[calc(100vh-270px)] min-h-[480px] overflow-y-auto custom-scrollbar pr-1">
           <!-- Populated by JavaScript -->
         </div>
       </div>
 
-      <!-- Right Panel: Editor ghi chú (8 cols) -->
-      <div class="notes-panel lg:col-span-8 bg-[#101e38] border border-[#244170] rounded-xl p-4 md:p-5 space-y-3.5 shadow-sm flex flex-col">
+      <!-- Right Panel: Editor ghi chú (9 cols on XL / 8 cols on LG) -->
+      <div class="notes-panel lg:col-span-8 xl:col-span-9 bg-[#101e38] border border-[#244170] rounded-xl p-4 md:p-5 space-y-3.5 shadow-sm flex flex-col">
         <!-- Title & Status Row -->
         <div class="notes-meta-box space-y-2 border-b border-[#244170]/70 pb-3">
           <div class="flex items-center justify-between gap-3">
@@ -210,10 +210,10 @@
         </div>
 
         <!-- Main Editor Textarea -->
-        <div class="flex-1 flex flex-col min-h-[460px]">
+        <div class="flex-1 flex flex-col min-h-[500px] lg:min-h-[calc(100vh-320px)]">
           <textarea id="noteContentInput" oninput="onNoteContentInput(this.value)"
             placeholder="Viết ghi chú, lưu ý kỹ thuật, checklist thực hiện, endpoint API hoặc thông tin dự án...&#10;- Hỗ trợ Markdown đầy đủ.&#10;- Bấm 'Đưa vào Tác vụ' để chuyển ghi chú sang Prompt của Agent ngay lập tức."
-            class="w-full flex-1 min-h-[460px] bg-[#0c1628] border border-[#244170] rounded-xl p-4 text-[13px] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#1677ff] font-sans leading-relaxed resize-y custom-scrollbar"></textarea>
+            class="w-full flex-1 min-h-[500px] lg:min-h-[calc(100vh-320px)] bg-[#0c1628] border border-[#244170] rounded-xl p-4 text-[13px] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#1677ff] font-sans leading-relaxed resize-y custom-scrollbar"></textarea>
         </div>
 
         <!-- Footer Stats Bar -->

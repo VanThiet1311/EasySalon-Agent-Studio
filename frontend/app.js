@@ -4078,10 +4078,10 @@ window.removeMcpServer = removeMcpServer;
 window.toggleMcpServer = toggleMcpServer;
 
 function selectActiveApiProvider(provider) {
-  if (!['gemini', 'claude', 'openai', 'custom'].includes(provider)) provider = 'gemini';
+  if (!['gemini', 'claude', 'openai', 'deepseek', 'custom'].includes(provider)) provider = 'gemini';
   currentStudioSettings.api_provider = provider;
 
-  ['gemini', 'claude', 'openai', 'custom'].forEach(p => {
+  ['gemini', 'claude', 'openai', 'deepseek', 'custom'].forEach(p => {
     const btn = document.getElementById('btn_provider_' + p);
     if (btn) {
       if (p === provider) btn.classList.add('is-active');
@@ -4095,6 +4095,7 @@ function selectActiveApiProvider(provider) {
       'gemini': 'GOOGLE GEMINI',
       'claude': 'ANTHROPIC CLAUDE',
       'openai': 'OPENAI / GPT',
+      'deepseek': 'DEEPSEEK',
       'custom': 'CUSTOM / 9ROUTER'
     };
     tag.textContent = labels[provider] || provider.toUpperCase();
@@ -4125,6 +4126,8 @@ async function testApiKey(provider) {
     key = document.getElementById('input_claude_api_key')?.value?.trim() || '';
   } else if (provider === 'openai') {
     key = document.getElementById('input_openai_api_key')?.value?.trim() || '';
+  } else if (provider === 'deepseek') {
+    key = document.getElementById('input_deepseek_api_key')?.value?.trim() || '';
   } else if (provider === 'custom') {
     key = document.getElementById('input_custom_api_key')?.value?.trim() || '';
     endpoint = document.getElementById('input_custom_endpoint')?.value?.trim() || '';
@@ -4148,15 +4151,44 @@ async function testApiKey(provider) {
       showToast(d.message || `Kết nối ${provider.toUpperCase()} thành công!`, 'success');
       const badge = document.getElementById(`badge_${provider}_key_status`);
       if (badge) {
-        badge.textContent = 'Kết nối OK';
+        badge.textContent = 'Ưu tiên kích hoạt';
         badge.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-700 font-medium';
       }
     } else {
       showToast(d.message || `Kiểm tra ${provider.toUpperCase()} thất bại`, 'error');
       const badge = document.getElementById(`badge_${provider}_key_status`);
       if (badge) {
-        badge.textContent = 'Thất bại';
+        badge.textContent = d.error_type === 'quota_exceeded' ? 'Hết Token' : 'Thất bại';
         badge.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-rose-950 text-rose-400 border border-rose-700 font-medium';
+      }
+      if (d.error_type === 'quota_exceeded') {
+        antdConfirm({
+          title: d.title || 'API Key Hết Token / Quota',
+          content: `
+            <div class="space-y-2.5 font-sans text-left">
+              <div class="text-sm text-rose-300 font-medium">${escapeHtml(d.message)}</div>
+              ${d.raw_error ? `<div class="p-2.5 rounded bg-[#160b13] border border-rose-800 text-[11px] font-mono text-rose-300 break-all max-h-32 overflow-y-auto">${escapeHtml(d.raw_error)}</div>` : ''}
+              <div class="text-xs text-slate-300">Khóa API của bạn không còn đủ token để phục vụ các yêu cầu AI. Vui lòng nạp thêm token hoặc đổi sang khóa khác.</div>
+            </div>
+          `,
+          okText: 'Đã hiểu',
+          cancelText: 'Đóng',
+          danger: true
+        });
+      } else if (d.error_type === 'invalid_key') {
+        antdConfirm({
+          title: d.title || 'API Key Không Hợp Lệ',
+          content: `
+            <div class="space-y-2.5 font-sans text-left">
+              <div class="text-sm text-rose-300 font-medium">${escapeHtml(d.message)}</div>
+              ${d.raw_error ? `<div class="p-2.5 rounded bg-[#160b13] border border-rose-800 text-[11px] font-mono text-rose-300 break-all max-h-32 overflow-y-auto">${escapeHtml(d.raw_error)}</div>` : ''}
+              <div class="text-xs text-slate-300">Vui lòng kiểm tra lại API Key đã copy chính xác từ bảng điều khiển của nhà cung cấp chưa.</div>
+            </div>
+          `,
+          okText: 'Đã hiểu',
+          cancelText: 'Đóng',
+          danger: true
+        });
       }
     }
   } catch (err) {
@@ -4168,7 +4200,7 @@ window.testApiKey = testApiKey;
 function updateApiUI(settings) {
   if (!settings) settings = currentStudioSettings;
   const prov = settings.api_provider || 'gemini';
-  ['gemini', 'claude', 'openai', 'custom'].forEach(p => {
+  ['gemini', 'claude', 'openai', 'deepseek', 'custom'].forEach(p => {
     const btn = document.getElementById('btn_provider_' + p);
     if (btn) {
       if (p === prov) btn.classList.add('is-active');
@@ -4182,6 +4214,7 @@ function updateApiUI(settings) {
       'gemini': 'GOOGLE GEMINI',
       'claude': 'ANTHROPIC CLAUDE',
       'openai': 'OPENAI / GPT',
+      'deepseek': 'DEEPSEEK',
       'custom': 'CUSTOM / 9ROUTER'
     };
     tag.textContent = labels[prov] || prov.toUpperCase();
@@ -4198,6 +4231,10 @@ function updateApiUI(settings) {
   if (settings.openai_api_key !== undefined) {
     const el = document.getElementById('input_openai_api_key');
     if (el && !el.matches(':focus')) el.value = settings.openai_api_key || '';
+  }
+  if (settings.deepseek_api_key !== undefined) {
+    const el = document.getElementById('input_deepseek_api_key');
+    if (el && !el.matches(':focus')) el.value = settings.deepseek_api_key || '';
   }
   if (settings.custom_api_key !== undefined) {
     const el = document.getElementById('input_custom_api_key');
@@ -4228,6 +4265,7 @@ function updateApiKeyBadges(settings) {
   setBadge('badge_gemini_key_status', !!settings.gemini_api_key);
   setBadge('badge_claude_key_status', !!settings.claude_api_key);
   setBadge('badge_openai_key_status', !!settings.openai_api_key);
+  setBadge('badge_deepseek_key_status', !!settings.deepseek_api_key);
   setBadge('badge_custom_key_status', !!(settings.custom_endpoint || settings.custom_api_key), true);
 }
 
@@ -4263,6 +4301,7 @@ async function saveSettingsFromPage() {
   const gemini_api_key = document.getElementById('input_gemini_api_key')?.value?.trim() ?? (currentStudioSettings.gemini_api_key || '');
   const claude_api_key = document.getElementById('input_claude_api_key')?.value?.trim() ?? (currentStudioSettings.claude_api_key || '');
   const openai_api_key = document.getElementById('input_openai_api_key')?.value?.trim() ?? (currentStudioSettings.openai_api_key || '');
+  const deepseek_api_key = document.getElementById('input_deepseek_api_key')?.value?.trim() ?? (currentStudioSettings.deepseek_api_key || '');
   const custom_api_key = document.getElementById('input_custom_api_key')?.value?.trim() ?? (currentStudioSettings.custom_api_key || '');
   const custom_endpoint = document.getElementById('input_custom_endpoint')?.value?.trim() ?? (currentStudioSettings.custom_endpoint || '');
 
@@ -4284,6 +4323,7 @@ async function saveSettingsFromPage() {
     gemini_api_key,
     claude_api_key,
     openai_api_key,
+    deepseek_api_key,
     custom_api_key,
     custom_endpoint,
     fe_workspace,
@@ -4318,6 +4358,7 @@ async function saveSettingsFromPage() {
           gemini_api_key,
           claude_api_key,
           openai_api_key,
+          deepseek_api_key,
           custom_api_key,
           custom_endpoint,
           fe_workspace,
@@ -6766,7 +6807,7 @@ async function startSingleTaskById(taskId) {
           skills: task.skills,
           skill: task.skills.join(', '),
           scope: task.target || 'both',
-          description: formattedPrompt,
+          description: task.prompt || formattedPrompt,
           original_prompt: task.original_prompt || task.prompt || '',
           error_log: task.error_log
         })
@@ -6789,7 +6830,7 @@ async function startSingleTaskById(taskId) {
           mode: mode,
           engine: currentStudioSettings.engine || 'gemini_cli',
           effort: task.effort || currentStudioSettings.effort || 'high',
-          prompt: formattedPrompt,
+          prompt: task.prompt || formattedPrompt,
           original_prompt: task.original_prompt || task.prompt || '',
           error_log: task.error_log,
           target: task.target || 'both',
@@ -7989,6 +8030,64 @@ function renderFeedView(data) {
   });
 }
 
+async function startContinuationTask(task, followUp) {
+  if (!task) return;
+  const anyRunning = parallelTasks.some(t => t.status === 'running' && t.id !== task.id);
+  task.status = anyRunning ? 'queued' : 'running';
+  renderParallelTaskTabs();
+  updateTaskActionButtons();
+
+  const followText = (followUp || '').trim() || 'Tiếp tục kiểm tra và hoàn thiện task này.';
+  const goal = (task.original_prompt || task.prompt || '').trim();
+  const isFix = task.type === 'fixbug';
+  const common = {
+    task_id: task.id,
+    title: task.name,
+    engine: currentStudioSettings.engine || 'gemini_cli',
+    effort: task.effort || currentStudioSettings.effort || 'high',
+    skills: task.skills || [],
+    skill: (task.skills || []).join(', '),
+    original_prompt: goal,
+    error_log: '',
+    continuation: true
+  };
+
+  try {
+    const res = await fetch(isFix ? '/api/fixbug' : '/api/task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(isFix ? Object.assign({}, common, {
+        mode: 'fixbug',
+        scope: task.target || 'both',
+        description: followText
+      }) : Object.assign({}, common, {
+        mode: task.type || 'task',
+        prompt: followText,
+        target: task.target || 'both',
+        starter: 'fe',
+        rounds: 1
+      }))
+    });
+    const d = await res.json();
+    if (!d.success) {
+      task.status = 'idle';
+      await antdAlert({ title: 'Lỗi', content: d.message, type: 'error' });
+    } else {
+      task.status = d.queue_status === 'queued' ? 'queued' : 'running';
+      showToast(d.message || 'Đã gửi yêu cầu tiếp theo xuống AI Terminal', 'success');
+    }
+  } catch (e) {
+    task.status = 'idle';
+    await antdAlert({ title: 'Lỗi kết nối', content: e.message, type: 'error' });
+  }
+  if (task.status === 'idle') {
+    await syncQueueToServer();
+  }
+  renderParallelTaskTabs();
+  updateTaskActionButtons();
+  pollStatus();
+}
+
 async function continueTaskFromFeed(taskId) {
   let task = parallelTasks.find(t => t.id === taskId);
   if (!task) {
@@ -7999,24 +8098,82 @@ async function continueTaskFromFeed(taskId) {
 
   const inputEl = document.getElementById('continueInput_' + taskId);
   const followUp = inputEl ? inputEl.value.trim() : '';
-  if (followUp) {
-    if (!task.original_prompt && task.prompt) {
-      task.original_prompt = task.prompt;
-    }
-    task.prompt = followUp;
-    if (inputEl) inputEl.value = '';
-  } else if (!task.prompt) {
-    task.prompt = 'Tiếp tục kiểm tra và sửa hoàn thiện code cho task này.';
+  if (!followUp && !task.prompt && !task.error_log) {
+    showToast('Vui lòng nhập nội dung cần hỏi hoặc tiếp tục.', 'warning');
+    return;
   }
+  if (!task.original_prompt) {
+    task.original_prompt = task.prompt || '';
+  }
+  if (inputEl) inputEl.value = '';
   activeTaskId = task.id;
-  loadTaskToForm(task.id);
-  await startSingleTaskById(task.id);
+  // Tiếp tục = một lượt hội thoại tiếp theo trong cùng phiên, KHÔNG chạy lại toàn bộ task
+  // và KHÔNG nạp lại skill tác vụ ban đầu.
+  await startContinuationTask(task, followUp);
 }
+
+let _lastShownApiErrorId = null;
+
+async function triggerApiErrorModal(err) {
+  if (!err) return;
+  showToast(`${err.title}: ${err.message}`, 'error');
+
+  const isQuota = err.error_type === 'quota_exceeded';
+  const rawHtml = err.raw_error ? `
+    <div class="mt-2.5 p-2.5 rounded-lg bg-[#160b13] border border-rose-800/60 text-rose-300 font-mono text-[11px] leading-relaxed break-all max-h-32 overflow-y-auto">
+      ${escapeHtml(err.raw_error)}
+    </div>` : '';
+
+  const contentHtml = `
+    <div class="space-y-2.5 text-left font-sans">
+      <div class="text-sm text-slate-100 font-medium leading-relaxed">${escapeHtml(err.message)}</div>
+      ${rawHtml}
+      <div class="text-xs text-amber-300/90 flex items-center gap-1.5 pt-1">
+        <span>💡 ${escapeHtml(err.action_hint || 'Vui lòng kiểm tra lại cấu hình API Key trong tab Cài đặt.')}</span>
+      </div>
+    </div>
+  `;
+
+  const conf = await antdConfirm({
+    title: err.title || 'Cảnh báo API Key',
+    content: contentHtml,
+    okText: 'Đến Cài đặt (Settings)',
+    cancelText: 'Đóng',
+    danger: isQuota
+  });
+
+  fetch('/api/dismiss-api-error', { method: 'POST' }).catch(() => {});
+
+  if (conf) {
+    if (typeof switchTab === 'function') switchTab('settings');
+    setTimeout(() => {
+      const navBtn = document.getElementById('settingsNav_api');
+      if (navBtn) {
+        navBtn.click();
+      } else if (typeof switchSettingsSidebarTab === 'function') {
+        switchSettingsSidebarTab('api');
+      }
+      const input = document.getElementById('input_gemini_api_key')
+        || document.getElementById('input_deepseek_api_key')
+        || document.getElementById('input_custom_api_key');
+      if (input) {
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        input.focus();
+      }
+    }, 120);
+  }
+}
+window.triggerApiErrorModal = triggerApiErrorModal;
 
 async function pollStatus() {
   try {
     const res = await fetch('/api/status');
     const data = await res.json();
+
+    if (data.latest_api_error && data.latest_api_error.id !== _lastShownApiErrorId) {
+      _lastShownApiErrorId = data.latest_api_error.id;
+      triggerApiErrorModal(data.latest_api_error);
+    }
 
     if (data.settings) {
       currentStudioSettings = Object.assign({}, currentStudioSettings, data.settings);
@@ -11336,13 +11493,13 @@ function renderNotificationList() {
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2 flex-wrap min-w-0 flex-1">
             ${tagBadge}
-            <span class="font-bold text-xs ${titleClass} notif-item-title transition truncate" style="${isUnread ? 'color: #1677ff !important;' : 'color: #94a3b8 !important;'}">
+            <span class="font-bold text-xs ${titleClass} notif-item-title transition truncate" style="${isUnread ? 'color: #1677ff !important;' : titleStyle + ' !important;'}">
               ${escapeHtml(item.title)}
             </span>
           </div>
           ${isUnread ? '<span class="w-2 h-2 rounded-full bg-[#199cff] shrink-0" title="Chưa đọc"></span>' : ''}
         </div>
-        <p class="text-[11.5px] ${isUnread ? 'text-slate-700' : 'text-slate-400'} leading-relaxed truncate" title="${escapeHtml(item.desc)}">
+        <p class="text-[11.5px] ${isUnread ? 'text-slate-700' : 'text-slate-600'} leading-relaxed truncate" title="${escapeHtml(item.desc)}">
           ${item.hash ? `<span class="font-mono text-blue-600 font-bold">${escapeHtml(item.hash)}: </span>` : ''}${escapeHtml(item.desc)}
         </p>
         ${(item.author || item.date || item.timestamp) ? `
@@ -14970,11 +15127,14 @@ function renderJiraIssuesList() {
   listEl.innerHTML = issues.map(item => {
     const isSelected = activeKey === item.key;
     const isDone = item.status_category === 'done' || /done|closed|resolved/i.test(item.status);
-    const isInProgress = item.status_category === 'indeterminate' || /in progress|doing|testing|review/i.test(item.status);
+    const isTesting = /testing|test|qa|uat/i.test(item.status);
+    const isInProgress = item.status_category === 'indeterminate' || /in progress|doing|review/i.test(item.status);
 
     let statusBadgeClass = 'jira-status-todo';
     if (isDone) {
       statusBadgeClass = 'jira-status-done';
+    } else if (isTesting) {
+      statusBadgeClass = 'jira-status-testing';
     } else if (isInProgress) {
       statusBadgeClass = 'jira-status-inprogress';
     }
@@ -15158,7 +15318,13 @@ async function selectJiraIssue(key, silent = false) {
       if (attSection && attList) {
         if (attachments.length > 0) {
           attSection.classList.remove('hidden');
+          // Reset trạng thái mở/đóng khi chuyển sang Ticket khác
+          if (window.jiraAttachmentsTicketKey !== issue.key) {
+            window.jiraAttachmentsTicketKey = issue.key;
+            window.jiraAttachmentsCollapsed = false;
+          }
           renderJiraAttachments(attachments, attList);
+          toggleJiraAttachments(window.jiraAttachmentsCollapsed !== true);
         } else {
           attSection.classList.add('hidden');
           attList.innerHTML = '';
@@ -15170,13 +15336,15 @@ async function selectJiraIssue(key, silent = false) {
       if (subtaskCount) subtaskCount.textContent = subtasks.length;
       if (subtasksList) {
         if (subtasks.length === 0) {
-          subtasksList.innerHTML = '<p class="text-[11px] text-slate-400 italic p-2.5 text-center">Chưa có Sub-task nào trên ticket này. Bấm "+ Tạo Sub-task" để thêm.</p>';
+          subtasksList.innerHTML = renderSubtasksEmptyState();
         } else {
           subtasksList.innerHTML = subtasks.map(st => {
             const isDone = st.status_category === 'done' || /done|closed|resolved/i.test(st.status);
-            const isInProgress = st.status_category === 'indeterminate' || /in progress|doing|testing|review/i.test(st.status);
+            const isTesting = /testing|test|qa|uat/i.test(st.status);
+            const isInProgress = st.status_category === 'indeterminate' || /in progress|doing|review/i.test(st.status);
             let statusClass = 'jira-status-todo';
             if (isDone) statusClass = 'jira-status-done';
+            else if (isTesting) statusClass = 'jira-status-testing';
             else if (isInProgress) statusClass = 'jira-status-inprogress';
 
             // Danh sách transitions khả dụng cho sub-task như Jira
@@ -15203,28 +15371,34 @@ async function selectJiraIssue(key, silent = false) {
             const displayLabel = st.assignee ? (isMe ? `${st.assignee} (Tôi)` : st.assignee) : 'Chưa gán';
 
             return `
-              <div class="jira-subtask-card p-2.5 rounded-lg bg-[#0c1628] border border-[#244170]/70 flex items-center justify-between gap-2.5 text-xs">
-                <div class="flex items-center gap-2 min-w-0">
-                  <a href="${escapeHtml(st.url || '#')}" target="_blank" class="font-mono text-[11px] font-bold text-blue-400 hover:underline shrink-0" title="Mở Sub-task trên Jira Cloud">
-                    ${escapeHtml(st.key)}
+              <div class="jira-subtask-card p-2.5 rounded-lg border flex items-center justify-between gap-3 text-xs ${isDone ? 'is-done' : ''}" data-subtask-card-key="${escapeHtml(st.key)}">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <a href="${escapeHtml(st.url || '#')}" target="_blank"
+                    class="jira-subtask-key-badge inline-flex items-center gap-1 font-mono text-[11px] font-bold px-2 py-0.5 rounded border shrink-0 transition"
+                    title="Mở Sub-task ${escapeHtml(st.key)} trên Jira Cloud">
+                    <svg class="w-3 h-3 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10M7 12h10M7 17h6" />
+                    </svg>
+                    <span>${escapeHtml(st.key)}</span>
                   </a>
-                  <span class="text-slate-200 truncate font-sans text-xs" title="${escapeHtml(st.summary)}">${escapeHtml(st.summary)}</span>
+                  <span class="jira-subtask-summary text-xs font-sans truncate font-medium ${isDone ? 'is-done line-through' : ''}"
+                    title="${escapeHtml(st.summary)}">${escapeHtml(st.summary)}</span>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                   <!-- Custom Assignee Trigger with Avatar & Name -->
                   <button type="button"
                     onclick="openSubtaskAssigneeMenu('${escapeHtml(st.key)}', event, this)"
                     data-subtask-key="${escapeHtml(st.key)}"
-                    class="jira-subtask-assignee-trigger inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#101e38] border border-[#244170] hover:border-[#1677ff] text-slate-200 text-xs font-sans cursor-pointer transition select-none max-w-[175px]"
+                    class="jira-subtask-assignee-trigger inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-sans cursor-pointer transition select-none max-w-[185px]"
                     title="Người thực hiện: ${escapeHtml(displayLabel)}${st.assignee_email ? ' (' + escapeHtml(st.assignee_email) + ')' : ''}">
-                    <span class="w-4 h-4 rounded-full bg-slate-700 overflow-hidden inline-flex items-center justify-center shrink-0 text-[9.5px] font-bold text-slate-200 subtask-avatar-box">
+                    <span class="w-4 h-4 rounded-full overflow-hidden inline-flex items-center justify-center shrink-0 text-[9.5px] font-bold subtask-avatar-box">
                       ${st.assignee_avatar
                         ? `<img src="${escapeHtml(st.assignee_avatar)}" class="w-full h-full object-cover rounded-full" alt="" />`
                         : (initial
                             ? escapeHtml(initial)
                             : `<svg class="w-2.5 h-2.5 text-slate-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>`)}
                     </span>
-                    <span class="truncate subtask-name-box text-[11px] font-medium text-slate-200">${escapeHtml(displayLabel)}</span>
+                    <span class="truncate subtask-name-box text-[11px] font-medium">${escapeHtml(displayLabel)}</span>
                     <svg class="w-3 h-3 text-slate-400 shrink-0 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                     </svg>
@@ -15241,10 +15415,20 @@ async function selectJiraIssue(key, silent = false) {
 
                   <select onchange="onSubtaskTransitionChange('${escapeHtml(st.key)}', this.value, this)"
                     data-current="${escapeHtml(st.status)}"
-                    class="jira-subtask-status-select text-[10px] font-sans font-semibold px-2 py-0.5 rounded border ${statusClass} cursor-pointer focus:outline-none"
+                    class="jira-subtask-status-select text-[10.5px] font-sans font-semibold px-2.5 py-1 rounded-md border ${statusClass} cursor-pointer focus:outline-none shadow-sm"
                     title="Chuyển trạng thái Sub-task">
                     ${transOptions}
                   </select>
+
+                  <!-- Nút Xóa Sub-task -->
+                  <button type="button"
+                    onclick="deleteJiraSubtask('${escapeHtml(st.key)}', '${escapeHtml(st.summary)}', this)"
+                    class="jira-subtask-delete-btn w-7 h-7 inline-flex items-center justify-center rounded-md border transition cursor-pointer shrink-0"
+                    title="Xóa Sub-task [${escapeHtml(st.key)}]">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             `;
@@ -15252,18 +15436,16 @@ async function selectJiraIssue(key, silent = false) {
         }
       }
 
-      // Render Transitions: chỉ người được gán (assignee) hoặc người tạo (reporter) mới được đổi trạng thái
+      // Render Transitions: Jira Cloud quyết định quyền chuyển trạng thái thực tế của tài khoản
       if (transitionSelect) {
-        const canTransition = (typeof issue.can_transition === 'boolean')
-          ? issue.can_transition
-          : (issue.is_mine !== false);
+        const canTransition = issue.can_transition !== false;
         const currentOpt = `<option value="" disabled selected>${escapeHtml(issue.status)} (Hiện tại)</option>`;
         if (!canTransition) {
           transitionSelect.innerHTML = currentOpt +
-            '<option value="" disabled>Chỉ người được gán hoặc người tạo ticket mới được đổi trạng thái</option>';
+            '<option value="" disabled>Không có quyền chuyển trạng thái</option>';
           transitionSelect.disabled = true;
           transitionSelect.classList.add('is-locked');
-          transitionSelect.title = 'Bạn không phải người được gán hoặc người tạo Ticket này nên không thể đổi trạng thái.';
+          transitionSelect.title = 'Tài khoản hiện tại không có quyền chuyển trạng thái Ticket này.';
         } else {
           const transOpts = (issue.transitions || []).map(t =>
             `<option value="${escapeHtml(t.id)}">→ Chuyển sang: ${escapeHtml(t.name || t.to_status)}</option>`
@@ -15303,6 +15485,25 @@ async function selectJiraIssue(key, silent = false) {
   }
 }
 window.selectJiraIssue = selectJiraIssue;
+
+/**
+ * Ẩn/Hiện phần Minh chứng video & Tệp đính kèm.
+ * forceExpanded: true = mở, false = đóng, bỏ trống = đảo trạng thái hiện tại.
+ */
+function toggleJiraAttachments(forceExpanded) {
+  const list = document.getElementById('jiraDetailAttachmentsList');
+  const chevron = document.getElementById('jiraAttachmentsChevron');
+  if (!list) return;
+
+  const willExpand = (typeof forceExpanded === 'boolean')
+    ? forceExpanded
+    : list.classList.contains('hidden');
+
+  list.classList.toggle('hidden', !willExpand);
+  if (chevron) chevron.classList.toggle('rotate-180', willExpand);
+  window.jiraAttachmentsCollapsed = !willExpand;
+}
+window.toggleJiraAttachments = toggleJiraAttachments;
 
 /**
  * Hiển thị video minh chứng và danh sách file đính kèm của Ticket Jira
@@ -15378,7 +15579,7 @@ window.renderJiraAttachments = renderJiraAttachments;
 
 function setJiraFilter(filterType) {
   window.activeJiraFilter = filterType;
-  const filters = ['all', 'story', 'bug', 'my', 'inprogress', 'todo', 'done'];
+  const filters = ['all', 'story', 'bug', 'my', 'inprogress', 'testing', 'todo', 'done'];
   filters.forEach(f => {
     const btn = document.getElementById('jiraFilterBtn_' + f);
     if (!btn) return;
@@ -15395,6 +15596,7 @@ function setJiraFilter(filterType) {
     'bug': 'Sửa lỗi (Bug)',
     'my': 'Task của tôi',
     'inprogress': 'Đang thực hiện',
+    'testing': 'Đang kiểm thử (Testing)',
     'todo': 'Cần làm',
     'done': 'Đã hoàn thành'
   };
@@ -15692,12 +15894,9 @@ async function onJiraTransitionChange(transitionId) {
 
   const select = document.getElementById('jiraDetailTransitionSelect');
 
-  // Chặn đổi trạng thái ticket không liên quan đến người dùng hiện tại
-  const canTransition = (typeof issue.can_transition === 'boolean')
-    ? issue.can_transition
-    : (issue.is_mine !== false);
-  if (!canTransition) {
-    showToast('Bạn chỉ có thể đổi trạng thái Ticket do mình tạo hoặc được gán cho mình.', 'error');
+  // Không chặn theo assignee/reporter ở client; Jira Cloud sẽ kiểm tra quyền thực tế.
+  if (issue.can_transition === false) {
+    showToast('Tài khoản hiện tại không có quyền chuyển trạng thái Ticket này.', 'error');
     if (select) select.selectedIndex = 0;
     return;
   }
@@ -16040,6 +16239,19 @@ function renderSubtaskAssigneeOptions(currentAccountId, currentDisplayName) {
 }
 window.renderSubtaskAssigneeOptions = renderSubtaskAssigneeOptions;
 
+function renderSubtasksEmptyState() {
+  return `
+    <div class="jira-subtasks-empty py-5 px-3 rounded-lg border border-dashed flex flex-col items-center justify-center gap-1.5 text-center">
+      <svg class="w-5 h-5 text-slate-400/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
+      <p class="text-[11.5px] font-sans text-slate-400 font-medium m-0">Chưa có Sub-task nào trên ticket này.</p>
+      <span class="text-[10.5px] font-sans text-slate-500">Bấm nút <span class="text-blue-500 font-medium">"+ Tạo Sub-task"</span> ở góc phải để thêm mới.</span>
+    </div>
+  `;
+}
+window.renderSubtasksEmptyState = renderSubtasksEmptyState;
+
 function updateSubtaskAssigneeDropdowns(subtasks) {
   if (!Array.isArray(subtasks)) return;
   subtasks.forEach(st => {
@@ -16260,9 +16472,9 @@ function populateJiraAssigneeCustomDropdown(selectedAccountId, selectedDisplayNa
         data-name="${escapeHtml((u.displayName || '').toLowerCase())} ${escapeHtml(emailStr.toLowerCase())}"
         class="jira-assignee-option flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition select-none ${isSelected ? 'is-selected' : ''}">
         <div class="flex items-center gap-2.5 min-w-0">
-          <span class="w-6 h-6 rounded-full bg-slate-700 overflow-hidden inline-flex items-center justify-center shrink-0 text-[10px] font-bold text-slate-200 border border-slate-600/40">
+          <span class="w-6 h-6 rounded-full bg-slate-700 overflow-hidden inline-flex items-center justify-center shrink-0 text-[10px] font-bold text-slate-200 ring-1 ring-white/10">
             ${avatarUrl
-              ? `<img src="${escapeHtml(avatarUrl)}" class="w-full h-full object-cover rounded-full" alt="" />`
+              ? `<img src="${escapeHtml(avatarUrl)}" class="block w-full h-full object-cover rounded-full" alt="" />`
               : escapeHtml(initial)}
           </span>
           <div class="min-w-0 flex-1">
@@ -16286,9 +16498,9 @@ function populateJiraAssigneeCustomDropdown(selectedAccountId, selectedDisplayNa
         data-name="${escapeHtml((selectedDisplayName || '').toLowerCase())}"
         class="jira-assignee-option is-selected flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition select-none">
         <div class="flex items-center gap-2.5 min-w-0">
-          <span class="w-6 h-6 rounded-full bg-slate-700 overflow-hidden inline-flex items-center justify-center shrink-0 text-[10px] font-bold text-slate-200 border border-slate-600/40">
+          <span class="w-6 h-6 rounded-full bg-slate-700 overflow-hidden inline-flex items-center justify-center shrink-0 text-[10px] font-bold text-slate-200 ring-1 ring-white/10">
             ${selectedAvatar
-              ? `<img src="${escapeHtml(selectedAvatar)}" class="w-full h-full object-cover rounded-full" alt="" />`
+              ? `<img src="${escapeHtml(selectedAvatar)}" class="block w-full h-full object-cover rounded-full" alt="" />`
               : escapeHtml(initial)}
           </span>
           <div class="min-w-0 flex-1">
@@ -16510,9 +16722,9 @@ function renderSubtaskFloatingOptions(subtaskKey, selectedAccountId) {
         data-name="${escapeHtml((u.displayName || '').toLowerCase())} ${escapeHtml(emailStr.toLowerCase())}"
         class="jira-assignee-option flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition select-none ${isSelected ? 'is-selected' : ''}">
         <div class="flex items-center gap-2.5 min-w-0">
-          <span class="w-6 h-6 rounded-full bg-slate-700 overflow-hidden inline-flex items-center justify-center shrink-0 text-[10px] font-bold text-slate-200 border border-slate-600/40">
+          <span class="w-6 h-6 rounded-full bg-slate-700 overflow-hidden inline-flex items-center justify-center shrink-0 text-[10px] font-bold text-slate-200 ring-1 ring-white/10">
             ${avatarUrl
-              ? `<img src="${escapeHtml(avatarUrl)}" class="w-full h-full object-cover rounded-full" alt="" />`
+              ? `<img src="${escapeHtml(avatarUrl)}" class="block w-full h-full object-cover rounded-full" alt="" />`
               : escapeHtml(initial)}
           </span>
           <div class="min-w-0 flex-1">
@@ -16921,6 +17133,80 @@ async function onSubtaskTransitionChange(subtaskKey, transitionVal, selectEl) {
 window.onSubtaskTransitionChange = onSubtaskTransitionChange;
 
 /**
+ * Xóa một Sub-task trên Jira Cloud
+ */
+async function deleteJiraSubtask(subtaskKey, subtaskSummary, btnEl) {
+  if (!subtaskKey) return;
+
+  const currentIssue = window.activeJiraIssue;
+  const parentKey = currentIssue ? currentIssue.key : '';
+
+  const confirmMsg = subtaskSummary
+    ? `Bạn có chắc chắn muốn xóa Sub-task [${subtaskKey}] "${subtaskSummary}"? Thao tác này sẽ xóa vĩnh viễn trên Jira Cloud.`
+    : `Bạn có chắc chắn muốn xóa vĩnh viễn Sub-task [${subtaskKey}] trên Jira Cloud không?`;
+
+  const confirmed = typeof antdConfirm === 'function'
+    ? await antdConfirm({
+        title: 'Xóa Sub-task',
+        content: confirmMsg,
+        okText: 'Xác nhận xóa',
+        danger: true
+      })
+    : window.confirm(confirmMsg);
+
+  if (!confirmed) return;
+
+  if (btnEl) {
+    btnEl.disabled = true;
+    btnEl.classList.add('opacity-50', 'cursor-not-allowed');
+  }
+
+  try {
+    const res = await fetch('/api/jira/delete-subtask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: subtaskKey })
+    });
+    const d = await res.json();
+    if (d && d.success) {
+      showToast(`Đã xóa Sub-task [${subtaskKey}] thành công!`, 'success');
+
+      // Cập nhật danh sách subtasks trong memory
+      if (window.activeJiraIssue && Array.isArray(window.activeJiraIssue.subtasks)) {
+        window.activeJiraIssue.subtasks = window.activeJiraIssue.subtasks.filter(s => s.key !== subtaskKey);
+        const subtaskCount = document.getElementById('jiraSubtaskCount');
+        if (subtaskCount) subtaskCount.textContent = window.activeJiraIssue.subtasks.length;
+      }
+
+      // Xóa card khỏi DOM ngay lập tức
+      const card = btnEl ? btnEl.closest('.jira-subtask-card') : document.querySelector(`.jira-subtask-card[data-subtask-card-key="${subtaskKey}"]`);
+      if (card) {
+        card.remove();
+        const subtasksList = document.getElementById('jiraSubtasksList');
+        if (subtasksList && subtasksList.querySelectorAll('.jira-subtask-card').length === 0) {
+          subtasksList.innerHTML = renderSubtasksEmptyState();
+        }
+      } else if (parentKey) {
+        selectJiraIssue(parentKey, true);
+      }
+    } else {
+      showToast((d && d.message) || `Lỗi khi xóa Sub-task [${subtaskKey}]`, 'error');
+      if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
+  } catch (err) {
+    showToast(`Lỗi kết nối khi xóa Sub-task: ${err.message}`, 'error');
+    if (btnEl) {
+      btnEl.disabled = false;
+      btnEl.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+  }
+}
+window.deleteJiraSubtask = deleteJiraSubtask;
+
+/**
  * Bật/tắt trạng thái đang gửi của nút xác nhận Tạo Sub-task (spinner + đổi nhãn).
  */
 function setSubtaskSubmitting(loading) {
@@ -16973,7 +17259,7 @@ async function checkJiraRealtimeUpdates() {
     const data = await res.json();
     if (data && data.success && Array.isArray(data.notifications) && data.notifications.length > 0) {
       let addedCount = 0;
-      data.notifications.forEach(notif => {
+      data.notifications.forEach((notif, idx) => {
         if (!notif || !notif.id) return;
         // Bỏ qua nếu là subtask do chính bản thân tạo (không cần thông báo)
         if (notif.key && window._selfCreatedSubtaskKeys && window._selfCreatedSubtaskKeys.has(notif.key)) {
@@ -17000,6 +17286,11 @@ async function checkJiraRealtimeUpdates() {
           });
           addedCount++;
         }
+
+        // Hiển thị toast card trượt ra từ góc trên bên phải màn hình
+        setTimeout(() => {
+          showJiraToastCard(notif);
+        }, idx * 160);
       });
 
       if (addedCount > 0) {
@@ -17018,38 +17309,182 @@ async function checkJiraRealtimeUpdates() {
 window.checkJiraRealtimeUpdates = checkJiraRealtimeUpdates;
 
 /**
- * @deprecated Thông báo Jira giờ được gộp vào Chuông thông báo (tab Jira),
- * không còn hiển thị toast nổi trên màn hình. Hàm giữ lại để tương thích ngược.
+ * Hiển thị Toast card thông báo Jira trượt từ góc trên bên phải màn hình
  */
+function showJiraToastCard(notif) {
+  if (!notif) return;
+
+  let container = document.getElementById('jiraToastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'jiraToastContainer';
+    container.className = 'fixed top-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none w-full max-w-sm sm:max-w-md';
+    container.setAttribute('aria-live', 'polite');
+    document.body.appendChild(container);
+  }
+
+  // Giới hạn tối đa 4 toast cùng lúc để không chiếm màn hình
+  while (container.children.length >= 4) {
+    const oldest = container.firstElementChild;
+    if (oldest) container.removeChild(oldest);
+    else break;
+  }
+
+  const rawId = notif.id || notif.key || Date.now();
+  const safeId = String(rawId).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const toastId = `jiraToast_${safeId}_${Math.random().toString(36).substring(2, 6)}`;
+
+  const isComment = notif.type === 'comment_added';
+  const issueKey = notif.key || '';
+  const notifType = notif.type || (isComment ? 'comment_added' : 'issue_created');
+
+  let badgeLabel = 'JIRA CLOUD';
+  let badgeColorClass = 'bg-[#1677ff]/15 text-[#60a5fa] border-[#1677ff]/30';
+  let typeIconSvg = `<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M11.53 2c0 2.4 1.97 4.35 4.4 4.35h1.78v1.7c0 2.4 1.94 4.34 4.36 4.35V2h-10.54zm-5.76 5.86c0 2.4 1.96 4.35 4.39 4.35h1.79v1.7c0 2.4 1.94 4.35 4.36 4.35V7.86H5.77zm-5.77 5.87c0 2.4 1.97 4.34 4.4 4.34h1.78v1.71c0 2.4 1.94 4.35 4.36 4.35v-10.4H0v-.002z"/></svg>`;
+
+  if (isComment) {
+    badgeLabel = 'BÌNH LUẬN MỚI';
+    badgeColorClass = 'bg-sky-500/15 text-sky-400 border-sky-500/30';
+    typeIconSvg = `<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>`;
+  } else if (notif.issuetype) {
+    badgeLabel = notif.issuetype.toUpperCase();
+  } else {
+    badgeLabel = 'TASK MỚI';
+  }
+
+  const cardTitle = isComment
+    ? (notif.author ? `${notif.author} vừa bình luận` : `Bình luận mới trên ${issueKey || 'Ticket'}`)
+    : (notif.summary || notif.title || `Cập nhật Jira ${issueKey}`);
+
+  let cardBody = '';
+  if (isComment) {
+    cardBody = notif.comment_body || notif.message || notif.summary || '';
+  } else {
+    if (notif.summary && notif.author) {
+      cardBody = `${notif.author} vừa tạo: ${notif.summary}`;
+    } else {
+      cardBody = notif.message || notif.summary || notif.title || '';
+    }
+  }
+
+  let timeStr = 'Vừa xong';
+  if (notif.created) {
+    try {
+      const dt = new Date(notif.created);
+      if (!isNaN(dt.getTime())) {
+        timeStr = dt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      }
+    } catch (e) { }
+  }
+
+  const toastCard = document.createElement('div');
+  toastCard.id = toastId;
+  toastCard.className = 'jira-notif-toast';
+  toastCard.setAttribute('role', 'alert');
+  toastCard.onclick = () => {
+    if (issueKey) {
+      onJiraNotificationClick(issueKey, notifType);
+    }
+    dismissJiraNotification(toastId);
+  };
+
+  toastCard.innerHTML = `
+    <div class="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-[#244170] jira-toast-divider">
+      <div class="flex items-center gap-1.5 min-w-0">
+        <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-[#1677ff]/20 text-[#1677ff] shrink-0">
+          ${typeIconSvg}
+        </span>
+        <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold border uppercase tracking-wider ${badgeColorClass}">
+          ${escapeHtml(badgeLabel)}
+        </span>
+        ${issueKey ? `<span class="px-1.5 py-0.2 rounded text-[11px] font-mono font-bold bg-[#1677ff]/20 text-[#60a5fa] border border-[#1677ff]/30 shrink-0">${escapeHtml(issueKey)}</span>` : ''}
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="text-[11px] text-slate-400 jira-toast-meta font-sans">${escapeHtml(timeStr)}</span>
+        <button type="button" class="jira-toast-close-btn p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+          title="Đóng thông báo" onclick="event.stopPropagation(); dismissJiraNotification('${toastId}');">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="mb-2.5">
+      <div class="text-[12.5px] font-semibold text-white jira-toast-title line-clamp-1 mb-1 font-sans leading-snug">
+        ${escapeHtml(cardTitle)}
+      </div>
+      <div class="text-[11.5px] text-slate-300 jira-toast-body line-clamp-2 font-sans leading-relaxed">
+        ${escapeHtml(cardBody)}
+      </div>
+    </div>
+    <div class="flex items-center justify-between pt-1.5 border-t border-[#1a3055] jira-toast-divider text-[11px]">
+      <span class="text-slate-400 jira-toast-meta flex items-center gap-1">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>Nhấp để mở chi tiết</span>
+      </span>
+      <button type="button" class="px-2.5 py-1 rounded bg-[#1677ff] hover:bg-[#0958d9] text-white font-medium text-[11px] transition shadow-sm flex items-center gap-1 cursor-pointer"
+        onclick="event.stopPropagation(); if ('${escapeHtml(issueKey)}') onJiraNotificationClick('${escapeHtml(issueKey)}', '${escapeHtml(notifType)}'); dismissJiraNotification('${toastId}');">
+        <span>Xem Ticket</span>
+        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </button>
+    </div>
+  `;
+
+  // Tự động đóng sau 8 giây (tạm dừng khi rê chuột)
+  let autoDismissTimer = setTimeout(() => {
+    dismissJiraNotification(toastId);
+  }, 8000);
+
+  toastCard.addEventListener('mouseenter', () => {
+    if (autoDismissTimer) clearTimeout(autoDismissTimer);
+  });
+  toastCard.addEventListener('mouseleave', () => {
+    autoDismissTimer = setTimeout(() => {
+      dismissJiraNotification(toastId);
+    }, 3500);
+  });
+
+  container.appendChild(toastCard);
+}
+window.showJiraToastCard = showJiraToastCard;
+
 function showJiraInteractiveNotification(notif) {
   if (!notif || !notif.key) return;
-  if (typeof addOrUpdateNotification !== 'function') return;
-  const notifId = `jira_${notif.id || notif.key}`;
-  if (typeof _savedNotifications !== 'undefined' && _savedNotifications.some(n => n.id === notifId)) return;
-  addOrUpdateNotification({
-    id: notifId,
-    tag: 'jira',
-    tagLabel: 'Jira',
-    title: notif.title || `Cập nhật Jira ${notif.key}`,
-    desc: notif.message || notif.summary || '',
-    issueKey: notif.key,
-    notifType: notif.type,
-    author: notif.author,
-    date: notif.created || new Date().toISOString(),
-    timestamp: notif.created ? (Date.parse(notif.created) || Date.now()) : Date.now()
-  });
-  if (typeof renderNotificationList === 'function') renderNotificationList();
+  if (typeof addOrUpdateNotification === 'function') {
+    const notifId = `jira_${notif.id || notif.key}`;
+    const exists = typeof _savedNotifications !== 'undefined' && _savedNotifications.some(n => n.id === notifId);
+    if (!exists) {
+      addOrUpdateNotification({
+        id: notifId,
+        tag: 'jira',
+        tagLabel: 'Jira',
+        title: notif.title || `Cập nhật Jira ${notif.key}`,
+        desc: notif.message || notif.summary || '',
+        issueKey: notif.key,
+        notifType: notif.type,
+        author: notif.author,
+        date: notif.created || new Date().toISOString(),
+        timestamp: notif.created ? (Date.parse(notif.created) || Date.now()) : Date.now()
+      });
+      if (typeof renderNotificationList === 'function') renderNotificationList();
+    }
+  }
+  showJiraToastCard(notif);
 }
 window.showJiraInteractiveNotification = showJiraInteractiveNotification;
 
 function dismissJiraNotification(elId) {
   const el = document.getElementById(elId);
   if (!el) return;
+  el.style.pointerEvents = 'none';
+  el.classList.add('jira-notif-toast-closing');
   el.style.opacity = '0';
-  el.style.transform = 'translateX(40px)';
+  el.style.transform = 'translateX(115%)';
   setTimeout(() => {
     if (el && el.parentNode) el.parentNode.removeChild(el);
-  }, 250);
+  }, 260);
 }
 window.dismissJiraNotification = dismissJiraNotification;
 
@@ -17818,6 +18253,9 @@ window.addEventListener('DOMContentLoaded', () => {
   restoreDraft();
   updateFixBugPromptPreview();
   setupDevHotReload();
+  if (typeof startJiraNotificationWatcher === 'function') {
+    startJiraNotificationWatcher();
+  }
 
   setInterval(() => {
     checkSyncPullUpdates(true);

@@ -590,7 +590,7 @@ async function startSingleTaskById(taskId) {
           skills: task.skills,
           skill: task.skills.join(', '),
           scope: task.target || 'both',
-          description: formattedPrompt,
+          description: task.prompt || formattedPrompt,
           original_prompt: task.original_prompt || task.prompt || '',
           error_log: task.error_log
         })
@@ -613,7 +613,7 @@ async function startSingleTaskById(taskId) {
           mode: mode,
           engine: currentStudioSettings.engine || 'gemini_cli',
           effort: task.effort || currentStudioSettings.effort || 'high',
-          prompt: formattedPrompt,
+          prompt: task.prompt || formattedPrompt,
           original_prompt: task.original_prompt || task.prompt || '',
           error_log: task.error_log,
           target: task.target || 'both',
@@ -1813,6 +1813,64 @@ function renderFeedView(data) {
   });
 }
 
+async function startContinuationTask(task, followUp) {
+  if (!task) return;
+  const anyRunning = parallelTasks.some(t => t.status === 'running' && t.id !== task.id);
+  task.status = anyRunning ? 'queued' : 'running';
+  renderParallelTaskTabs();
+  updateTaskActionButtons();
+
+  const followText = (followUp || '').trim() || 'Tiếp tục kiểm tra và hoàn thiện task này.';
+  const goal = (task.original_prompt || task.prompt || '').trim();
+  const isFix = task.type === 'fixbug';
+  const common = {
+    task_id: task.id,
+    title: task.name,
+    engine: currentStudioSettings.engine || 'gemini_cli',
+    effort: task.effort || currentStudioSettings.effort || 'high',
+    skills: task.skills || [],
+    skill: (task.skills || []).join(', '),
+    original_prompt: goal,
+    error_log: '',
+    continuation: true
+  };
+
+  try {
+    const res = await fetch(isFix ? '/api/fixbug' : '/api/task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(isFix ? Object.assign({}, common, {
+        mode: 'fixbug',
+        scope: task.target || 'both',
+        description: followText
+      }) : Object.assign({}, common, {
+        mode: task.type || 'task',
+        prompt: followText,
+        target: task.target || 'both',
+        starter: 'fe',
+        rounds: 1
+      }))
+    });
+    const d = await res.json();
+    if (!d.success) {
+      task.status = 'idle';
+      await antdAlert({ title: 'Lỗi', content: d.message, type: 'error' });
+    } else {
+      task.status = d.queue_status === 'queued' ? 'queued' : 'running';
+      showToast(d.message || 'Đã gửi yêu cầu tiếp theo xuống AI Terminal', 'success');
+    }
+  } catch (e) {
+    task.status = 'idle';
+    await antdAlert({ title: 'Lỗi kết nối', content: e.message, type: 'error' });
+  }
+  if (task.status === 'idle') {
+    await syncQueueToServer();
+  }
+  renderParallelTaskTabs();
+  updateTaskActionButtons();
+  pollStatus();
+}
+
 async function continueTaskFromFeed(taskId) {
   let task = parallelTasks.find(t => t.id === taskId);
   if (!task) {
@@ -1823,24 +1881,82 @@ async function continueTaskFromFeed(taskId) {
 
   const inputEl = document.getElementById('continueInput_' + taskId);
   const followUp = inputEl ? inputEl.value.trim() : '';
-  if (followUp) {
-    if (!task.original_prompt && task.prompt) {
-      task.original_prompt = task.prompt;
-    }
-    task.prompt = followUp;
-    if (inputEl) inputEl.value = '';
-  } else if (!task.prompt) {
-    task.prompt = 'Tiếp tục kiểm tra và sửa hoàn thiện code cho task này.';
+  if (!followUp && !task.prompt && !task.error_log) {
+    showToast('Vui lòng nhập nội dung cần hỏi hoặc tiếp tục.', 'warning');
+    return;
   }
+  if (!task.original_prompt) {
+    task.original_prompt = task.prompt || '';
+  }
+  if (inputEl) inputEl.value = '';
   activeTaskId = task.id;
-  loadTaskToForm(task.id);
-  await startSingleTaskById(task.id);
+  // Tiếp tục = một lượt hội thoại tiếp theo trong cùng phiên, KHÔNG chạy lại toàn bộ task
+  // và KHÔNG nạp lại skill tác vụ ban đầu.
+  await startContinuationTask(task, followUp);
 }
+
+let _lastShownApiErrorId = null;
+
+async function triggerApiErrorModal(err) {
+  if (!err) return;
+  showToast(`${err.title}: ${err.message}`, 'error');
+
+  const isQuota = err.error_type === 'quota_exceeded';
+  const rawHtml = err.raw_error ? `
+    <div class="mt-2.5 p-2.5 rounded-lg bg-[#160b13] border border-rose-800/60 text-rose-300 font-mono text-[11px] leading-relaxed break-all max-h-32 overflow-y-auto">
+      ${escapeHtml(err.raw_error)}
+    </div>` : '';
+
+  const contentHtml = `
+    <div class="space-y-2.5 text-left font-sans">
+      <div class="text-sm text-slate-100 font-medium leading-relaxed">${escapeHtml(err.message)}</div>
+      ${rawHtml}
+      <div class="text-xs text-amber-300/90 flex items-center gap-1.5 pt-1">
+        <span>💡 ${escapeHtml(err.action_hint || 'Vui lòng kiểm tra lại cấu hình API Key trong tab Cài đặt.')}</span>
+      </div>
+    </div>
+  `;
+
+  const conf = await antdConfirm({
+    title: err.title || 'Cảnh báo API Key',
+    content: contentHtml,
+    okText: 'Đến Cài đặt (Settings)',
+    cancelText: 'Đóng',
+    danger: isQuota
+  });
+
+  fetch('/api/dismiss-api-error', { method: 'POST' }).catch(() => {});
+
+  if (conf) {
+    if (typeof switchTab === 'function') switchTab('settings');
+    setTimeout(() => {
+      const navBtn = document.getElementById('settingsNav_api');
+      if (navBtn) {
+        navBtn.click();
+      } else if (typeof switchSettingsSidebarTab === 'function') {
+        switchSettingsSidebarTab('api');
+      }
+      const input = document.getElementById('input_gemini_api_key')
+        || document.getElementById('input_deepseek_api_key')
+        || document.getElementById('input_custom_api_key');
+      if (input) {
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        input.focus();
+      }
+    }, 120);
+  }
+}
+window.triggerApiErrorModal = triggerApiErrorModal;
 
 async function pollStatus() {
   try {
     const res = await fetch('/api/status');
     const data = await res.json();
+
+    if (data.latest_api_error && data.latest_api_error.id !== _lastShownApiErrorId) {
+      _lastShownApiErrorId = data.latest_api_error.id;
+      triggerApiErrorModal(data.latest_api_error);
+    }
 
     if (data.settings) {
       currentStudioSettings = Object.assign({}, currentStudioSettings, data.settings);
