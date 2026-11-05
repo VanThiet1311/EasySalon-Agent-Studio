@@ -281,6 +281,42 @@ function navigateToGitCheckoutBranch(branchName) {
 }
 window.navigateToGitCheckoutBranch = navigateToGitCheckoutBranch;
 
+/**
+ * Mở modal xem trước ảnh phóng to (Lightbox Modal)
+ */
+function openImagePreviewModal(url, title = '') {
+  if (!url) return;
+  const root = document.getElementById('imagePreviewModalRoot');
+  const img = document.getElementById('imagePreviewModalImg');
+  const titleEl = document.getElementById('imagePreviewModalTitle');
+  const link = document.getElementById('imagePreviewModalLink');
+  if (!root || !img) return;
+
+  img.src = url;
+  if (titleEl) titleEl.textContent = title || 'Ảnh minh chứng';
+  if (link) link.href = url;
+  root.classList.remove('hidden');
+}
+window.openImagePreviewModal = openImagePreviewModal;
+
+/**
+ * Đóng modal xem trước ảnh
+ */
+function closeImagePreviewModal() {
+  const root = document.getElementById('imagePreviewModalRoot');
+  const img = document.getElementById('imagePreviewModalImg');
+  if (!root) return;
+  root.classList.add('hidden');
+  if (img) img.src = '';
+}
+window.closeImagePreviewModal = closeImagePreviewModal;
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeImagePreviewModal();
+  }
+});
+
 
 const TABS = ['task', 'jira', 'branch', 'log', 'notes', 'diagram', 'settings'];
 let activeTab = 'task';
@@ -1380,6 +1416,7 @@ function populateOpenCodeModelSelects(models) {
   const otherModels = [];
   const seenIds = new Set();
   const variantMap = {};
+  const effortSupportMap = {};
 
   (models || []).forEach(m => {
     const rawId = m.id || '';
@@ -1389,8 +1426,13 @@ function populateOpenCodeModelSelects(models) {
     if (Array.isArray(m.raw_variants) && m.raw_variants.length) {
       variantMap[cleanId] = m.raw_variants;
     }
+    const hasVariant = Array.isArray(m.raw_variants) && m.raw_variants.some(
+      v => v !== cleanId && /-(low|medium|high|xhigh|max)$/i.test(v)
+    );
+    effortSupportMap[cleanId] = Boolean(m.effort_supported) || hasVariant;
   });
   window._openCodeVariantMap = variantMap;
+  window._openCodeEffortSupportMap = effortSupportMap;
 
   (models || []).forEach(m => {
     const rawId = m.id || '';
@@ -1659,16 +1701,6 @@ function resolveEffectiveOpenCodeModel(baseModel, effort) {
   const isFree = /free/i.test(raw);
   const isAgent = /-agent$/i.test(raw);
 
-  if (isAgent || isFree) {
-    const cleanRaw = raw.replace(/-(low|medium|high|xhigh|max)$/i, '');
-    return {
-      effective: cleanRaw,
-      supportsEffort: false,
-      isFree: isFree,
-      baseModel: cleanRaw
-    };
-  }
-
   const prefixMatch = raw.match(/^(9router\/|opencode\/)/i);
   const prefix = prefixMatch ? prefixMatch[0] : '';
   const rawId = prefix ? raw.slice(prefix.length) : raw;
@@ -1681,31 +1713,44 @@ function resolveEffectiveOpenCodeModel(baseModel, effort) {
   const variantMap = window._openCodeVariantMap || {};
   const variants = variantMap[prefix + baseId] || variantMap[baseId] || variantMap['9router/ag/' + baseId] || variantMap['ag/' + baseId] || null;
 
-  let effectiveId = `${baseId}-${eff}`;
-  let supportsEffort = heuristics;
+  // Model có hỗ trợ reasoning effort gốc (thinkingEffortSupported) dù không có biến thể tên model
+  const effortSupportMap = window._openCodeEffortSupportMap || {};
+  const nativeEffort = effortSupportMap[prefix + baseId] ?? effortSupportMap[baseId] ?? effortSupportMap['9router/' + baseId] ?? false;
 
-  if (Array.isArray(variants) && variants.length) {
-    const hasEffortVariant = variants.some(v => v !== baseId && /-(low|medium|high|xhigh|max)$/i.test(v));
-    supportsEffort = heuristics || hasEffortVariant;
-    if (variants.includes(`${baseId}-${eff}`)) {
+  let effectiveId = baseId;
+  let usesVariant = false;
+
+  if (!isFree && !isAgent) {
+    if (Array.isArray(variants) && variants.length) {
+      const matchEffort = (level) => variants.find(v => v !== baseId && new RegExp(`-${level}$`, 'i').test(v));
+      const preferred = matchEffort(eff);
+      if (preferred) {
+        effectiveId = preferred;
+        usesVariant = true;
+      } else {
+        const hasAnyEffortVariant = variants.some(v => v !== baseId && /-(low|medium|high|xhigh|max)$/i.test(v));
+        if (hasAnyEffortVariant) {
+          const fallback = ['high', 'medium', 'low', 'xhigh', 'max'].map(matchEffort).find(Boolean);
+          if (fallback) {
+            effectiveId = fallback;
+            usesVariant = true;
+          }
+        }
+      }
+    } else if (heuristics) {
+      // Khi chưa tải được danh sách biến thể, dùng hậu tố cho các họ model hỗ trợ effort.
       effectiveId = `${baseId}-${eff}`;
-    } else if (variants.includes(`ag/${baseId}-${eff}`)) {
-      effectiveId = `ag/${baseId}-${eff}`;
-    } else if (variants.includes(baseId)) {
-      effectiveId = supportsEffort ? `${baseId}-${eff}` : baseId;
-    } else {
-      effectiveId = ['high', 'medium', 'low', 'xhigh', 'max']
-        .map(e => `${baseId}-${e}`)
-        .find(v => variants.includes(v)) || (supportsEffort ? `${baseId}-${eff}` : baseId);
+      usesVariant = true;
     }
-  } else if (!heuristics) {
-    effectiveId = baseId;
   }
 
   return {
     effective: prefix + effectiveId,
-    supportsEffort,
-    isFree: false,
+    supportsEffort: true,
+    usesVariant: usesVariant,
+    modelSupportsEffort: Boolean(usesVariant || nativeEffort || heuristics),
+    isFree: isFree,
+    isAgent: isAgent,
     baseModel: prefix + baseId
   };
 }
@@ -1720,41 +1765,32 @@ function updateDynamicEffortPanel(res) {
 
   const isOpencode = (currentStudioSettings.engine === 'opencode');
 
+  // Luôn hiển thị bộ chọn Effort cho mọi model/engine. Với model không có
+  // biến thể effort, lựa chọn vẫn được lưu và đồng bộ vào cấu hình (reasoningEffort).
+  if (cardsGrid) cardsGrid.classList.remove('hidden');
+
   if (isOpencode) {
-    if (res && res.supportsEffort) {
-      if (titleEl) {
-        const isGemini = (res.baseModel || '').toLowerCase().includes('gemini') || (res.baseModel || '').toLowerCase().includes('argon');
-        titleEl.textContent = isGemini ? 'Mức độ suy luận cho Gemini (OpenCode):' : `Mức độ suy luận cho ${escapeHtml(res.baseModel)}:`;
-      }
-      if (cardsGrid) cardsGrid.classList.remove('hidden');
-      if (noticeEl) noticeEl.classList.add('hidden');
-    } else {
-      const modelName = (res && res.baseModel) || currentStudioSettings.opencode_model || 'Mô hình cố định';
-      const isFree = (res && res.isFree) || (/free/i.test(modelName));
-      if (titleEl) {
-        titleEl.textContent = isFree
-          ? `Mô hình Miễn phí (${modelName}): Tiêu chuẩn (Không áp dụng mức suy luận)`
-          : `Mô hình tiêu chuẩn (${modelName}): Không áp dụng mức suy luận`;
-      }
-      if (cardsGrid) cardsGrid.classList.add('hidden');
-      if (noticeEl) {
+    const modelName = (res && res.baseModel) || currentStudioSettings.opencode_model || 'OpenCode';
+    const isGemini = /gemini|argon/i.test(modelName);
+    if (titleEl) {
+      titleEl.textContent = isGemini ? 'Mức độ suy luận cho Gemini (OpenCode):' : `Mức độ suy luận cho ${modelName}:`;
+    }
+    if (noticeEl) {
+      if (res && res.modelSupportsEffort === false) {
         noticeEl.classList.remove('hidden');
         if (noticeTitle) {
-          noticeTitle.textContent = isFree
-            ? `Mô hình Miễn phí ${modelName} (Free - Không tốn token)`
-            : `Mô hình ${modelName} hoạt động ở chế độ tiêu chuẩn`;
+          noticeTitle.textContent = `Mô hình ${modelName} chưa hỗ trợ chia mức suy luận gốc`;
         }
         if (noticeDesc) {
-          noticeDesc.textContent = isFree
-            ? `Mô hình này là mô hình miễn phí (Free model) từ OpenCode / 9router, hoạt động cố định ở mức suy luận tiêu chuẩn và không hỗ trợ chọn Low / Medium / High. Mọi tác vụ được xử lý phản hồi trực tiếp nhanh nhất.`
-            : `Mô hình này hoạt động ở chế độ tiêu chuẩn mặc định, không hỗ trợ phân mức suy luận Low / Medium / High.`;
+          noticeDesc.textContent = 'Lựa chọn Effort vẫn được lưu và đồng bộ vào cấu hình OpenCode (thuộc tính reasoningEffort) cùng Gemini CLI. Khi chuyển sang mô hình hỗ trợ, mức đã chọn sẽ được áp dụng ngay.';
         }
+      } else {
+        noticeEl.classList.add('hidden');
       }
     }
   } else {
     // gemini_cli
     if (titleEl) titleEl.textContent = 'Mức độ suy luận cho Gemini CLI:';
-    if (cardsGrid) cardsGrid.classList.remove('hidden');
     if (noticeEl) noticeEl.classList.add('hidden');
   }
 }
@@ -1786,13 +1822,13 @@ function updateQuickOpencodeDisplay(effort) {
   if (activeModelEffortBadge) {
     if (res.isFree) {
       activeModelEffortBadge.textContent = 'Mô hình Miễn phí / Tiêu chuẩn';
-      activeModelEffortBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/60';
+      activeModelEffortBadge.className = 'text-[10px] font-sans font-bold px-2 py-0.5 rounded bg-emerald-800 text-emerald-100 border border-emerald-600 shadow-sm';
     } else if (res.supportsEffort) {
       activeModelEffortBadge.textContent = `Suy luận: ${eff.toUpperCase()}`;
-      activeModelEffortBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-blue-900/60 text-blue-200 border border-blue-700/60';
+      activeModelEffortBadge.className = 'text-[10px] font-sans font-bold px-2 py-0.5 rounded bg-blue-800 text-white border border-blue-600 shadow-sm';
     } else {
       activeModelEffortBadge.textContent = 'Mô hình Tiêu chuẩn';
-      activeModelEffortBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700';
+      activeModelEffortBadge.className = 'text-[10px] font-sans font-bold px-2 py-0.5 rounded bg-slate-700 text-slate-200 border border-slate-600 shadow-sm';
     }
   }
 
@@ -1800,7 +1836,7 @@ function updateQuickOpencodeDisplay(effort) {
   if (badgeEl) {
     if (res.isFree) {
       badgeEl.textContent = 'Mô hình Miễn phí / Tiêu chuẩn (Không tốn token)';
-      badgeEl.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/60';
+      badgeEl.className = 'text-[10px] font-sans font-bold px-2 py-0.5 rounded bg-emerald-800 text-emerald-100 border border-emerald-600 shadow-sm';
     } else if (res.supportsEffort) {
       const effLabels = {
         'low': 'Suy luận: Low (Tốc độ cao)',
@@ -1810,32 +1846,32 @@ function updateQuickOpencodeDisplay(effort) {
         'max': 'Suy luận: Maximum'
       };
       badgeEl.textContent = effLabels[eff] || `Suy luận: ${eff.toUpperCase()}`;
-      badgeEl.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-blue-900/60 text-blue-200 border border-blue-700/60';
+      badgeEl.className = 'text-[10px] font-sans font-bold px-2 py-0.5 rounded bg-blue-800 text-white border border-blue-600 shadow-sm';
     } else {
       badgeEl.textContent = 'Mô hình Tiêu chuẩn (Không áp dụng suy luận)';
-      badgeEl.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700';
+      badgeEl.className = 'text-[10px] font-sans font-bold px-2 py-0.5 rounded bg-slate-700 text-slate-200 border border-slate-600 shadow-sm';
     }
   }
 
   const descEl = document.getElementById('quickOpencodeActiveDesc');
   if (descEl) {
     if (res.isFree) {
-      descEl.textContent = 'Mô hình miễn phí (Free) không tốn token và hoạt động ở chế độ tiêu chuẩn, không chia mức suy luận.';
-    } else if (res.supportsEffort) {
-      descEl.textContent = 'Mô hình thực thi tự động áp dụng mức suy luận đã chọn (Low / Medium / High) bên dưới.';
+      descEl.textContent = 'Mô hình miễn phí (Free) không tốn token. Mức suy luận đã chọn vẫn được lưu và đồng bộ vào cấu hình.';
+    } else if (res.modelSupportsEffort === false) {
+      descEl.textContent = `Mức suy luận ${eff.toUpperCase()} được lưu và đồng bộ vào cấu hình OpenCode (reasoningEffort) / Gemini CLI; model hiện tại chưa hỗ trợ gốc.`;
     } else {
-      descEl.textContent = 'Mô hình cố định không hỗ trợ chia mức suy luận.';
+      descEl.textContent = 'Mô hình thực thi tự động áp dụng mức suy luận đã chọn (Low / Medium / High) bên dưới.';
     }
   }
 
   const pageDescEl = document.getElementById('pageModelActiveDesc');
   if (pageDescEl) {
     if (res.isFree) {
-      pageDescEl.textContent = 'Mô hình miễn phí (Free) không tốn token và hoạt động ở chế độ tiêu chuẩn, không chia mức suy luận.';
-    } else if (res.supportsEffort) {
-      pageDescEl.textContent = `Mô hình thực thi tự động áp dụng mức suy luận đã chọn (${eff.toUpperCase()}) trong tab Effort.`;
+      pageDescEl.textContent = 'Mô hình miễn phí (Free) không tốn token. Mức suy luận đã chọn vẫn được lưu và đồng bộ vào cấu hình OpenCode / Gemini CLI.';
+    } else if (res.modelSupportsEffort === false) {
+      pageDescEl.textContent = `Mức suy luận ${eff.toUpperCase()} được lưu và đồng bộ vào cấu hình OpenCode (reasoningEffort) / Gemini CLI; model hiện tại chưa hỗ trợ gốc.`;
     } else {
-      pageDescEl.textContent = 'Mô hình cố định không hỗ trợ chia mức suy luận.';
+      pageDescEl.textContent = `Mô hình thực thi tự động áp dụng mức suy luận đã chọn (${eff.toUpperCase()}) trong tab Effort.`;
     }
   }
 
@@ -2047,7 +2083,10 @@ function updateEffortUI(effort) {
       else btn.classList.remove('is-active');
     }
     if (panel) {
-      if (f === currentModelFamily) panel.classList.remove('hidden');
+      // Với OpenCode chỉ có panel Effort Gemini trong DOM, luôn hiển thị panel này
+      // để bộ chọn Effort không bị ẩn khi model family cũ là claude/openai.
+      const shouldShow = (f === currentModelFamily) || (f === 'gemini' && currentStudioSettings.engine === 'opencode');
+      if (shouldShow) panel.classList.remove('hidden');
       else panel.classList.add('hidden');
     }
   });
@@ -2062,11 +2101,13 @@ function updateEffortUI(effort) {
     accActiveModel.textContent = currentStudioSettings.model || geminiCliStatus.cli_model || 'Gemini 3.8 Flash (High)';
   }
 
+  const usePrimaryEffortCards = (currentModelFamily === 'gemini') || (currentStudioSettings.engine === 'opencode');
+
   ['low', 'medium', 'high'].forEach(lvl => {
     const card = document.getElementById('page_card_effort_' + lvl);
     const radio = card ? card.querySelector('input[type="radio"]') : null;
     if (card) {
-      if (lvl === eff && currentModelFamily === 'gemini') {
+      if (lvl === eff && usePrimaryEffortCards) {
         if (radio) radio.checked = true;
         card.classList.add('is-active');
       } else {
@@ -2250,6 +2291,9 @@ window.markSettingsDirty = markSettingsDirty;
 
 function onSettingsOptionChanged(tab = null) {
   markSettingsDirty(true, tab);
+  if (tab === 'api') {
+    updateApiKeyBadges(currentStudioSettings);
+  }
 }
 window.onSettingsOptionChanged = onSettingsOptionChanged;
 
@@ -2307,6 +2351,9 @@ function switchSettingsSidebarTab(tab, updateHistory = true) {
   if (tab === 'mcp') {
     reorderMcpPresetCards(_cachedMcpServers || window.currentMcpServers || []);
     fetchMcpServers(false);
+  }
+  if (tab === 'api') {
+    updateApiUI(currentStudioSettings);
   }
   if (tab === 'effort' || tab === 'model' || tab === 'engine') {
     if (currentStudioSettings.engine === 'opencode') {
@@ -2573,13 +2620,32 @@ function renderMcpServers(servers) {
         : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded is-connected';
     }
     if (cardPresetMysql) cardPresetMysql.classList.remove('is-unconfigured');
+
+    // Cấu hình MySQL MCP lưu qua biến môi trường (MYSQL_HOST/PORT/USER/PASS/DB)
+    const env = mysqlServer.env || {};
+    const hostEl = document.getElementById('input_mysql_host');
+    const portEl = document.getElementById('input_mysql_port');
+    const userEl = document.getElementById('input_mysql_user');
+    const passEl = document.getElementById('input_mysql_password');
+    const dbEl = document.getElementById('input_mysql_database');
+    const sslEl = document.getElementById('input_mysql_ssl');
     const urlInput = document.getElementById('input_mysql_url');
-    if (Array.isArray(mysqlServer.args) && mysqlServer.args.length > 0) {
-      const connStr = mysqlServer.args.find(a => typeof a === 'string' && a.startsWith('mysql'));
-      if (connStr) {
-        if (urlInput && !urlInput.value) urlInput.value = connStr;
-        syncMysqlUrlToFields(connStr);
-      }
+
+    if (env.MYSQL_HOST && hostEl && !hostEl.value) hostEl.value = env.MYSQL_HOST;
+    if (env.MYSQL_PORT && portEl && (!portEl.value || portEl.value === '3306')) portEl.value = env.MYSQL_PORT;
+    if (env.MYSQL_USER && userEl && (!userEl.value || userEl.value === 'root')) userEl.value = env.MYSQL_USER;
+    if (env.MYSQL_PASS && passEl && !passEl.value) passEl.value = env.MYSQL_PASS;
+    if (env.MYSQL_DB && dbEl && !dbEl.value) dbEl.value = env.MYSQL_DB;
+    if (sslEl && env.MYSQL_SSL !== undefined) sslEl.checked = String(env.MYSQL_SSL).toLowerCase() !== 'false';
+
+    if (urlInput && !urlInput.value && hostEl && hostEl.value) {
+      urlInput.value = buildMysqlUrl({
+        host: hostEl.value,
+        port: portEl ? portEl.value : '3306',
+        user: userEl ? userEl.value : 'root',
+        password: passEl ? passEl.value : '',
+        database: dbEl ? dbEl.value : ''
+      });
     }
   } else {
     if (btnToggleMysqlFooter) btnToggleMysqlFooter.classList.add('hidden');
@@ -2595,7 +2661,7 @@ function renderMcpServers(servers) {
     if (cardPresetMysql) cardPresetMysql.classList.add('is-unconfigured');
   }
 
-  // 5. GitLab
+  // 6. GitLab
   const gitlabServer = (servers || []).find(s => s.name === 'gitlab' || s.preset === 'gitlab');
   const cardPresetGitlab = document.getElementById('cardPreset_gitlab');
   const gitlabBadge = document.getElementById('gitlabSyncStatusBadge');
@@ -2647,7 +2713,7 @@ function renderMcpServers(servers) {
     if (cardPresetGitlab) cardPresetGitlab.classList.add('is-unconfigured');
   }
 
-  // 6. Slack
+  // 7. Slack
   const slackServer = (servers || []).find(s => s.name === 'slack' || s.preset === 'slack');
   const cardPresetSlack = document.getElementById('cardPreset_slack');
   const slackBadge = document.getElementById('slackSyncStatusBadge');
@@ -2699,7 +2765,7 @@ function renderMcpServers(servers) {
     if (cardPresetSlack) cardPresetSlack.classList.add('is-unconfigured');
   }
 
-  // 7. Custom
+  // 8. Custom
   const customBadge = document.getElementById('badgePreset_custom');
   if (customBadge) {
     const customServers = (servers || []).filter(s => !['jira', 'github', 'postgres', 'mysql', 'gitlab', 'slack'].includes(s.name) && s.preset !== 'jira');
@@ -3571,6 +3637,7 @@ async function saveGitlabMcp(btn) {
   }
 }
 
+// Backward compatibility aliases
 function parseMysqlUrl(urlStr) {
   if (!urlStr || typeof urlStr !== 'string') return null;
   const trimmed = urlStr.trim();
@@ -3667,6 +3734,7 @@ async function testMysqlConnection(btn) {
   const user = document.getElementById('input_mysql_user')?.value?.trim() || '';
   const password = document.getElementById('input_mysql_password')?.value || '';
   const database = document.getElementById('input_mysql_database')?.value?.trim() || '';
+  const ssl = document.getElementById('input_mysql_ssl')?.checked !== false;
   const resultBox = document.getElementById('mysqlTestStatusResult');
 
   if (!url && !host && !user) {
@@ -3699,7 +3767,7 @@ async function testMysqlConnection(btn) {
     const res = await fetch('/api/mcp/test-mysql', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, host, port, user, password, database })
+      body: JSON.stringify({ url, host, port, user, password, database, ssl })
     });
     const d = await res.json();
     if (d && d.success) {
@@ -3755,6 +3823,7 @@ async function saveMysqlMcp(btn) {
   const user = document.getElementById('input_mysql_user')?.value?.trim() || '';
   const password = document.getElementById('input_mysql_password')?.value || '';
   const database = document.getElementById('input_mysql_database')?.value?.trim() || '';
+  const ssl = document.getElementById('input_mysql_ssl')?.checked !== false;
 
   if (!url && (host || user)) {
     url = buildMysqlUrl({ host, port, user, password, database });
@@ -3774,7 +3843,7 @@ async function saveMysqlMcp(btn) {
     const res = await fetch('/api/mcp/add-mysql', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, host, port, user, password, database, name: 'mysql' })
+      body: JSON.stringify({ url, host, port, user, password, database, ssl, name: 'mysql' })
     });
     const d = await res.json();
     if (d && d.success) {
@@ -4077,15 +4146,26 @@ window.saveCustomMcp = saveCustomMcp;
 window.removeMcpServer = removeMcpServer;
 window.toggleMcpServer = toggleMcpServer;
 
-function selectActiveApiProvider(provider) {
+function selectActiveApiProvider(provider, isUserClick = false) {
   if (!['gemini', 'claude', 'openai', 'deepseek', 'custom'].includes(provider)) provider = 'gemini';
   currentStudioSettings.api_provider = provider;
 
   ['gemini', 'claude', 'openai', 'deepseek', 'custom'].forEach(p => {
+    // 1. Cập nhật thẻ chọn overview ở trên
     const btn = document.getElementById('btn_provider_' + p);
     if (btn) {
       if (p === provider) btn.classList.add('is-active');
       else btn.classList.remove('is-active');
+    }
+
+    // 2. Chỉ hiển thị card của provider đang chọn, ẩn các card còn lại
+    const card = document.getElementById('apiConfigCard_' + p);
+    if (card) {
+      if (p === provider) {
+        card.classList.remove('hidden');
+      } else {
+        card.classList.add('hidden');
+      }
     }
   });
 
@@ -4101,9 +4181,56 @@ function selectActiveApiProvider(provider) {
     tag.textContent = labels[provider] || provider.toUpperCase();
   }
 
-  markSettingsDirty(true, 'api');
+  if (isUserClick) {
+    markSettingsDirty(true, 'api');
+  }
 }
 window.selectActiveApiProvider = selectActiveApiProvider;
+
+function isProviderConnected(provider, settings) {
+  if (!settings) settings = currentStudioSettings || {};
+  if (provider === 'gemini') {
+    const val = (document.getElementById('input_gemini_api_key')?.value || settings.gemini_api_key || '').trim();
+    return !!val;
+  }
+  if (provider === 'claude') {
+    const val = (document.getElementById('input_claude_api_key')?.value || settings.claude_api_key || '').trim();
+    return !!val;
+  }
+  if (provider === 'openai') {
+    const val = (document.getElementById('input_openai_api_key')?.value || settings.openai_api_key || '').trim();
+    return !!val;
+  }
+  if (provider === 'deepseek') {
+    const val = (document.getElementById('input_deepseek_api_key')?.value || settings.deepseek_api_key || '').trim();
+    return !!val;
+  }
+  if (provider === 'custom') {
+    const endpoint = (document.getElementById('input_custom_endpoint')?.value || settings.custom_endpoint || '').trim();
+    const key = (document.getElementById('input_custom_api_key')?.value || settings.custom_api_key || '').trim();
+    return !!(endpoint || key);
+  }
+  return false;
+}
+window.isProviderConnected = isProviderConnected;
+
+function reorderApiProviderCards(settings) {
+  const container = document.getElementById('apiProviderCardsGrid');
+  if (!container) return;
+  const providers = ['gemini', 'claude', 'openai', 'deepseek', 'custom'];
+  const sorted = [...providers].sort((a, b) => {
+    const aConn = isProviderConnected(a, settings) ? 0 : 1;
+    const bConn = isProviderConnected(b, settings) ? 0 : 1;
+    return aConn - bConn;
+  });
+  sorted.forEach(p => {
+    const btn = document.getElementById('btn_provider_' + p);
+    if (btn && btn.parentElement === container) {
+      container.appendChild(btn);
+    }
+  });
+}
+window.reorderApiProviderCards = reorderApiProviderCards;
 
 function togglePasswordVisibility(inputId, btnEl) {
   const el = document.getElementById(inputId);
@@ -4117,25 +4244,35 @@ function togglePasswordVisibility(inputId, btnEl) {
 }
 window.togglePasswordVisibility = togglePasswordVisibility;
 
-async function testApiKey(provider) {
+async function testApiKey(provider, btnEl) {
   let key = '';
   let endpoint = '';
   if (provider === 'gemini') {
-    key = document.getElementById('input_gemini_api_key')?.value?.trim() || '';
+    key = document.getElementById('input_gemini_api_key')?.value?.trim() || currentStudioSettings.gemini_api_key || '';
   } else if (provider === 'claude') {
-    key = document.getElementById('input_claude_api_key')?.value?.trim() || '';
+    key = document.getElementById('input_claude_api_key')?.value?.trim() || currentStudioSettings.claude_api_key || '';
   } else if (provider === 'openai') {
-    key = document.getElementById('input_openai_api_key')?.value?.trim() || '';
+    key = document.getElementById('input_openai_api_key')?.value?.trim() || currentStudioSettings.openai_api_key || '';
   } else if (provider === 'deepseek') {
-    key = document.getElementById('input_deepseek_api_key')?.value?.trim() || '';
+    key = document.getElementById('input_deepseek_api_key')?.value?.trim() || currentStudioSettings.deepseek_api_key || '';
   } else if (provider === 'custom') {
-    key = document.getElementById('input_custom_api_key')?.value?.trim() || '';
-    endpoint = document.getElementById('input_custom_endpoint')?.value?.trim() || '';
+    key = document.getElementById('input_custom_api_key')?.value?.trim() || currentStudioSettings.custom_api_key || '';
+    endpoint = document.getElementById('input_custom_endpoint')?.value?.trim() || currentStudioSettings.custom_endpoint || '';
   }
 
   if (!key && provider !== 'custom') {
     showToast('Vui lòng nhập API Key trước khi kiểm tra.', 'warning');
+    const inputEl = document.getElementById(`input_${provider}_api_key`);
+    if (inputEl) inputEl.focus();
     return;
+  }
+
+  const btn = btnEl || document.getElementById('btn_test_' + provider);
+  let origText = '';
+  if (btn) {
+    origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">⟳</span> Đang kiểm tra...';
   }
 
   showToast(`Đang kiểm tra kết nối tới ${provider.toUpperCase()}...`, 'info');
@@ -4151,8 +4288,13 @@ async function testApiKey(provider) {
       showToast(d.message || `Kết nối ${provider.toUpperCase()} thành công!`, 'success');
       const badge = document.getElementById(`badge_${provider}_key_status`);
       if (badge) {
-        badge.textContent = 'Ưu tiên kích hoạt';
+        badge.textContent = 'Hoạt động tốt';
         badge.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-700 font-medium';
+      }
+      const pill = document.getElementById(`pill_provider_${provider}`);
+      if (pill) {
+        pill.textContent = 'Đã kết nối';
+        pill.classList.add('is-connected');
       }
     } else {
       showToast(d.message || `Kiểm tra ${provider.toUpperCase()} thất bại`, 'error');
@@ -4193,32 +4335,196 @@ async function testApiKey(provider) {
     }
   } catch (err) {
     showToast('Lỗi kiểm tra API: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origText || 'Kiểm tra kết nối';
+    }
   }
 }
 window.testApiKey = testApiKey;
 
+async function connectApiKey(provider, btnEl) {
+  let key = '';
+  let endpoint = '';
+  if (provider === 'gemini') {
+    key = document.getElementById('input_gemini_api_key')?.value?.trim() || currentStudioSettings.gemini_api_key || '';
+  } else if (provider === 'claude') {
+    key = document.getElementById('input_claude_api_key')?.value?.trim() || currentStudioSettings.claude_api_key || '';
+  } else if (provider === 'openai') {
+    key = document.getElementById('input_openai_api_key')?.value?.trim() || currentStudioSettings.openai_api_key || '';
+  } else if (provider === 'deepseek') {
+    key = document.getElementById('input_deepseek_api_key')?.value?.trim() || currentStudioSettings.deepseek_api_key || '';
+  } else if (provider === 'custom') {
+    key = document.getElementById('input_custom_api_key')?.value?.trim() || currentStudioSettings.custom_api_key || '';
+    endpoint = document.getElementById('input_custom_endpoint')?.value?.trim() || currentStudioSettings.custom_endpoint || '';
+  }
+
+  if (!key && provider !== 'custom') {
+    showToast('Vui lòng nhập API Key để kết nối.', 'warning');
+    const inputEl = document.getElementById(`input_${provider}_api_key`);
+    if (inputEl) inputEl.focus();
+    return;
+  }
+
+  if (provider === 'custom' && !endpoint && !key) {
+    showToast('Vui lòng nhập Base URL Endpoint.', 'warning');
+    const inputEl = document.getElementById('input_custom_endpoint');
+    if (inputEl) inputEl.focus();
+    return;
+  }
+
+  const btn = btnEl || document.getElementById('btn_connect_' + provider);
+  let origText = '';
+  if (btn) {
+    origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">⟳</span> Đang kết nối...';
+  }
+
+  try {
+    const res = await fetch('/api/test-api-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, api_key: key, endpoint })
+    });
+    const d = await res.json();
+    if (d.success) {
+      currentStudioSettings.api_provider = provider;
+      if (provider === 'gemini') currentStudioSettings.gemini_api_key = key;
+      else if (provider === 'claude') currentStudioSettings.claude_api_key = key;
+      else if (provider === 'openai') currentStudioSettings.openai_api_key = key;
+      else if (provider === 'deepseek') currentStudioSettings.deepseek_api_key = key;
+      else if (provider === 'custom') {
+        currentStudioSettings.custom_api_key = key;
+        currentStudioSettings.custom_endpoint = endpoint;
+      }
+      await saveSettingsFromPage();
+      updateApiUI(currentStudioSettings);
+      showToast(`Đã kết nối và kích hoạt thành công với ${provider.toUpperCase()}!`, 'success');
+      if (btn) {
+        btn.innerHTML = 'Đã kết nối ✓';
+        setTimeout(() => {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origText || 'Kết nối';
+          }
+        }, 1500);
+      }
+    } else {
+      showToast(d.message || `Kiểm tra kết nối ${provider.toUpperCase()} thất bại`, 'error');
+      if (d.error_type === 'quota_exceeded') {
+        antdConfirm({
+          title: d.title || 'API Key Hết Token / Quota',
+          content: `
+            <div class="space-y-2.5 font-sans text-left">
+              <div class="text-sm text-rose-300 font-medium">${escapeHtml(d.message)}</div>
+              ${d.raw_error ? `<div class="p-2.5 rounded bg-[#160b13] border border-rose-800 text-[11px] font-mono text-rose-300 break-all max-h-32 overflow-y-auto">${escapeHtml(d.raw_error)}</div>` : ''}
+              <div class="text-xs text-slate-300">Khóa API của bạn không còn đủ token để phục vụ các yêu cầu AI. Vui lòng nạp thêm token hoặc đổi sang khóa khác.</div>
+            </div>
+          `,
+          okText: 'Đã hiểu',
+          cancelText: 'Đóng',
+          danger: true
+        });
+      } else if (d.error_type === 'invalid_key') {
+        antdConfirm({
+          title: d.title || 'API Key Không Hợp Lệ',
+          content: `
+            <div class="space-y-2.5 font-sans text-left">
+              <div class="text-sm text-rose-300 font-medium">${escapeHtml(d.message)}</div>
+              ${d.raw_error ? `<div class="p-2.5 rounded bg-[#160b13] border border-rose-800 text-[11px] font-mono text-rose-300 break-all max-h-32 overflow-y-auto">${escapeHtml(d.raw_error)}</div>` : ''}
+              <div class="text-xs text-slate-300">Vui lòng kiểm tra lại API Key đã copy chính xác từ bảng điều khiển của nhà cung cấp chưa.</div>
+            </div>
+          `,
+          okText: 'Đã hiểu',
+          cancelText: 'Đóng',
+          danger: true
+        });
+      }
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origText || 'Kết nối';
+      }
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối API: ' + err.message, 'error');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origText || 'Kết nối';
+    }
+  }
+}
+window.connectApiKey = connectApiKey;
+
+async function removeApiKey(provider) {
+  const providerLabels = {
+    'gemini': 'Google Gemini',
+    'claude': 'Anthropic Claude',
+    'openai': 'OpenAI / GPT',
+    'deepseek': 'DeepSeek',
+    'custom': 'Custom Endpoint / 9router'
+  };
+  const pName = providerLabels[provider] || provider.toUpperCase();
+  const confirmed = await antdConfirm({
+    title: `Gỡ API Key của ${pName}?`,
+    content: `
+      <div class="space-y-2 font-sans text-left text-xs text-slate-300">
+        <p>Bạn có chắc chắn muốn gỡ cấu hình API Key này không?</p>
+        <p class="text-rose-400">Sau khi gỡ, EasySalon Studio sẽ không thể gửi yêu cầu AI qua ${pName} cho đến khi bạn kết nối lại.</p>
+      </div>
+    `,
+    okText: 'Gỡ API Key',
+    cancelText: 'Hủy',
+    danger: true
+  });
+  if (!confirmed) return;
+
+  if (provider === 'gemini') {
+    const el = document.getElementById('input_gemini_api_key');
+    if (el) el.value = '';
+    currentStudioSettings.gemini_api_key = '';
+  } else if (provider === 'claude') {
+    const el = document.getElementById('input_claude_api_key');
+    if (el) el.value = '';
+    currentStudioSettings.claude_api_key = '';
+  } else if (provider === 'openai') {
+    const el = document.getElementById('input_openai_api_key');
+    if (el) el.value = '';
+    currentStudioSettings.openai_api_key = '';
+  } else if (provider === 'deepseek') {
+    const el = document.getElementById('input_deepseek_api_key');
+    if (el) el.value = '';
+    currentStudioSettings.deepseek_api_key = '';
+  } else if (provider === 'custom') {
+    const elK = document.getElementById('input_custom_api_key');
+    const elE = document.getElementById('input_custom_endpoint');
+    if (elK) elK.value = '';
+    if (elE) elE.value = '';
+    currentStudioSettings.custom_api_key = '';
+    currentStudioSettings.custom_endpoint = '';
+  }
+
+  // Nếu provider vừa gỡ đang là provider ưu tiên, tự động chuyển sang provider khác đã kết nối hoặc mặc định gemini
+  if (currentStudioSettings.api_provider === provider) {
+    const providers = ['gemini', 'claude', 'openai', 'deepseek', 'custom'];
+    const otherConnected = providers.find(p => p !== provider && isProviderConnected(p, currentStudioSettings));
+    const fallback = otherConnected || 'gemini';
+    currentStudioSettings.api_provider = fallback;
+    selectActiveApiProvider(fallback, false);
+  }
+
+  await saveSettingsFromPage();
+  updateApiUI(currentStudioSettings);
+  showToast(`Đã gỡ API Key của ${pName} thành công.`, 'info');
+}
+window.removeApiKey = removeApiKey;
+
 function updateApiUI(settings) {
   if (!settings) settings = currentStudioSettings;
   const prov = settings.api_provider || 'gemini';
-  ['gemini', 'claude', 'openai', 'deepseek', 'custom'].forEach(p => {
-    const btn = document.getElementById('btn_provider_' + p);
-    if (btn) {
-      if (p === prov) btn.classList.add('is-active');
-      else btn.classList.remove('is-active');
-    }
-  });
 
-  const tag = document.getElementById('pageCurrentApiProviderTag');
-  if (tag) {
-    const labels = {
-      'gemini': 'GOOGLE GEMINI',
-      'claude': 'ANTHROPIC CLAUDE',
-      'openai': 'OPENAI / GPT',
-      'deepseek': 'DEEPSEEK',
-      'custom': 'CUSTOM / 9ROUTER'
-    };
-    tag.textContent = labels[prov] || prov.toUpperCase();
-  }
+  selectActiveApiProvider(prov, false);
 
   if (settings.gemini_api_key !== undefined) {
     const el = document.getElementById('input_gemini_api_key');
@@ -4250,8 +4556,9 @@ function updateApiUI(settings) {
 window.updateApiUI = updateApiUI;
 
 function updateApiKeyBadges(settings) {
-  if (!settings) settings = currentStudioSettings;
-  const setBadge = (id, hasVal, opt = false) => {
+  if (!settings) settings = currentStudioSettings || {};
+
+  const setCardBadge = (id, hasVal, opt = false) => {
     const b = document.getElementById(id);
     if (!b) return;
     if (hasVal) {
@@ -4262,12 +4569,56 @@ function updateApiKeyBadges(settings) {
       b.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-medium';
     }
   };
-  setBadge('badge_gemini_key_status', !!settings.gemini_api_key);
-  setBadge('badge_claude_key_status', !!settings.claude_api_key);
-  setBadge('badge_openai_key_status', !!settings.openai_api_key);
-  setBadge('badge_deepseek_key_status', !!settings.deepseek_api_key);
-  setBadge('badge_custom_key_status', !!(settings.custom_endpoint || settings.custom_api_key), true);
+
+  const setPill = (id, hasVal, opt = false) => {
+    const pill = document.getElementById(id);
+    if (!pill) return;
+    if (hasVal) {
+      pill.textContent = 'Đã kết nối';
+      pill.classList.add('is-connected');
+    } else {
+      pill.textContent = opt ? 'Tùy chọn' : 'Chưa lưu';
+      pill.classList.remove('is-connected');
+    }
+  };
+
+  const setRemoveBtn = (id, hasVal) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    if (hasVal) {
+      btn.classList.remove('hidden');
+    } else {
+      btn.classList.add('hidden');
+    }
+  };
+
+  const geminiConn = isProviderConnected('gemini', settings);
+  const claudeConn = isProviderConnected('claude', settings);
+  const openaiConn = isProviderConnected('openai', settings);
+  const deepseekConn = isProviderConnected('deepseek', settings);
+  const customConn = isProviderConnected('custom', settings);
+
+  setCardBadge('badge_gemini_key_status', geminiConn);
+  setCardBadge('badge_claude_key_status', claudeConn);
+  setCardBadge('badge_openai_key_status', openaiConn);
+  setCardBadge('badge_deepseek_key_status', deepseekConn);
+  setCardBadge('badge_custom_key_status', customConn, true);
+
+  setPill('pill_provider_gemini', geminiConn);
+  setPill('pill_provider_claude', claudeConn);
+  setPill('pill_provider_openai', openaiConn);
+  setPill('pill_provider_deepseek', deepseekConn);
+  setPill('pill_provider_custom', customConn, true);
+
+  setRemoveBtn('btn_remove_key_gemini', geminiConn);
+  setRemoveBtn('btn_remove_key_claude', claudeConn);
+  setRemoveBtn('btn_remove_key_openai', openaiConn);
+  setRemoveBtn('btn_remove_key_deepseek', deepseekConn);
+  setRemoveBtn('btn_remove_key_custom', customConn);
+
+  reorderApiProviderCards(settings);
 }
+window.updateApiKeyBadges = updateApiKeyBadges;
 
 async function handleSaveSettingsClick() {
   if (!dirtySubTabs[activeSettingsSubTab]) return;
@@ -4486,6 +4837,7 @@ function switchTab(tab, updateHistory = true) {
     const subRoutes = window.GIT_SUBTAB_ROUTES || {
       'pull_sync': '/git-control',
       'branch': '/git-control/checkout-branch',
+      'switch': '/git-control/switch-branch',
       'cherry_pick': '/git-control/cherry-pick',
       'merge': '/git-control/merge'
     };
@@ -4557,7 +4909,8 @@ function switchTab(tab, updateHistory = true) {
     const urlSub = window.ROUTE_TO_GIT_SUBTAB && window.ROUTE_TO_GIT_SUBTAB[currentPath];
     const sub = window.initGitSubTab || urlSub || activeGitSubTab || 'pull_sync';
     activeGitSubTab = sub;
-    window.initGitSubTab = sub;
+    window.initGitSubTab = null;
+    window.initSettingsSubTab = null;
     if (typeof switchGitSubTab === 'function') {
       switchGitSubTab(sub, false);
     }
@@ -4565,10 +4918,14 @@ function switchTab(tab, updateHistory = true) {
     const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
     const urlSub = window.ROUTE_TO_SETTINGS_SUBTAB && window.ROUTE_TO_SETTINGS_SUBTAB[currentPath];
     const sub = window.initSettingsSubTab || urlSub || activeSettingsSubTab || 'engine';
+    window.initGitSubTab = null;
     window.initSettingsSubTab = null;
     if (typeof switchSettingsSidebarTab === 'function') {
       switchSettingsSidebarTab(sub, false);
     }
+  } else {
+    window.initGitSubTab = null;
+    window.initSettingsSubTab = null;
   }
 
   if (tab !== 'jira' && typeof stopJiraAutoSync === 'function') {
@@ -4770,13 +5127,19 @@ window.refreshCurrentGitView = refreshCurrentGitView;
 window.addEventListener('popstate', (e) => {
   const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
   let targetTab = (e.state && e.state.tab) || (typeof window.getTabFromUrl === 'function' ? window.getTabFromUrl() : null) || 'task';
-  let targetSubTab = (e.state && e.state.subTab) || (window.ROUTE_TO_GIT_SUBTAB && window.ROUTE_TO_GIT_SUBTAB[currentPath]) || window.initGitSubTab;
+  let targetGitSub = (e.state && e.state.subTab) || (window.ROUTE_TO_GIT_SUBTAB && window.ROUTE_TO_GIT_SUBTAB[currentPath]) || 'pull_sync';
+  let targetSettingsSub = (e.state && e.state.settingsSubTab) || (window.ROUTE_TO_SETTINGS_SUBTAB && window.ROUTE_TO_SETTINGS_SUBTAB[currentPath]) || activeSettingsSubTab || 'engine';
+
   switchTab(targetTab, false);
   if (targetTab === 'branch') {
-    if (!targetSubTab) targetSubTab = 'pull_sync';
     if (typeof switchGitSubTab === 'function') {
       window.initGitSubTab = null;
-      switchGitSubTab(targetSubTab, false);
+      switchGitSubTab(targetGitSub, false);
+    }
+  } else if (targetTab === 'settings') {
+    if (typeof switchSettingsSidebarTab === 'function') {
+      window.initSettingsSubTab = null;
+      switchSettingsSidebarTab(targetSettingsSub, false);
     }
   }
 });
@@ -6367,7 +6730,213 @@ function promptRenameTask(taskId) {
   startInlineEditTask(taskId);
 }
 
+function extractImagesFromText(text) {
+  if (!text) return [];
+  const list = [];
+  const seen = new Set();
+
+  // 1. Markdown link ảnh: [filename.png](/api/jira/attachment?id=...&name=...) hoặc [alt](url)
+  const mdPattern = /\[([^\]]*?\.(?:png|jpg|jpeg|gif|webp|svg))\]\(([^)]+)\)/gi;
+  let m;
+  while ((m = mdPattern.exec(text)) !== null) {
+    const name = m[1].trim();
+    const url = m[2].trim();
+    if (!seen.has(url)) {
+      seen.add(url);
+      list.push({ url, name });
+    }
+  }
+
+  // 2. Đường dẫn /api/jira/attachment?id=...
+  const jiraAttPattern = /(?:https?:\/\/[^\s"'<>\)]+)?(\/api\/jira\/attachment\?[^\s"'<>\)]+)/gi;
+  while ((m = jiraAttPattern.exec(text)) !== null) {
+    const url = m[1];
+    if (!seen.has(url)) {
+      seen.add(url);
+      let fn = 'image.png';
+      try {
+        const u = new URL(url, window.location.origin);
+        fn = u.searchParams.get('name') || 'image.png';
+      } catch (e) { }
+      list.push({ url, name: fn });
+    }
+  }
+
+  // 3. URL ảnh trực tiếp http(s)://...png|jpg...
+  const rawUrlPattern = /(https?:\/\/[^\s"'<>\)]+\.(?:png|jpg|jpeg|gif|webp|svg)(?:\?[^\s"'<>\)]*)?)/gi;
+  while ((m = rawUrlPattern.exec(text)) !== null) {
+    const url = m[1];
+    if (!seen.has(url)) {
+      seen.add(url);
+      const fn = url.split('/').pop().split('?')[0] || 'image.png';
+      list.push({ url, name: decodeURIComponent(fn) });
+    }
+  }
+
+  return list;
+}
+window.extractImagesFromText = extractImagesFromText;
+
+async function uploadScreenshotFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64Data = reader.result;
+        const res = await fetch('/api/upload-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: base64Data,
+            filename: file.name || `screenshot_${Date.now()}.png`
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          resolve(data);
+        } else {
+          reject(new Error(data.message || 'Tải ảnh thất bại'));
+        }
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = () => reject(new Error('Đọc file ảnh thất bại'));
+    reader.readAsDataURL(file);
+  });
+}
+window.uploadScreenshotFile = uploadScreenshotFile;
+
+function removeTaskPromptImage(idx) {
+  const cur = parallelTasks.find(t => t.id === activeTaskId);
+  if (cur && cur.images && cur.images[idx]) {
+    cur.images.splice(idx, 1);
+    renderTaskPromptImages(cur.images);
+    syncFormToCurrentTask();
+    saveDraft(false);
+  }
+}
+window.removeTaskPromptImage = removeTaskPromptImage;
+
+function handleTaskPromptPaste(event) {
+  const items = (event.clipboardData || event.originalEvent?.clipboardData)?.items;
+  if (!items) return;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.type && item.type.indexOf('image') !== -1) {
+      event.preventDefault();
+      const blob = item.getAsFile();
+      if (!blob) continue;
+      showToast('Đang tải ảnh chụp màn hình lên...', 'info');
+      uploadScreenshotFile(blob).then(uploaded => {
+        const cur = parallelTasks.find(t => t.id === activeTaskId);
+        if (cur) {
+          if (!cur.images) cur.images = [];
+          cur.images.push(uploaded);
+          renderTaskPromptImages(cur.images);
+          syncFormToCurrentTask();
+          saveDraft(false);
+        }
+        showToast('Đã đính kèm ảnh chụp màn hình vào tác vụ', 'success');
+      }).catch(err => {
+        showToast('Lỗi khi tải ảnh: ' + err.message, 'error');
+      });
+      break;
+    }
+  }
+}
+window.handleTaskPromptPaste = handleTaskPromptPaste;
+
+async function onTaskPromptImageSelect(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  try {
+    showToast('Đang tải ảnh đính kèm lên...', 'info');
+    const uploaded = await uploadScreenshotFile(file);
+    const cur = parallelTasks.find(t => t.id === activeTaskId);
+    if (cur) {
+      if (!cur.images) cur.images = [];
+      cur.images.push(uploaded);
+      renderTaskPromptImages(cur.images);
+      syncFormToCurrentTask();
+      saveDraft(false);
+    }
+    showToast('Đã đính kèm ảnh thành công', 'success');
+  } catch (err) {
+    showToast('Lỗi tải ảnh: ' + err.message, 'error');
+  } finally {
+    e.target.value = '';
+  }
+}
+window.onTaskPromptImageSelect = onTaskPromptImageSelect;
+
+function renderTaskPromptImages(images) {
+  const container = document.getElementById('taskPromptImagesContainer');
+  const countEl = document.getElementById('taskPromptImagesCount');
+  const listEl = document.getElementById('taskPromptImagesList');
+  if (!container || !listEl) return;
+
+  const cur = parallelTasks.find(t => t.id === activeTaskId);
+  if (images === undefined && cur) {
+    images = cur.images || [];
+  }
+  if (!Array.isArray(images)) images = [];
+
+  if (cur) {
+    cur.images = images;
+  }
+
+  if (images.length === 0) {
+    container.classList.add('hidden');
+    listEl.innerHTML = '';
+    if (countEl) countEl.textContent = '0';
+    return;
+  }
+
+  container.classList.remove('hidden');
+  if (countEl) countEl.textContent = String(images.length);
+
+  listEl.innerHTML = images.map((img, idx) => {
+    const safeUrl = escapeHtml(img.url);
+    const safeName = escapeHtml(img.name || img.filename || 'Ảnh minh chứng');
+    return `
+      <div class="group relative rounded-md border border-[#244170] bg-[#101e38] overflow-hidden hover:border-[#1677ff] transition shadow cursor-pointer max-w-[200px]"
+           onclick="openImagePreviewModal('${safeUrl}', '${safeName}')"
+           title="Bấm để phóng to ảnh: ${safeName}">
+        <div class="h-28 w-44 bg-black/60 flex items-center justify-center overflow-hidden p-1">
+          <img src="${safeUrl}" alt="${safeName}" class="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-200" loading="lazy" />
+        </div>
+        <div class="p-1.5 bg-[#0c1628] border-t border-[#244170]/60 flex items-center justify-between gap-1">
+          <span class="text-[10px] font-mono text-slate-300 truncate" title="${safeName}">${safeName}</span>
+          <div class="flex items-center gap-1 shrink-0">
+            <span class="text-[9px] text-blue-400 font-medium group-hover:underline">Phóng to</span>
+            <button type="button" onclick="event.stopPropagation(); removeTaskPromptImage(${idx})"
+                    class="p-0.5 text-slate-400 hover:text-rose-400 transition" title="Xóa ảnh này">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+window.renderTaskPromptImages = renderTaskPromptImages;
+
 function onTaskPromptInput() {
+  const promptVal = document.getElementById('taskPromptInput')?.value || '';
+  const extracted = extractImagesFromText(promptVal);
+  const cur = parallelTasks.find(t => t.id === activeTaskId);
+  const existing = (cur && cur.images) || [];
+  const merged = [...existing];
+  extracted.forEach(img => {
+    if (!merged.some(m => m.url === img.url || m.name === img.name)) {
+      merged.push(img);
+    }
+  });
+  renderTaskPromptImages(merged);
+
   updateFixBugPromptPreview();
   syncFormToCurrentTask();
   saveDraft(false);
@@ -6463,6 +7032,7 @@ function loadTaskToForm(taskId) {
   if (promptInput) promptInput.value = task.prompt || '';
   const logInput = document.getElementById('taskLogInput');
   if (logInput) logInput.value = task.error_log || '';
+  renderTaskPromptImages(task.images || []);
   updateFixBugPromptPreview();
 }
 
@@ -6809,7 +7379,8 @@ async function startSingleTaskById(taskId) {
           scope: task.target || 'both',
           description: task.prompt || formattedPrompt,
           original_prompt: task.original_prompt || task.prompt || '',
-          error_log: task.error_log
+          error_log: task.error_log,
+          images: task.images || []
         })
       });
       const d = await res.json();
@@ -6837,7 +7408,8 @@ async function startSingleTaskById(taskId) {
           starter: 'fe',
           rounds: 4,
           skills: task.skills,
-          skill: task.skills.join(', ')
+          skill: task.skills.join(', '),
+          images: task.images || []
         })
       });
       const d = await res.json();
@@ -7265,6 +7837,96 @@ let _collapsedTurnCards = new Set();
 let _userInteractedTurnCards = new Map();
 let _collapsedStepBoxes = new Set();
 let _collapsedDiffBoxes = new Set();
+const _continuationImages = {};
+
+function renderContinuationImages(taskIdKey) {
+  const container = document.getElementById('continueImagesContainer_' + taskIdKey);
+  if (!container) return;
+  const images = _continuationImages[taskIdKey] || [];
+  if (images.length === 0) {
+    container.classList.add('hidden');
+    container.innerHTML = '';
+    return;
+  }
+  container.classList.remove('hidden');
+  container.innerHTML = images.map((img, idx) => {
+    const safeUrl = escapeHtml(img.url);
+    const safeName = escapeHtml(img.name || img.filename || 'Ảnh minh chứng');
+    return `
+      <div class="continue-image-item group relative rounded-md border border-[#244170] bg-[#101e38] overflow-hidden hover:border-[#1677ff] transition shadow cursor-pointer max-w-[180px]"
+           onclick="openImagePreviewModal('${safeUrl}', '${safeName}')"
+           title="Bấm để phóng to ảnh: ${safeName}">
+        <div class="h-20 w-36 bg-black/60 flex items-center justify-center overflow-hidden p-1">
+          <img src="${safeUrl}" alt="${safeName}" class="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-200" loading="lazy" />
+        </div>
+        <div class="p-1.5 bg-[#0c1628] border-t border-[#244170]/60 flex items-center justify-between gap-1">
+          <span class="continue-image-name text-[10px] font-mono text-slate-300 truncate" title="${safeName}">${safeName}</span>
+          <button type="button" onclick="event.stopPropagation(); removeContinuationImage('${taskIdKey}', ${idx})"
+                  class="p-0.5 text-slate-400 hover:text-rose-400 transition" title="Xóa ảnh này">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+window.renderContinuationImages = renderContinuationImages;
+
+function removeContinuationImage(taskIdKey, idx) {
+  if (_continuationImages[taskIdKey] && _continuationImages[taskIdKey][idx]) {
+    _continuationImages[taskIdKey].splice(idx, 1);
+    renderContinuationImages(taskIdKey);
+  }
+}
+window.removeContinuationImage = removeContinuationImage;
+
+function handleContinuePaste(event, taskIdKey) {
+  const items = (event.clipboardData || event.originalEvent?.clipboardData)?.items;
+  if (!items) return;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.type && item.type.indexOf('image') !== -1) {
+      event.preventDefault();
+      const blob = item.getAsFile();
+      if (!blob) continue;
+      showToast('Đang tải ảnh chụp màn hình lên...', 'info');
+      uploadScreenshotFile(blob).then(uploaded => {
+        if (!_continuationImages[taskIdKey]) {
+          _continuationImages[taskIdKey] = [];
+        }
+        _continuationImages[taskIdKey].push(uploaded);
+        renderContinuationImages(taskIdKey);
+        showToast('Đã đính kèm ảnh chụp màn hình vào lượt tiếp theo', 'success');
+      }).catch(err => {
+        showToast('Lỗi khi tải ảnh: ' + err.message, 'error');
+      });
+      break;
+    }
+  }
+}
+window.handleContinuePaste = handleContinuePaste;
+
+async function onContinueFileSelect(e, taskIdKey) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  try {
+    showToast('Đang tải ảnh đính kèm lên...', 'info');
+    const uploaded = await uploadScreenshotFile(file);
+    if (!_continuationImages[taskIdKey]) {
+      _continuationImages[taskIdKey] = [];
+    }
+    _continuationImages[taskIdKey].push(uploaded);
+    renderContinuationImages(taskIdKey);
+    showToast('Đã đính kèm ảnh thành công', 'success');
+  } catch (err) {
+    showToast('Lỗi tải ảnh: ' + err.message, 'error');
+  } finally {
+    e.target.value = '';
+  }
+}
+window.onContinueFileSelect = onContinueFileSelect;
 
 function toggleTurnCollapse(cardId, event) {
   if (event) {
@@ -7909,23 +8571,23 @@ function renderFeedView(data) {
       let loadingPlaceholderHtml = '';
       if (isSessRunning && isLatestTurn && !hasContent && !hasStepLogs) {
         loadingPlaceholderHtml = `
-          <div class="tool-step-box my-2.5 rounded-lg border border-[#244170] bg-[#070d18] overflow-hidden shadow-inner p-3.5 space-y-2.5">
-            <div class="flex items-center justify-between">
+          <div class="thinking-card-box my-2.5 rounded-lg border border-[#1677ff]/40 bg-[#070d18] overflow-hidden shadow-inner p-3.5 space-y-2.5">
+            <div class="thinking-card-header flex items-center justify-between">
               <div class="flex items-center gap-2.5">
                 <div class="wave-dots">
                   <span class="wave-dot"></span>
                   <span class="wave-dot"></span>
                   <span class="wave-dot"></span>
                 </div>
-                <span class="text-xs font-semibold text-cyan-300 font-sans">AI Agent đang suy nghĩ &amp; chuẩn bị tiến trình ngầm...</span>
+                <span class="thinking-card-title text-xs font-semibold text-cyan-300 font-sans">AI Agent đang suy nghĩ &amp; chuẩn bị tiến trình ngầm...</span>
               </div>
-              <span class="text-[10.5px] font-mono text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800 animate-pulse">Đang xử lý</span>
+              <span class="thinking-card-badge text-[10.5px] font-mono text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800 animate-pulse">Đang xử lý</span>
             </div>
-            <div class="p-2.5 rounded bg-[#040810] border border-[#1e3458] text-[11px] font-mono text-slate-300 flex items-center gap-2">
+            <div class="thinking-card-cmd p-2.5 rounded bg-[#040810] border border-[#1e3458] text-[11px] font-mono text-slate-300 flex items-center gap-2">
               <span class="text-cyan-400 select-none font-bold">$</span>
-              <span class="truncate text-slate-200">${escapeHtml(sess._statusText || t.status_text || 'Đang chuẩn bị workspace và chạy lệnh trên AI Terminal...')}</span>
+              <span class="thinking-card-cmd-text truncate text-slate-200">${escapeHtml(sess._statusText || t.status_text || 'Đang chuẩn bị workspace và chạy lệnh trên AI Terminal...')}</span>
             </div>
-            <div class="space-y-1.5 pt-1">
+            <div class="thinking-card-bars space-y-1.5 pt-1">
               <div class="h-1.5 bg-gradient-to-r from-cyan-500/30 via-cyan-400/10 to-transparent rounded animate-pulse w-4/5"></div>
               <div class="h-1.5 bg-gradient-to-r from-cyan-500/20 via-cyan-400/5 to-transparent rounded animate-pulse w-1/2"></div>
             </div>
@@ -7962,8 +8624,26 @@ function renderFeedView(data) {
       const isTurnOpenCode = (turnEngine === 'opencode');
       const turnEngineLabel = t.engine_label || (isTurnOpenCode ? 'OpenCode CLI' : 'Gemini CLI');
 
+      const turnImagesHtml = (t.images && t.images.length > 0) ? `
+        <div class="turn-images-strip mb-2.5 p-2 rounded-lg border border-[#244170]/70 bg-[#091426] flex flex-wrap gap-2">
+          ${t.images.map(img => {
+            const sUrl = escapeHtml(img.url);
+            const sName = escapeHtml(img.name || img.filename || 'Ảnh minh chứng');
+            return `
+              <div class="cursor-pointer group flex items-center gap-1.5 px-2 py-1 rounded bg-[#0d1c33] border border-[#1e3860] hover:border-[#1677ff] transition"
+                   onclick="openImagePreviewModal('${sUrl}', '${sName}')" title="Phóng to ảnh: ${sName}">
+                <svg class="w-3.5 h-3.5 text-sky-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="text-[11px] font-mono text-slate-200 group-hover:text-sky-300 max-w-[160px] truncate">${sName}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      ` : '';
+
       const changesSig = (t.changed_files || []).map(cf => `${cf.path}:${cf.status}:${cf.additions}:${cf.deletions}`).join('|');
-      const currentSig = `${(t.content || '').length}_${(t.step_logs || []).length}_${t.elapsed_sec}_${isStreaming}_${Boolean(loadingPlaceholderHtml)}_${(t.step_logs || []).map(s => s.state + (s.output ? s.output.length : 0)).join(',')}_${changesSig}_${isCollapsed}_${isStepCollapsed}_${isDiffCollapsed}_${turnEngine}`;
+      const currentSig = `${(t.content || '').length}_${(t.step_logs || []).length}_${t.elapsed_sec}_${isStreaming}_${Boolean(loadingPlaceholderHtml)}_${(t.step_logs || []).map(s => s.state + (s.output ? s.output.length : 0)).join(',')}_${changesSig}_${isCollapsed}_${isStepCollapsed}_${isDiffCollapsed}_${turnEngine}_${(t.images || []).length}`;
       if (card.dataset.sig !== currentSig) {
         card.dataset.sig = currentSig;
         card.innerHTML = `
@@ -7984,6 +8664,7 @@ function renderFeedView(data) {
                 <span class="text-slate-400 text-[10px] font-mono shrink-0 ml-2">${t.timestamp || ''} (${formatDuration(t.elapsed_sec || 0)})</span>
               </div>
               <div id="turnBody_${cardId}" class="turn-body-content mt-2.5 ${isCollapsed ? 'hidden' : ''}">
+                ${turnImagesHtml}
                 ${stepLogsHtml}
                 ${changedFilesHtml}
                 ${loadingPlaceholderHtml}
@@ -8008,36 +8689,50 @@ function renderFeedView(data) {
                   <span>Tiếp tục task trên AI Terminal ngầm</span>
                   <span class="text-[10px] font-normal text-slate-400">• Giữ nguyên ngữ cảnh</span>
                 </span>
+                <div class="flex items-center gap-2">
+                  <label for="continueFileInput_${taskIdKey}"
+                    class="text-[11px] font-sans text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer select-none transition hover:underline"
+                    title="Đính kèm ảnh minh chứng hoặc dán trực tiếp (Ctrl+V) vào ô nhập liệu">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>Đính kèm ảnh</span>
+                    <input id="continueFileInput_${taskIdKey}" type="file" accept="image/*" class="hidden" onchange="onContinueFileSelect(event, '${taskIdKey}')" />
+                  </label>
+                </div>
               </div>
               <div class="flex items-center gap-2">
                 <input id="continueInput_${taskIdKey}" type="text"
-                  placeholder="Nhập yêu cầu tiếp theo (hoặc để trống để AI tiếp tục hoàn thiện task)..."
+                  placeholder="Nhập yêu cầu tiếp theo (hoặc để trống để AI hoàn thiện task, có thể dán Ctrl+V ảnh)..."
+                  onpaste="handleContinuePaste(event, '${taskIdKey}')"
                   onkeydown="if(event.key==='Enter'){event.preventDefault();continueTaskFromFeed('${taskIdKey}');}"
-                  class="flex-1 bg-[#0b1322] border border-[#244170] rounded px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-[#199cff]" />
+                  class="flex-1 bg-[#0b1322] border border-[#244170] rounded px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-[#1677ff]" />
                 <button type="button" onclick="continueTaskFromFeed('${taskIdKey}')"
-                  class="px-3.5 py-1.5 rounded bg-[#199cff] hover:bg-[#1585d8] text-white text-xs font-bold shrink-0 flex items-center gap-1.5 shadow-sm transition" style="color: #ffffff !important;">
+                  class="ant-btn ant-btn-primary px-3.5 py-1.5 rounded text-white text-xs font-bold shrink-0 flex items-center gap-1.5 shadow-sm transition" style="color: #ffffff !important; background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%) !important;">
                   <span class="text-white font-bold" style="color: #ffffff !important;">▶ Tiếp tục task</span>
                 </button>
               </div>
+              <div id="continueImagesContainer_${taskIdKey}" class="continue-images-container hidden p-2 rounded-lg border border-[#244170] bg-[#0c1628] flex flex-wrap gap-2"></div>
             `;
         sessWrap.appendChild(contBox);
       } else if (contBox.parentElement === sessWrap && sessWrap.lastElementChild !== contBox) {
         sessWrap.appendChild(contBox);
       }
+      renderContinuationImages(taskIdKey);
     } else if (contBox) {
       contBox.remove();
     }
   });
 }
 
-async function startContinuationTask(task, followUp) {
+async function startContinuationTask(task, followUp, attachedImages = []) {
   if (!task) return;
   const anyRunning = parallelTasks.some(t => t.status === 'running' && t.id !== task.id);
   task.status = anyRunning ? 'queued' : 'running';
   renderParallelTaskTabs();
   updateTaskActionButtons();
 
-  const followText = (followUp || '').trim() || 'Tiếp tục kiểm tra và hoàn thiện task này.';
+  const followText = (followUp || '').trim() || (attachedImages && attachedImages.length > 0 ? 'Xem ảnh minh chứng đính kèm và kiểm tra/sửa lỗi.' : 'Tiếp tục kiểm tra và hoàn thiện task này.');
   const goal = (task.original_prompt || task.prompt || '').trim();
   const isFix = task.type === 'fixbug';
   const common = {
@@ -8049,7 +8744,8 @@ async function startContinuationTask(task, followUp) {
     skill: (task.skills || []).join(', '),
     original_prompt: goal,
     error_log: '',
-    continuation: true
+    continuation: true,
+    images: attachedImages || []
   };
 
   try {
@@ -8098,7 +8794,9 @@ async function continueTaskFromFeed(taskId) {
 
   const inputEl = document.getElementById('continueInput_' + taskId);
   const followUp = inputEl ? inputEl.value.trim() : '';
-  if (!followUp && !task.prompt && !task.error_log) {
+  const attachedImages = _continuationImages[taskId] ? [..._continuationImages[taskId]] : [];
+
+  if (!followUp && attachedImages.length === 0 && !task.prompt && !task.error_log) {
     showToast('Vui lòng nhập nội dung cần hỏi hoặc tiếp tục.', 'warning');
     return;
   }
@@ -8106,10 +8804,13 @@ async function continueTaskFromFeed(taskId) {
     task.original_prompt = task.prompt || '';
   }
   if (inputEl) inputEl.value = '';
+  _continuationImages[taskId] = [];
+  renderContinuationImages(taskId);
+
   activeTaskId = task.id;
   // Tiếp tục = một lượt hội thoại tiếp theo trong cùng phiên, KHÔNG chạy lại toàn bộ task
   // và KHÔNG nạp lại skill tác vụ ban đầu.
-  await startContinuationTask(task, followUp);
+  await startContinuationTask(task, followUp, attachedImages);
 }
 
 let _lastShownApiErrorId = null;
@@ -11217,6 +11918,27 @@ let _savedNotifications = [];
 try {
   _savedNotifications = JSON.parse(localStorage.getItem(NOTIF_STORAGE_KEY) || '[]');
   if (!Array.isArray(_savedNotifications)) _savedNotifications = [];
+  // Chuẩn hóa các thông báo task Jira cũ đã tạo lâu nhưng được cập nhật lại thành "Cập nhật doc"
+  _savedNotifications.forEach(n => {
+    if (n && n.tag === 'jira' && n.notifType !== 'comment_added') {
+      const ageMs = Date.now() - (n.timestamp || 0);
+      if (ageMs > 86400 * 1000 && (n.title || '').includes('Task mới vừa log')) {
+        n.notifType = 'issue_updated';
+        n.title = n.title.replace('Task mới vừa log:', 'Cập nhật doc:');
+        if (n.desc) n.desc = n.desc.replace(' vừa log ', ' vừa cập nhật doc ');
+      }
+    }
+  });
+  // Không lưu thông báo "Đã pull thành công" của Git: thao tác pull do người dùng tự thực hiện
+  const _gitSuccessCount = _savedNotifications.length;
+  _savedNotifications = _savedNotifications.filter(
+    n => !(n && n.tag === 'git' && (n.status === 'completed' || n.status === 'success'))
+  );
+  if (_savedNotifications.length !== _gitSuccessCount) {
+    try {
+      localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(_savedNotifications));
+    } catch (e) {}
+  }
 } catch (e) {
   _savedNotifications = [];
 }
@@ -11442,45 +12164,55 @@ function renderNotificationList() {
 
     let tagBadge = '';
     let titleClass = 'notif-title-default';
-    let titleStyle = 'color: #0f172a;';
+    let titleStyle = 'color: #0f172a';
 
     if (item.tag === 'git') {
       if (item.status === 'completed' || item.status === 'success') {
         tagBadge = '<span class="notif-tag-badge notif-tag-git-done">Git · Đã pull</span>';
         titleClass = 'notif-title-done';
-        titleStyle = 'color: #389e0d;';
+        titleStyle = 'color: #389e0d';
       } else {
         tagBadge = '<span onclick="setNotifTagFilter(\'git\', event)" class="notif-tag-badge notif-tag-git-pull" title="Nhấp để lọc theo Git">Git cần pull</span>';
         titleClass = 'notif-title-running';
-        titleStyle = 'color: #d48806;';
+        titleStyle = 'color: #d48806';
       }
     } else if (item.tag === 'jira') {
+      const isDocUpdate = (
+        item.notifType === 'issue_updated' ||
+        item.notifType === 'doc_updated' ||
+        (item.title && item.title.toLowerCase().includes('cập nhật doc')) ||
+        (item.desc && item.desc.toLowerCase().includes('cập nhật doc'))
+      );
       if (item.notifType === 'comment_added') {
         tagBadge = '<span onclick="setNotifTagFilter(\'jira\', event)" class="notif-tag-badge notif-tag-jira-comment" title="Nhấp để lọc theo Jira">Jira · Bình luận</span>';
         titleClass = 'notif-title-running';
-        titleStyle = 'color: #d48806;';
+        titleStyle = 'color: #d48806';
+      } else if (isDocUpdate) {
+        tagBadge = '<span onclick="setNotifTagFilter(\'jira\', event)" class="notif-tag-badge notif-tag-jira-doc" title="Nhấp để lọc theo Jira">Jira · Cập nhật doc</span>';
+        titleClass = 'notif-title-running';
+        titleStyle = 'color: #08979c';
       } else {
         tagBadge = '<span onclick="setNotifTagFilter(\'jira\', event)" class="notif-tag-badge notif-tag-jira-task" title="Nhấp để lọc theo Jira">Jira · Task mới</span>';
         titleClass = 'notif-title-done';
-        titleStyle = 'color: #389e0d;';
+        titleStyle = 'color: #389e0d';
       }
     } else {
       if (isDone) {
         tagBadge = '<span onclick="setNotifTagFilter(\'agent\', event)" class="notif-tag-badge notif-tag-done" title="Nhấp để lọc theo Tác vụ Agent">Tác vụ Agent</span>';
         titleClass = 'notif-title-done';
-        titleStyle = 'color: #389e0d;';
+        titleStyle = 'color: #389e0d';
       } else if (isRunning) {
         tagBadge = '<span onclick="setNotifTagFilter(\'agent\', event)" class="notif-tag-badge notif-tag-running" title="Nhấp để lọc theo Tác vụ Agent">Tác vụ Agent</span>';
         titleClass = 'notif-title-running';
-        titleStyle = 'color: #d48806;';
+        titleStyle = 'color: #d48806';
       } else if (isStopped) {
         tagBadge = '<span onclick="setNotifTagFilter(\'agent\', event)" class="notif-tag-badge notif-tag-stopped" title="Nhấp để lọc theo Tác vụ Agent">Tác vụ Agent</span>';
         titleClass = 'notif-title-stopped';
-        titleStyle = 'color: #1677ff;';
+        titleStyle = 'color: #1677ff';
       } else {
         tagBadge = '<span onclick="setNotifTagFilter(\'agent\', event)" class="notif-tag-badge notif-tag-default" title="Nhấp để lọc theo Tác vụ Agent">Tác vụ Agent</span>';
         titleClass = 'notif-title-default';
-        titleStyle = 'color: #475569;';
+        titleStyle = 'color: #475569';
       }
     }
 
@@ -11643,33 +12375,25 @@ function markPullSuccess(role, branch) {
     renderBranchSyncStatus(role, branch, { needs_pull: false, behind_count: 0 });
   }
 
-  _savedNotifications.forEach(n => {
-    if (n.tag === 'git' && n.role === role && n.branch === branch && n.status === 'pending') {
-      n.status = 'completed';
-      n.title = `${role.toUpperCase()} ${branch}: Đã pull thành công`;
-      n.desc = 'Mã nguồn đã được pull về local thành công.';
-      _readNotifIds.add(n.id);
+  // Pull do chính người dùng thực hiện: không hiển thị trên thông báo.
+  // Loại bỏ các mục "Có N commit mới" đang chờ và "Đã pull thành công" cũ của nhánh này.
+  const beforeLen = _savedNotifications.length;
+  _savedNotifications = _savedNotifications.filter(n => {
+    if (!n || n.tag !== 'git' || n.role !== role || n.branch !== branch) return true;
+    if (n.status === 'pending' || n.status === 'completed' || n.status === 'success') {
+      _readNotifIds.delete(n.id);
+      return false;
     }
+    return true;
   });
 
-  const successId = `git_success_${role}_${branch}_${Date.now()}`;
-  addOrUpdateNotification({
-    id: successId,
-    tag: 'git',
-    tagLabel: 'Git',
-    title: `${role.toUpperCase()} ${branch}: Đã pull thành công`,
-    desc: `Đã đồng bộ mã nguồn nhánh ${branch.toUpperCase()} của ${role === 'fe' ? 'Frontend' : 'Backend'} về local thành công.`,
-    date: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-    role: role,
-    branch: branch,
-    status: 'success'
-  });
-  _readNotifIds.add(successId);
-  try {
-    localStorage.setItem('easysalon_read_notifs', JSON.stringify([..._readNotifIds]));
-  } catch (e) {}
+  if (_savedNotifications.length !== beforeLen) {
+    savePersistentNotifications();
+    try {
+      localStorage.setItem('easysalon_read_notifs', JSON.stringify([..._readNotifIds]));
+    } catch (e) {}
+  }
 
-  savePersistentNotifications();
   updateNotifBadgeUI();
   renderNotificationList();
 }
@@ -11878,13 +12602,13 @@ async function loadCherryPickInfo() {
           box.classList.remove('hidden');
           mountGitConflictResolver(role, role === 'fe' ? 'feCherryConflictTerminal' : 'beCherryConflictTerminal');
           if (filesBox) {
+            const terminalId = role === 'fe' ? 'feCherryConflictTerminal' : 'beCherryConflictTerminal';
             if (st.conflicted_files && st.conflicted_files.length > 0) {
-              filesBox.innerHTML = '<div class="text-amber-300 font-bold mb-1">Các file đang xung đột:</div>' +
-                st.conflicted_files.map(f => `<div class="text-rose-300 font-mono text-[11px]">• ${escapeHtml(f)}</div>`).join('');
+              filesBox.innerHTML = renderConflictedFilesHtml(role, terminalId, st.conflicted_files);
             } else if (st.status_raw) {
               filesBox.innerHTML = `<pre class="text-[11px] whitespace-pre-wrap">${escapeHtml(st.status_raw)}</pre>`;
             } else {
-              filesBox.innerHTML = '<div>Đang trong trạng thái cherry-pick chưa hoàn tất.</div>';
+              filesBox.innerHTML = '<div class="text-amber-300">Đang trong trạng thái cherry-pick chưa hoàn tất.</div>';
             }
           }
         } else {
@@ -12918,8 +13642,9 @@ async function doSyncPull(target, branch) {
         }
         if (conflictTitle) conflictTitle.textContent = `Xung đột (Conflict) khi pull nhánh '${branch}' trên ${role === 'fe' ? 'Frontend' : 'Backend'}!`;
         if (conflictFiles) {
+          const terminalId = role === 'fe' ? 'feSyncConflictTerminal' : 'beSyncConflictTerminal';
           if (roleResult.conflicted_files && roleResult.conflicted_files.length > 0) {
-            conflictFiles.innerHTML = roleResult.conflicted_files.map(f => `<div class="text-rose-300 font-mono text-[11px]">• ${escapeHtml(f)}</div>`).join('');
+            conflictFiles.innerHTML = renderConflictedFilesHtml(role, terminalId, roleResult.conflicted_files);
           } else {
             conflictFiles.textContent = roleResult.output || 'Có xung đột mã nguồn khi merge.';
           }
@@ -13234,17 +13959,9 @@ async function loadMergeInfo() {
             mountGitConflictResolver(role, role === 'fe' ? 'feMergeConflictTerminal' : 'beMergeConflictTerminal');
           }
           if (conflictFiles) {
+            const terminalId = role === 'fe' ? 'feMergeConflictTerminal' : 'beMergeConflictTerminal';
             if (s.conflicted_files && s.conflicted_files.length > 0) {
-              conflictFiles.innerHTML = s.conflicted_files.map(f => `
-                <div class="text-amber-200 font-mono text-[11px] flex items-center justify-between gap-2 py-0.5 border-b border-amber-900/40 last:border-0">
-                  <span class="flex items-center gap-1.5 truncate">
-                    <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
-                    <span class="text-rose-400 font-bold shrink-0">[CONFLICT]</span>
-                    <span class="truncate" title="${escapeHtml(f)}">${escapeHtml(f)}</span>
-                  </span>
-                  <button type="button" onclick="copyToClipboard('${escapeHtml(f)}')" class="text-[10px] text-amber-400/80 hover:text-white px-1.5 py-0.5 rounded hover:bg-amber-800/40 shrink-0">Sao chép</button>
-                </div>
-              `).join('');
+              conflictFiles.innerHTML = renderConflictedFilesHtml(role, terminalId, s.conflicted_files);
             } else {
               conflictFiles.innerHTML = '<div class="text-amber-300">Đang trong tiến trình merge chưa hoàn tất.</div>';
             }
@@ -13433,17 +14150,9 @@ async function doExecuteMerge(role) {
         conflictBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
       if (conflictFiles) {
+        const terminalId = role === 'fe' ? 'feMergeConflictTerminal' : 'beMergeConflictTerminal';
         if (data.conflicted_files && data.conflicted_files.length > 0) {
-          conflictFiles.innerHTML = data.conflicted_files.map(f => `
-            <div class="text-amber-200 font-mono text-[11px] flex items-center justify-between gap-2 py-0.5 border-b border-amber-900/40 last:border-0">
-              <span class="flex items-center gap-1.5 truncate">
-                <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
-                <span class="text-rose-400 font-bold shrink-0">[CONFLICT]</span>
-                <span class="truncate" title="${escapeHtml(f)}">${escapeHtml(f)}</span>
-              </span>
-              <button type="button" onclick="copyToClipboard('${escapeHtml(f)}')" class="text-[10px] text-amber-400/80 hover:text-white px-1.5 py-0.5 rounded hover:bg-amber-800/40 shrink-0">Sao chép</button>
-            </div>
-          `).join('');
+          conflictFiles.innerHTML = renderConflictedFilesHtml(role, terminalId, data.conflicted_files);
         } else {
           conflictFiles.innerHTML = '<div class="text-amber-300">Có xung đột mã nguồn trong quá trình merge.</div>';
         }
@@ -13552,17 +14261,9 @@ async function doMergeContinue(role) {
     if (data.has_conflicts) {
       showToast(`Vẫn còn file bị xung đột chưa giải quyết!`);
       const conflictFiles = document.getElementById(role === 'fe' ? 'feMergeConflictFiles' : 'beMergeConflictFiles');
+      const terminalId = role === 'fe' ? 'feMergeConflictTerminal' : 'beMergeConflictTerminal';
       if (conflictFiles && data.conflicted_files) {
-        conflictFiles.innerHTML = data.conflicted_files.map(f => `
-          <div class="text-amber-200 font-mono text-[11px] flex items-center justify-between gap-2 py-0.5 border-b border-amber-900/40 last:border-0">
-            <span class="flex items-center gap-1.5 truncate">
-              <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
-              <span class="text-rose-400 font-bold shrink-0">[CÒN CONFLICT]</span>
-              <span class="truncate" title="${escapeHtml(f)}">${escapeHtml(f)}</span>
-            </span>
-            <button type="button" onclick="copyToClipboard('${escapeHtml(f)}')" class="text-[10px] text-amber-400/80 hover:text-white px-1.5 py-0.5 rounded hover:bg-amber-800/40 shrink-0">Sao chép</button>
-          </div>
-        `).join('');
+        conflictFiles.innerHTML = renderConflictedFilesHtml(role, terminalId, data.conflicted_files);
       }
       await antdAlert({
         title: 'Chưa giải quyết hết xung đột',
@@ -13643,6 +14344,125 @@ async function doAbortConflictAction(role) {
 }
 window.doAbortConflictAction = doAbortConflictAction;
 
+const conflictFilesContainerMap = {
+  'feMergeConflictTerminal': 'feMergeConflictFiles',
+  'beMergeConflictTerminal': 'beMergeConflictFiles',
+  'feCherryConflictTerminal': 'feCherryConflictFiles',
+  'beCherryConflictTerminal': 'beCherryConflictFiles',
+  'feSyncConflictTerminal': 'feSyncConflictFiles',
+  'beSyncConflictTerminal': 'beSyncConflictFiles'
+};
+
+function renderConflictedFilesHtml(role, containerId, files) {
+  if (!files || files.length === 0) {
+    return '<div class="text-emerald-400 font-sans text-[11px] p-1">✓ Không còn file nào bị xung đột.</div>';
+  }
+
+  const batchToolbar = `
+    <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-amber-900/50 font-sans">
+      <div class="flex items-center gap-1.5 text-amber-300 font-semibold text-xs">
+        <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+        <span>Phát hiện ${files.length} file bị xung đột:</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button type="button" onclick="quickResolveGitConflictFile('${role}', '${containerId}', 'all', 'current')"
+          class="px-2.5 py-1 rounded bg-cyan-700 hover:bg-cyan-600 text-white font-medium text-[11px] transition cursor-pointer flex items-center gap-1 shadow-sm"
+          title="Áp dụng Current (Ours / HEAD) cho TẤT CẢ các file xung đột và tự động git add">
+          <span>Dùng ALL Current (Ours)</span>
+        </button>
+        <button type="button" onclick="quickResolveGitConflictFile('${role}', '${containerId}', 'all', 'incoming')"
+          class="px-2.5 py-1 rounded bg-purple-700 hover:bg-purple-600 text-white font-medium text-[11px] transition cursor-pointer flex items-center gap-1 shadow-sm"
+          title="Áp dụng Incoming (Theirs) cho TẤT CẢ các file xung đột và tự động git add">
+          <span>Dùng ALL Incoming (Theirs)</span>
+        </button>
+      </div>
+    </div>
+  `;
+
+  const filesList = files.map(f => `
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-1.5 rounded bg-black/40 border border-amber-900/40 hover:border-amber-700/60 transition text-[11px]">
+      <div class="flex items-center gap-1.5 min-w-0">
+        <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
+        <span class="text-rose-400 font-bold shrink-0 font-mono">[CONFLICT]</span>
+        <span class="text-amber-200 font-mono truncate" title="${escapeHtml(f)}">${escapeHtml(f)}</span>
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0 font-sans">
+        <button type="button" onclick="quickResolveGitConflictFile('${role}', '${containerId}', '${escapeHtml(f)}', 'current')"
+          class="px-2 py-0.5 rounded bg-cyan-900/80 hover:bg-cyan-700 text-cyan-200 border border-cyan-600/50 transition cursor-pointer"
+          title="Dùng Current (Ours) cho toàn bộ file này (tự động git checkout --ours & git add)">
+          Dùng Current (Ours)
+        </button>
+        <button type="button" onclick="quickResolveGitConflictFile('${role}', '${containerId}', '${escapeHtml(f)}', 'incoming')"
+          class="px-2 py-0.5 rounded bg-purple-900/80 hover:bg-purple-700 text-purple-200 border border-purple-600/50 transition cursor-pointer"
+          title="Dùng Incoming (Theirs) cho toàn bộ file này (tự động git checkout --theirs & git add)">
+          Dùng Incoming (Theirs)
+        </button>
+        <button type="button" onclick="refreshConflictResolver('${role}', '${containerId}', '${escapeHtml(f)}')"
+          class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600/50 transition cursor-pointer"
+          title="Mở giải quyết chi tiết từng khối trong terminal bên dưới">
+          Mở giải quyết
+        </button>
+        <button type="button" onclick="copyToClipboard('${escapeHtml(f)}')"
+          class="px-1.5 py-0.5 rounded text-amber-300/80 hover:text-white hover:bg-amber-800/40 transition cursor-pointer text-[10px]"
+          title="Sao chép đường dẫn file">
+          Sao chép
+        </button>
+      </div>
+    </div>
+  `).join('');
+
+  return batchToolbar + filesList;
+}
+window.renderConflictedFilesHtml = renderConflictedFilesHtml;
+
+async function quickResolveGitConflictFile(role, containerId, filePath, action) {
+  const isAll = filePath === 'all' || filePath === '*';
+  const label = action === 'current' ? 'Current (Ours)' : 'Incoming (Theirs)';
+  const msg = isAll
+    ? `Bạn có chắc muốn áp dụng ${label} cho TẤT CẢ các file đang bị xung đột? Hệ thống sẽ tự động giải quyết và git add.`
+    : `Bạn có chắc muốn áp dụng ${label} cho file: "${filePath}"? Hệ thống sẽ tự động git checkout --${action === 'current' ? 'ours' : 'theirs'} và git add.`;
+
+  const confirmed = await antdConfirm({
+    title: 'Xác nhận giải quyết xung đột',
+    content: msg,
+    okText: `Đồng ý dùng ${label}`
+  });
+  if (!confirmed) return;
+
+  try {
+    showToast(`Đang giải quyết xung đột bằng ${label}...`);
+    const res = await fetch('/api/git/conflict/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        role,
+        file: filePath,
+        action,
+        block_index: null
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isAll
+        ? `Đã giải quyết tất cả file bằng ${label} và tự động git add.`
+        : `Đã giải quyết ${filePath} bằng ${label} và tự động git add.`);
+
+      if (typeof refreshConflictResolver === 'function') {
+        await refreshConflictResolver(role, containerId);
+      }
+      if (typeof loadMergeInfo === 'function') await loadMergeInfo();
+      if (typeof loadGitBranchInfo === 'function') await loadGitBranchInfo();
+      if (typeof loadPullSyncInfo === 'function') await loadPullSyncInfo();
+      if (typeof loadCherryPickInfo === 'function') await loadCherryPickInfo();
+    } else {
+      showToast('Lỗi giải quyết xung đột: ' + (data.message || 'Không thành công'));
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối khi giải quyết xung đột: ' + err.message);
+  }
+}
+window.quickResolveGitConflictFile = quickResolveGitConflictFile;
+
 async function mountGitConflictResolver(role, containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -13685,6 +14505,11 @@ async function refreshConflictResolver(role, containerId, targetFile = null) {
           <div class="text-xs text-slate-400">Các thay đổi đã được tự động staged (git add). Bạn có thể nhấn <strong>Đã sửa xong & Tiếp tục (--continue)</strong>.</div>
         </div>
       `;
+      const filesBoxId = conflictFilesContainerMap[containerId];
+      if (filesBoxId) {
+        const fb = document.getElementById(filesBoxId);
+        if (fb) fb.innerHTML = '<div class="text-emerald-400 font-sans text-[11px] p-1">✓ Tất cả các file xung đột đã được giải quyết và git add!</div>';
+      }
       return;
     }
 
@@ -13692,6 +14517,13 @@ async function refreshConflictResolver(role, containerId, targetFile = null) {
     let activeFile = targetFile || (files.length > 0 ? files[0] : null);
     if (activeFile && !files.includes(activeFile) && files.length > 0) {
       activeFile = files[0];
+    }
+
+    // Đồng bộ lại danh sách file conflict ở box phía trên nếu có
+    const filesBoxId = conflictFilesContainerMap[containerId];
+    if (filesBoxId) {
+      const fb = document.getElementById(filesBoxId);
+      if (fb) fb.innerHTML = renderConflictedFilesHtml(role, containerId, files);
     }
 
     if (statusEl) {
@@ -13705,7 +14537,7 @@ async function refreshConflictResolver(role, containerId, targetFile = null) {
           <button type="button" onclick="refreshConflictResolver('${role}', '${containerId}', '${escapeHtml(f)}')"
             class="px-3 py-1 rounded-t flex items-center gap-1.5 cursor-pointer transition select-none ${isActive ? 'bg-[#1e1e1e] text-white border-t-2 border-cyan-400 font-semibold' : 'bg-[#2d2d2d] text-slate-400 hover:text-slate-200'}">
             <span class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-amber-400' : 'bg-slate-500'}"></span>
-            <span class="truncate max-w-[150px]">${escapeHtml(f.split('/').pop())}</span>
+            <span class="truncate max-w-[150px] font-mono">${escapeHtml(f.split('/').pop())}</span>
           </button>
         `;
       }).join('');
@@ -13724,7 +14556,7 @@ async function refreshConflictResolver(role, containerId, targetFile = null) {
       return;
     }
 
-    const blocks = fData.conflict_blocks || [];
+    const blocks = fData.conflict_blocks || fData.blocks || [];
     if (blocks.length === 0) {
       if (editorEl) editorEl.innerHTML = `
         <div class="p-3 bg-emerald-950/30 border border-emerald-800/60 rounded text-emerald-300 font-sans text-xs">
@@ -13736,44 +14568,56 @@ async function refreshConflictResolver(role, containerId, targetFile = null) {
 
     if (editorEl) {
       editorEl.innerHTML = `
-        <div class="text-[11px] text-slate-400 pb-1 mb-2 border-b border-[#333333] flex items-center justify-between font-sans">
-          <span>File: <strong class="text-slate-200 font-mono">${escapeHtml(activeFile)}</strong> (${blocks.length} khối xung đột)</span>
-          <div class="flex items-center gap-2">
+        <div class="text-[11px] text-slate-300 pb-1.5 mb-2.5 border-b border-[#333333] flex flex-wrap items-center justify-between gap-2 font-sans">
+          <span>File: <strong class="text-white font-mono">${escapeHtml(activeFile)}</strong> (${blocks.length} khối xung đột)</span>
+          <div class="flex items-center gap-1.5">
             <button type="button" onclick="resolveConflictAction('${role}', '${containerId}', '${escapeHtml(activeFile)}', 'current', null)"
-              class="px-2 py-0.5 rounded bg-cyan-900/60 hover:bg-cyan-800 text-cyan-200 text-[10px] transition cursor-pointer">Accept All Current</button>
+              class="px-2.5 py-1 rounded bg-cyan-800 hover:bg-cyan-700 text-white font-medium text-[11px] transition cursor-pointer flex items-center gap-1 shadow-sm"
+              title="Dùng toàn bộ Current (Ours / HEAD) cho toàn bộ file này và git add">Accept All Current</button>
             <button type="button" onclick="resolveConflictAction('${role}', '${containerId}', '${escapeHtml(activeFile)}', 'incoming', null)"
-              class="px-2 py-0.5 rounded bg-purple-900/60 hover:bg-purple-800 text-purple-200 text-[10px] transition cursor-pointer">Accept All Incoming</button>
+              class="px-2.5 py-1 rounded bg-purple-800 hover:bg-purple-700 text-white font-medium text-[11px] transition cursor-pointer flex items-center gap-1 shadow-sm"
+              title="Dùng toàn bộ Incoming (Theirs) cho toàn bộ file này và git add">Accept All Incoming</button>
+            <button type="button" onclick="resolveConflictAction('${role}', '${containerId}', '${escapeHtml(activeFile)}', 'both', null)"
+              class="px-2.5 py-1 rounded bg-emerald-800 hover:bg-emerald-700 text-white font-medium text-[11px] transition cursor-pointer flex items-center gap-1 shadow-sm"
+              title="Giữ cả Current và Incoming cho toàn bộ file này và git add">Accept All Both</button>
           </div>
         </div>
-      ` + blocks.map((blk, idx) => `
-        <div class="border border-[#3c3c3c] rounded bg-[#181818] overflow-hidden mb-3">
+      ` + blocks.map((blk, idx) => {
+        const curCode = blk.current != null ? blk.current : (blk.current_code != null ? blk.current_code : '');
+        const incCode = blk.incoming != null ? blk.incoming : (blk.incoming_code != null ? blk.incoming_code : '');
+        const curHeader = blk.current_header || '<<<<<<< HEAD (Current Change)';
+        const incFooter = blk.incoming_footer || '>>>>>>> Incoming Change';
+
+        return `
+        <div class="border border-[#3c3c3c] rounded bg-[#181818] overflow-hidden mb-3 shadow-md">
           <!-- CodeLens Action Bar -->
-          <div class="flex items-center gap-2 px-3 py-1 bg-[#252526] border-b border-[#333333] text-[11px] font-sans">
+          <div class="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-[#252526] border-b border-[#333333] text-[11px] font-sans">
             <span class="text-slate-400 font-semibold">Khối #${idx + 1}:</span>
             <button type="button" onclick="resolveConflictAction('${role}', '${containerId}', '${escapeHtml(activeFile)}', 'current', ${idx})"
-              class="text-cyan-400 hover:text-cyan-300 hover:underline font-medium cursor-pointer transition">Accept Current Change</button>
+              class="text-cyan-400 hover:text-cyan-300 hover:underline font-semibold cursor-pointer transition">Accept Current Change</button>
             <span class="text-slate-600">|</span>
             <button type="button" onclick="resolveConflictAction('${role}', '${containerId}', '${escapeHtml(activeFile)}', 'incoming', ${idx})"
-              class="text-purple-400 hover:text-purple-300 hover:underline font-medium cursor-pointer transition">Accept Incoming Change</button>
+              class="text-purple-400 hover:text-purple-300 hover:underline font-semibold cursor-pointer transition">Accept Incoming Change</button>
             <span class="text-slate-600">|</span>
             <button type="button" onclick="resolveConflictAction('${role}', '${containerId}', '${escapeHtml(activeFile)}', 'both', ${idx})"
-              class="text-emerald-400 hover:text-emerald-300 hover:underline font-medium cursor-pointer transition">Accept Both Changes</button>
+              class="text-emerald-400 hover:text-emerald-300 hover:underline font-semibold cursor-pointer transition">Accept Both Changes</button>
           </div>
 
           <!-- Diff Visualization -->
           <div class="font-mono text-xs leading-5">
-            <div class="bg-cyan-950/30 border-l-4 border-cyan-500 px-3 py-1">
-              <div class="text-[10px] text-cyan-400 select-none font-bold">&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD (Current Change)</div>
-              <pre class="text-slate-200 whitespace-pre-wrap">${escapeHtml(blk.current || '')}</pre>
+            <div class="bg-cyan-950/30 border-l-4 border-cyan-500 px-3 py-1.5">
+              <div class="text-[10px] text-cyan-400 select-none font-bold">${escapeHtml(curHeader)}</div>
+              <pre class="text-slate-200 whitespace-pre-wrap">${escapeHtml(curCode)}</pre>
             </div>
-            <div class="bg-purple-950/30 border-l-4 border-purple-500 px-3 py-1 border-t border-dashed border-[#333333]">
-              <div class="text-[10px] text-purple-400 select-none font-bold">=======</div>
-              <pre class="text-slate-200 whitespace-pre-wrap">${escapeHtml(blk.incoming || '')}</pre>
-              <div class="text-[10px] text-purple-400 select-none font-bold">&gt;&gt;&gt;&gt;&gt;&gt;&gt; Incoming Change</div>
+            <div class="bg-purple-950/30 border-l-4 border-purple-500 px-3 py-1.5 border-t border-dashed border-[#333333]">
+              <div class="text-[10px] text-slate-500 select-none font-bold">=======</div>
+              <pre class="text-slate-200 whitespace-pre-wrap">${escapeHtml(incCode)}</pre>
+              <div class="text-[10px] text-purple-400 select-none font-bold">${escapeHtml(incFooter)}</div>
             </div>
           </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
   } catch (err) {
     if (editorEl) editorEl.innerHTML = `<div class="text-rose-400 p-2 font-sans">Lỗi kết nối resolver: ${escapeHtml(err.message)}</div>`;
@@ -13795,8 +14639,13 @@ async function resolveConflictAction(role, containerId, filePath, action, blockI
     });
     const d = await res.json();
     if (d.success) {
-      showToast(`Đã giải quyết khối conflict [${action}] và lưu file.`);
+      const actLabel = action === 'current' ? 'Current (Ours)' : (action === 'incoming' ? 'Incoming (Theirs)' : 'Both');
+      showToast(`Đã áp dụng [${actLabel}] và lưu file.`);
       await refreshConflictResolver(role, containerId, filePath);
+      if (typeof loadMergeInfo === 'function') await loadMergeInfo();
+      if (typeof loadGitBranchInfo === 'function') await loadGitBranchInfo();
+      if (typeof loadPullSyncInfo === 'function') await loadPullSyncInfo();
+      if (typeof loadCherryPickInfo === 'function') await loadCherryPickInfo();
     } else {
       showToast('Lỗi giải quyết conflict: ' + (d.message || 'Không thành công'));
     }
@@ -15301,12 +16150,30 @@ async function selectJiraIssue(key, silent = false) {
           descEl.classList.remove('is-plaintext');
           descEl.innerHTML = issue.description_html;
         } else if (issue.description_text) {
-          descEl.classList.add('is-plaintext');
-          descEl.textContent = issue.description_text;
+          descEl.classList.remove('is-plaintext');
+          const formatted = typeof formatJiraText === 'function' ? formatJiraText(issue.description_text) : issue.description_text;
+          if (typeof marked !== 'undefined' && marked.parse) {
+            descEl.innerHTML = marked.parse(formatted);
+          } else {
+            descEl.classList.add('is-plaintext');
+            descEl.textContent = formatted;
+          }
         } else {
           descEl.classList.remove('is-plaintext');
           descEl.innerHTML = '<span class="text-slate-400 italic">Ticket này không có mô tả chi tiết.</span>';
         }
+
+        // Gắn sự kiện click mở modal phóng to ảnh cho tất cả ảnh trong mô tả
+        descEl.querySelectorAll('img').forEach(img => {
+          img.classList.add('cursor-pointer', 'hover:opacity-90', 'transition');
+          img.setAttribute('title', 'Bấm vào ảnh để phóng to');
+          img.onclick = (e) => {
+            e.stopPropagation();
+            if (typeof openImagePreviewModal === 'function') {
+              openImagePreviewModal(img.src, img.alt || 'Ảnh minh chứng');
+            }
+          };
+        });
       }
 
       // Render Minh chứng Video & Tệp đính kèm (mp4, webm, images, docs)
@@ -15551,10 +16418,14 @@ function renderJiraAttachments(attachments, container) {
     html += others.map(att => {
       if (att.is_image) {
         return `
-          <a href="${escapeHtml(att.url)}" target="_blank" class="group relative rounded-lg overflow-hidden border border-[#244170] bg-[#0c1628] hover:border-[#1677ff] transition block aspect-video">
+          <a href="${escapeHtml(att.url)}" target="_blank"
+             onclick="event.preventDefault(); if (typeof openImagePreviewModal === 'function') openImagePreviewModal('${escapeHtml(att.url)}', '${escapeHtml(att.filename)}');"
+             title="Bấm để xem ảnh phóng to: ${escapeHtml(att.filename)}"
+             class="group relative rounded-lg overflow-hidden border border-[#244170] bg-[#0c1628] hover:border-[#1677ff] transition block aspect-video cursor-pointer">
             <img src="${escapeHtml(att.url)}" alt="${escapeHtml(att.filename)}" class="w-full h-full object-cover group-hover:scale-105 transition duration-200" loading="lazy" />
-            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 text-[10px] text-white truncate">
-              ${escapeHtml(att.filename)}
+            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 text-[10px] text-white truncate flex items-center justify-between">
+              <span class="truncate">${escapeHtml(att.filename)}</span>
+              <span class="text-[9px] text-blue-300 shrink-0 opacity-0 group-hover:opacity-100 transition">Phóng to</span>
             </div>
           </a>
         `;
@@ -15686,20 +16557,46 @@ function formatJiraText(text) {
   // Chuẩn hóa ký tự xuống dòng
   s = s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-  // Format Acceptance Criteria / Tiêu chí chấp nhận headers
-  s = s.replace(/(?:^|\n|\s+)(Acceptance Criteria[^\n]*?|Tiêu chí chấp nhận[^\n]*?)(?=(?:\s+(?:AC\s*\d+|Kịch bản|Scenario)|$|\n))/gi, '\n\n### $1\n');
+  // Loại bỏ link markdown hình ảnh & video vì đã có gallery ảnh minh chứng hiển thị
+  s = s.replace(/\[([^\]]*\.(?:png|jpg|jpeg|gif|webp|svg|mp4|webm|mov|mkv))\]\([^)]+\)/gi, '');
+  s = s.replace(/\[Ảnh minh chứng:[^\]]*\]/gi, '');
+  s = s.replace(/\[[^\]]*\.(?:png|jpg|jpeg|gif|webp|svg|mp4|webm|mov|mkv)\]/gi, '');
 
-  // Format AC1, AC2, AC3 / Kịch bản 1 / Scenario 1
-  s = s.replace(/(?:^|\n|\s+)((?:AC\s*\d+|Kịch bản\s*\d+|Scenario\s*\d+)[\s:\-]+[^\n]*?)(?=(?:\s+(?:Given|When|Then|And|But)\b|$|\n))/g, '\n\n#### $1\n');
+  // Tạm thời bảo vệ URL và API attachment
+  const urlPlaceholders = [];
+  s = s.replace(/(https?:\/\/[^\s)\]]+|\/api\/jira\/attachment[^\s)\]]+)/gi, (m) => {
+    urlPlaceholders.push(m);
+    return '___URL_TOKEN_' + (urlPlaceholders.length - 1) + '___';
+  });
 
-  // Format BDD Given / When / Then / And / But
-  s = s.replace(/(?:^|\n|\s+)\b(Given)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:When|Then|And|But|AC\s*\d+|Kịch bản|Scenario)\b|$|\n))/g, '\n- **Given**: $2');
-  s = s.replace(/(?:^|\n|\s+)\b(When)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:Then|And|But|AC\s*\d+|Given|Kịch bản|Scenario)\b|$|\n))/g, '\n- **When**: $2');
-  s = s.replace(/(?:^|\n|\s+)\b(Then)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:And|But|AC\s*\d+|Given|When|Kịch bản|Scenario)\b|$|\n))/g, '\n- **Then**: $2');
-  s = s.replace(/(?:^|\n|\s+)\b(And)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:And|But|AC\s*\d+|Given|When|Then|Kịch bản|Scenario)\b|$|\n))/g, '\n  - **And**: $2');
-  s = s.replace(/(?:^|\n|\s+)\b(But)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:And|But|AC\s*\d+|Given|When|Then|Kịch bản|Scenario)\b|$|\n))/g, '\n  - **But**: $2');
+  // 1. Loại bỏ các ký tự lạ ** (ví dụ: **Là** -> Là, **Tôi muốn** -> Tôi muốn, **Given** -> Given)
+  s = s.replace(/\*\*([^*]+)\*\*/g, '$1');
+  s = s.replace(/\*\*/g, '');
 
-  // Format các đề mục kiểm thử / Bug report thông dụng nếu dính liền
+  // 2. Loại bỏ các ký tự in nghiêng // hoặc // lạ không thuộc URL
+  s = s.replace(/\/\/([^\/\n]+)\/\//g, '$1');
+  s = s.replace(/(^|\s)\/\/(?!\/)(\s|$)/g, '$1$2');
+
+  // 3. Loại bỏ dấu ngoặc vuông quanh email [email@domain.com] -> email@domain.com
+  s = s.replace(/\[([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)\]/g, '$1');
+
+  // 4. Loại bỏ các ký tự thăng #, ##, ###, #### của Markdown tiêu đề
+  s = s.replace(/^[ \t]*#{1,6}[ \t]*/gm, '');
+
+  // Format Acceptance Criteria / Tiêu chí chấp nhận headers (không dùng dấu #)
+  s = s.replace(/(?:^|\n|\s+)(Acceptance Criteria[^\n]*?|Tiêu chí chấp nhận[^\n]*?)(?=(?:\s+(?:AC\s*\d+|Kịch bản|Scenario)|$|\n))/gi, '\n\n$1:\n');
+
+  // Format AC1, AC2, AC3 / Kịch bản 1 / Scenario 1 (không dùng dấu #)
+  s = s.replace(/(?:^|\n|\s+)((?:AC\s*\d+|Kịch bản\s*\d+|Scenario\s*\d+)[\s:\-]+[^\n]*?)(?=(?:\s+(?:Given|When|Then|And|But)\b|$|\n))/g, '\n\n$1:\n');
+
+  // Format BDD Given / When / Then / And / But (Không dùng dấu - mồ côi)
+  s = s.replace(/^[ \t]*[-*•]?[ \t]*\b(Given)\b\s*[:\-]?\s*/gim, 'Given: ');
+  s = s.replace(/^[ \t]*[-*•]?[ \t]*\b(When)\b\s*[:\-]?\s*/gim, 'When: ');
+  s = s.replace(/^[ \t]*[-*•]?[ \t]*\b(Then)\b\s*[:\-]?\s*/gim, 'Then: ');
+  s = s.replace(/^[ \t]*[-*•]?[ \t]*\b(And)\b\s*[:\-]?\s*/gim, '  And: ');
+  s = s.replace(/^[ \t]*[-*•]?[ \t]*\b(But)\b\s*[:\-]?\s*/gim, '  But: ');
+
+  // Format các đề mục kiểm thử / Bug report thông dụng nếu dính liền (không dùng dấu #)
   const headings = [
     'Hiện tượng lỗi', 'Mô tả lỗi', 'Bug description',
     'Các bước tái hiện', 'Steps to reproduce',
@@ -15711,11 +16608,26 @@ function formatJiraText(text) {
   ];
   headings.forEach(h => {
     const re = new RegExp(`(?:^|\\n|(?:(?<=[.!?])\\s+))(${h})\\s*:\\s*`, 'gi');
-    s = s.replace(re, '\n\n### $1:\n');
+    s = s.replace(re, '\n\n$1:\n');
   });
 
+  // Loại bỏ các dòng chỉ chứa dấu gạch ngang mồ côi hoặc ký tự thăng
+  s = s.replace(/^[ \t]*[-*•#]+[ \t]*$/gm, '');
+
+  // Xóa trùng lặp dấu gạch đầu dòng '- - ' -> '- '
+  s = s.replace(/^[ \t]*[-*•][ \t]+[-*•][ \t]+/gm, '- ');
+
+  // Xử lý trường hợp Then: - Thành phần -> Then:\n- Thành phần
+  s = s.replace(/\b(Then:)[ \t]*-[ \t]+/g, '$1\n- ');
+
+  // Loại bỏ ngoặc vuông rỗng []
+  s = s.replace(/\[\s*\]/g, '');
+
+  // Khôi phục URL
+  s = s.replace(/___URL_TOKEN_(\d+)___/g, (_, idx) => urlPlaceholders[Number(idx)]);
+
   // Dọn dẹp khoảng trắng dư thừa
-  const lines = s.split('\n').map(line => line.replace(/[ \t]+/g, ' ').trimEnd());
+  const lines = s.split('\n').map(line => line.replace(/\t/g, '    ').trimEnd());
   s = lines.join('\n');
   s = s.replace(/\n{3,}/g, '\n\n');
   return s.trim();
@@ -15739,7 +16651,7 @@ function formatTaskPromptInput() {
   if (typeof onTaskPromptInput === 'function') {
     onTaskPromptInput();
   }
-  showToast('Đã định dạng lại nội dung theo chuẩn BDD & đề mục!', 'success');
+  showToast('Đã định dạng lại nội dung và dọn sạch các ký tự lạ!', 'success');
 }
 window.formatTaskPromptInput = formatTaskPromptInput;
 
@@ -15759,14 +16671,44 @@ function sendActiveJiraToTask() {
   const key = issue.key;
   const summary = (issue.summary || '').trim();
   const rawDesc = (issue.description_text || issue.description || '').trim();
-  const cleanDesc = formatJiraText(rawDesc);
+  let cleanDesc = formatJiraText(rawDesc);
   const isBug = (issue.issuetype || '').toLowerCase().includes('bug');
 
   if (typeof setTaskActionType === 'function') {
     setTaskActionType(isBug ? 'fixbug' : 'task');
   }
 
-  let formattedPrompt = `[Jira ${key}] ${summary}`;
+  // Trích xuất toàn bộ hình ảnh đính kèm từ issue và từ rawDesc
+  const attachedImages = [];
+  if (issue.attachments && Array.isArray(issue.attachments)) {
+    issue.attachments.forEach(att => {
+      if (att.is_image || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(att.filename || '')) {
+        attachedImages.push({
+          url: att.url,
+          name: att.filename,
+          size: att.size_formatted || ''
+        });
+      }
+    });
+  }
+
+  // Quét thêm ảnh từ rawDesc nếu có cú pháp markdown
+  const mdImgRegex = /\[([^\]]+\.(?:png|jpg|jpeg|gif|webp|svg))\]\(([^)]+)\)/gi;
+  let match;
+  while ((match = mdImgRegex.exec(rawDesc)) !== null) {
+    const name = match[1];
+    const url = match[2];
+    if (!attachedImages.some(img => img.url === url || img.name === name)) {
+      attachedImages.push({ url, name });
+    }
+  }
+
+  // Làm sạch hoàn toàn các link ảnh markdown trong prompt vì đã có khung gallery hiển thị bên dưới
+  cleanDesc = cleanDesc.replace(/\[([^\]]+\.(?:png|jpg|jpeg|gif|webp|svg|mp4|webm|mov|mkv))\]\([^)]+\)/gi, '');
+  cleanDesc = cleanDesc.replace(/\[Ảnh minh chứng:[^\]]*\]/gi, '');
+  cleanDesc = cleanDesc.replace(/\[[^\]]+\.(?:png|jpg|jpeg|gif|webp|svg|mp4|webm)\]/gi, '');
+
+  let formattedPrompt = `Jira ${key}: ${summary}`;
   if (cleanDesc) {
     formattedPrompt += `\n\n${cleanDesc}`;
   }
@@ -15775,14 +16717,19 @@ function sendActiveJiraToTask() {
       const author = c.author || 'Thành viên';
       const timeStr = c.created ? ` (${formatJiraDate(c.created)})` : '';
       const body = formatJiraText(c.body_text || '').trim();
-      return `- **${author}**${timeStr}:\n  ${body.replace(/\n/g, '\n  ')}`;
+      return `${author}${timeStr}:\n  ${body.replace(/\n/g, '\n  ')}`;
     }).filter(Boolean).join('\n\n');
     if (recentComments) {
-      formattedPrompt += `\n\n### Thảo luận gần nhất:\n${recentComments}`;
+      formattedPrompt += `\n\nThảo luận gần nhất:\n${recentComments}`;
     }
   }
 
   promptInput.value = formattedPrompt.trim();
+
+  // Hiển thị khung ảnh minh chứng đính kèm
+  if (typeof renderTaskPromptImages === 'function') {
+    renderTaskPromptImages(attachedImages);
+  }
 
   if (typeof parallelTasks !== 'undefined' && Array.isArray(parallelTasks)) {
     const cur = parallelTasks.find(t => t.id === activeTaskId);
@@ -15790,6 +16737,7 @@ function sendActiveJiraToTask() {
       cur.name = `${key}: ${summary.slice(0, 24)}`;
       cur.isCustomName = true;
       cur.prompt = formattedPrompt.trim();
+      cur.images = attachedImages;
       cur.type = isBug ? 'fixbug' : 'task';
       if (typeof renderParallelTaskTabs === 'function') renderParallelTaskTabs();
     }
@@ -16126,7 +17074,7 @@ function sendRovoAnalysisToTask() {
     setTaskActionType(isBug ? 'fixbug' : 'task');
   }
 
-  const fullPrompt = `[Jira ${key}] ${issue.summary}\n\n=== BẢN PHÂN TÍCH KỸ THUẬT ATLASSIAN ROVO AI ===\n${window.activeRovoAnalysisText}`;
+  const fullPrompt = `Jira ${key}: ${issue.summary}\n\n=== BẢN PHÂN TÍCH KỸ THUẬT ATLASSIAN ROVO AI ===\n${window.activeRovoAnalysisText}`;
   promptInput.value = fullPrompt.trim();
 
   if (typeof onTaskPromptInput === 'function') {
@@ -17271,6 +18219,8 @@ async function checkJiraRealtimeUpdates() {
         if (exists) return;
 
         const isComment = notif.type === 'comment_added';
+        const isDocUpdate = notif.type === 'issue_updated' || notif.type === 'doc_updated';
+        const notifType = notif.type || (isComment ? 'comment_added' : (isDocUpdate ? 'issue_updated' : 'issue_created'));
         if (typeof addOrUpdateNotification === 'function') {
           addOrUpdateNotification({
             id: notifId,
@@ -17279,10 +18229,12 @@ async function checkJiraRealtimeUpdates() {
             title: notif.title || `Cập nhật Jira ${notif.key || ''}`,
             desc: notif.message || notif.summary || '',
             issueKey: notif.key,
-            notifType: isComment ? 'comment_added' : 'issue_created',
+            notifType: notifType,
             author: notif.author,
-            date: notif.created || new Date().toISOString(),
-            timestamp: notif.created ? (Date.parse(notif.created) || Date.now()) : Date.now()
+            created: notif.created,
+            updated: notif.updated,
+            date: (isDocUpdate ? notif.updated : notif.created) || notif.updated || notif.created || new Date().toISOString(),
+            timestamp: (isDocUpdate ? (notif.updated ? Date.parse(notif.updated) : Date.now()) : (notif.created ? Date.parse(notif.created) : Date.now())) || Date.now()
           });
           addedCount++;
         }
@@ -17335,8 +18287,14 @@ function showJiraToastCard(notif) {
   const toastId = `jiraToast_${safeId}_${Math.random().toString(36).substring(2, 6)}`;
 
   const isComment = notif.type === 'comment_added';
+  const isDocUpdate = (
+    notif.type === 'issue_updated' ||
+    notif.type === 'doc_updated' ||
+    (notif.title && notif.title.toLowerCase().includes('cập nhật doc')) ||
+    (notif.message && notif.message.toLowerCase().includes('cập nhật doc'))
+  );
   const issueKey = notif.key || '';
-  const notifType = notif.type || (isComment ? 'comment_added' : 'issue_created');
+  const notifType = notif.type || (isComment ? 'comment_added' : (isDocUpdate ? 'issue_updated' : 'issue_created'));
 
   let badgeLabel = 'JIRA CLOUD';
   let badgeColorClass = 'bg-[#1677ff]/15 text-[#60a5fa] border-[#1677ff]/30';
@@ -17346,6 +18304,10 @@ function showJiraToastCard(notif) {
     badgeLabel = 'BÌNH LUẬN MỚI';
     badgeColorClass = 'bg-sky-500/15 text-sky-400 border-sky-500/30';
     typeIconSvg = `<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>`;
+  } else if (isDocUpdate) {
+    badgeLabel = 'CẬP NHẬT DOC';
+    badgeColorClass = 'bg-teal-500/15 text-teal-400 border-teal-500/30';
+    typeIconSvg = `<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
   } else if (notif.issuetype) {
     badgeLabel = notif.issuetype.toUpperCase();
   } else {
@@ -17354,11 +18316,15 @@ function showJiraToastCard(notif) {
 
   const cardTitle = isComment
     ? (notif.author ? `${notif.author} vừa bình luận` : `Bình luận mới trên ${issueKey || 'Ticket'}`)
-    : (notif.summary || notif.title || `Cập nhật Jira ${issueKey}`);
+    : (isDocUpdate
+        ? (notif.title || `Cập nhật doc: ${issueKey}`)
+        : (notif.summary || notif.title || `Cập nhật Jira ${issueKey}`));
 
   let cardBody = '';
   if (isComment) {
     cardBody = notif.comment_body || notif.message || notif.summary || '';
+  } else if (isDocUpdate) {
+    cardBody = notif.message || (notif.summary && notif.author ? `${notif.author} vừa cập nhật doc: ${notif.summary}` : (notif.summary || ''));
   } else {
     if (notif.summary && notif.author) {
       cardBody = `${notif.author} vừa tạo: ${notif.summary}`;
@@ -17368,9 +18334,10 @@ function showJiraToastCard(notif) {
   }
 
   let timeStr = 'Vừa xong';
-  if (notif.created) {
+  const timeSource = (isDocUpdate ? notif.updated : notif.created) || notif.updated || notif.created;
+  if (timeSource) {
     try {
-      const dt = new Date(notif.created);
+      const dt = new Date(timeSource);
       if (!isNaN(dt.getTime())) {
         timeStr = dt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
       }
@@ -18160,16 +19127,6 @@ fetch('/api/settings')
 runAdaptivePollLoop();
 
 window.addEventListener('DOMContentLoaded', () => {
-
-  TABS.forEach(t => {
-    const btn = document.getElementById('tabBtn_' + t);
-    if (btn) {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        switchTab(t);
-      });
-    }
-  });
 
   let initialTab = (typeof window.getTabFromUrl === 'function') ? window.getTabFromUrl() : null;
   const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';

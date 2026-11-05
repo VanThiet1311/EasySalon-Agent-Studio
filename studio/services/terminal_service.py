@@ -12,7 +12,7 @@ import threading
 import time
 import uuid
 
-from config import FE_WORKSPACE, BE_WORKSPACE, BRAIN_DIR, HISTORY_FILE, get_agy_bin, get_opencode_bin, get_fe_workspace, get_be_workspace, get_workspace
+from config import FE_WORKSPACE, BE_WORKSPACE, BRAIN_DIR, STORAGE_DIR, HISTORY_FILE, get_agy_bin, get_opencode_bin, get_fe_workspace, get_be_workspace, get_workspace
 from studio.state import (
     app_state,
     state_lock,
@@ -73,7 +73,13 @@ def kill_process_tree(proc):
     except Exception:
         pass
 
-    # 2. Kill the process directly as well
+    # 2. Kill all child processes via pkill as extra safeguard
+    try:
+        subprocess.run(['pkill', '-9', '-P', str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
+    except Exception:
+        pass
+
+    # 3. Kill the process directly as well
     try:
         proc.kill()
     except Exception:
@@ -84,10 +90,15 @@ def kill_process_tree(proc):
     except Exception:
         pass
 
-    # 3. Close pipes to unblock any waiting readline calls
+    # 4. Close pipes to unblock any waiting readline calls
     try:
         if proc.stdout and not proc.stdout.closed:
             proc.stdout.close()
+    except Exception:
+        pass
+    try:
+        if getattr(proc, 'stderr', None) and not proc.stderr.closed:
+            proc.stderr.close()
     except Exception:
         pass
     try:
@@ -420,7 +431,7 @@ def build_fallback_cli_cmd(prompt_str: str, conversation_id: str = None) -> list
         base_opencode_model = str(settings.get('opencode_model') or '9router/ag/gemini-3.8-flash').strip()
         effort = str(settings.get('effort') or 'high').strip()
         opencode_model = resolve_effective_opencode_model(base_opencode_model, effort)
-        cmd = [opencode_bin, 'run', '--format', 'json', '--auto']
+        cmd = [opencode_bin, 'run', '--standalone', '--format', 'json', '--auto']
         if opencode_model:
             cmd.extend(['--model', opencode_model])
         if conversation_id:
@@ -670,7 +681,74 @@ def build_skill_directive(skill_input) -> str:
         f"- Đọc và tuân thủ tài liệu hướng dẫn nghiệp vụ/kiến trúc tại '.agents/skills/{s}/SKILL.md' (hoặc gọi tool skill '{s}') trong workspace."
         for s in formatted
     ]
-    return "[HƯỚNG DẪN SKILL TRỌNG TÂM]:\n" + "\n".join(bullet_points)
+    return (
+        f"[HƯỚNG DẪN SKILL TRỌNG TÂM]: Tác vụ này áp dụng các skill: {', '.join(formatted)}.\n"
+        + "\n".join(bullet_points)
+        + "\nTuân thủ chặt chẽ đúng chuẩn kiến trúc, component, DTO, bảng biểu, entity và quy tắc nghiệp vụ đã định nghĩa trong các skill trên."
+    )
+
+
+def build_workspace_isolation_directive(role: str) -> str:
+    """Ràng buộc nghiêm ngặt phạm vi làm việc của AI Agent theo role FE hoặc BE."""
+    if role == 'fe':
+        fe_ws = get_fe_workspace()
+        be_ws = get_be_workspace()
+        return (
+            f"[GIỚI HẠN PHẠM VI WORKSPACE - CHỈ ĐƯỢC THAO TÁC TRÊN FRONTEND (easysalon-webapp)]:\n"
+            f"1. PHẠM VI WORKSPACE DUY NHẤT: Bạn ĐANG LÀM VIỆC TẠI FRONTEND ('{fe_ws}').\n"
+            f"2. TUYỆT ĐỐI CẤM: Không được 'cd', đọc (read), tìm kiếm (grep/find), kiểm tra hoặc sửa đổi bất kỳ file nào thuộc thư mục Backend ('{be_ws}' hoặc '../easysalon-api').\n"
+            f"3. TOÀN BỘ PHÂN TÍCH VÀ SỬA ĐỔI PHẢI NẰM HOÀN TOÀN TRONG FRONTEND: Hãy đọc các file API client, TypeScript interface, type DTO, validation schema và mock data trong thư mục Frontend hiện tại. Tuyệt đối không mở hay đọc repo Backend!\n"
+            f"4. TUYỆT ĐỐI KHÔNG nhắc đến việc đọc file Backend trong câu trả lời."
+        )
+    elif role == 'be':
+        fe_ws = get_fe_workspace()
+        be_ws = get_be_workspace()
+        return (
+            f"[GIỚI HẠN PHẠM VI WORKSPACE - CHỈ ĐƯỢC THAO TÁC TRÊN BACKEND (easysalon-api)]:\n"
+            f"1. PHẠM VI WORKSPACE DUY NHẤT: Bạn ĐANG LÀM VIỆC TẠI BACKEND ('{be_ws}').\n"
+            f"2. TUYỆT ĐỐI CẤM: Không được 'cd', đọc, tìm kiếm, kiểm tra hoặc sửa đổi bất kỳ file nào thuộc thư mục Frontend ('{fe_ws}' hoặc '../easysalon-webapp').\n"
+            f"3. Mọi Controller, Service, DTO, Entity, Database query và cấu hình phải hoàn toàn nằm trong thư mục Backend hiện tại."
+        )
+    return ""
+
+
+def build_image_directive(images: list) -> tuple:
+    """
+    Tạo chỉ thị phân tích ảnh trực quan cho multimodal model (Gemini CLI / OpenCode)
+    và danh sách đường dẫn file ảnh cục bộ hợp lệ.
+    """
+    if not images or not isinstance(images, list):
+        return "", []
+
+    valid_files = []
+    lines = ["[ẢNH CHỤP MÀN HÌNH / MINH CHỨNG TRỰC QUAN ĐÍNH KÈM TỪ NGƯỜI DÙNG]:"]
+    for idx, img in enumerate(images, 1):
+        if not isinstance(img, dict):
+            continue
+        local_p = img.get('local_path') or ''
+        url = img.get('url') or ''
+        name = img.get('name') or img.get('filename') or f'screenshot_{idx}.png'
+        if not local_p and url.startswith('/api/uploads/'):
+            fn = os.path.basename(url)
+            possible = os.path.join(STORAGE_DIR, 'uploads', fn)
+            if os.path.exists(possible):
+                local_p = possible
+        if local_p and os.path.exists(local_p):
+            valid_files.append(local_p)
+            lines.append(f"- Ảnh {idx} ({name}): File cục bộ tại '{local_p}' (URL xem trước: {url})")
+        elif url:
+            lines.append(f"- Ảnh {idx} ({name}): URL '{url}'")
+
+    if len(lines) <= 1:
+        return "", []
+
+    lines.append(
+        "HƯỚNG DẪN BẮT BUỘC DÀNH CHO AI AGENT:\n"
+        "Người dùng đã chụp màn hình và đính kèm để bạn quan sát trực quan. "
+        "Hãy sử dụng công cụ đọc file ('read' đối với Gemini CLI / Antigravity hoặc tương đương) đối với các file ảnh cục bộ ở trên "
+        "để xem trực tiếp hình ảnh, phân tích layout giao diện, thông báo lỗi hoặc hành vi bất thường, từ đó giải quyết chính xác vấn đề người dùng yêu cầu."
+    )
+    return "\n".join(lines), valid_files
 
 
 def sanitize_prompt_text(text: str) -> str:
@@ -844,7 +922,7 @@ def collect_workspace_changes(workspace: str, repo_label: str, touched_paths=Non
 # -------------------------------------------------------------
 # WORKER: LÀM TASK & FIX BUG (AI TERMINAL STREAMING + QUEUE)
 # -------------------------------------------------------------
-def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_label='FE'):
+def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_label='FE', attached_files=None):
     """Đưa trực tiếp prompt (/skill + prompt) xuống AI Terminal ngầm đang chạy (FE/BE) và stream realtime từng tool call + code changes."""
     t0 = time.time()
     proc = None
@@ -958,12 +1036,17 @@ def stream_process_turn(cmd, cwd, turn_data, timeout=360, task_state=None, repo_
                 opencode_cmd = [
                     opencode_bin,
                     'run',
+                    '--standalone',
                     '--format', 'json',
                     '--model', opencode_model,
                     '--auto',
                     '--session', opencode_session_id,
-                    prompt_text
                 ]
+                if attached_files and isinstance(attached_files, (list, tuple)):
+                    for af in attached_files:
+                        if af and os.path.exists(af):
+                            opencode_cmd.extend(['--file', af])
+                opencode_cmd.append(prompt_text)
                 print(f"[STUDIO] AI Terminal [{role.upper()}] thực thi lượt mới qua OpenCode (9router) [Model: {opencode_model}, Effort: {target_effort.upper()}]...")
                 proc = subprocess.Popen(
                     opencode_cmd,
@@ -1451,12 +1534,23 @@ def format_conversation_context(turns: list) -> str:
     return "[NGỮ CẢNH ĐOẠN CHAT & KẾT QUẢ ĐÃ ĐIỀU TRA Ở CÁC LƯỢT TRƯỚC]:\n" + "\n\n".join(lines)
 
 
-def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds: int, skill: str, original_prompt: str = '', continuation: bool = False):
+def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds: int, skill: str, original_prompt: str = '', continuation: bool = False, images: list = None):
     global app_state
 
     agy_bin = get_agy_bin()
     session_id = f"task_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
     start_time = time.time()
+    if images is None:
+        task_entry = app_state.get('active_tasks', {}).get(task_id, {})
+        if task_entry:
+            images = task_entry.get('session', {}).get('images') or task_entry.get('images')
+        if not images:
+            for q in app_state.get('task_queue', []):
+                if q.get('id') == task_id:
+                    images = q.get('images')
+                    break
+
+    img_directive, valid_files = build_image_directive(images)
 
     role_meta = {
         'fe': {
@@ -1622,6 +1716,11 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
         prompt_parts.append(f"[YÊU CẦU TIẾP THEO CỦA NGƯỜI DÙNG]:\n{display_p}")
         if clean_err:
             prompt_parts.append(f"[MÃ LỖI / CONSOLE LOG ĐÍNH KÈM]:\n```\n{clean_err}\n```")
+        if img_directive:
+            prompt_parts.append(img_directive)
+        iso_directive = build_workspace_isolation_directive(active_role)
+        if iso_directive:
+            prompt_parts.append(iso_directive)
         # Không nạp lại skill directive ở lượt tiếp theo.
         prompt_parts.append(directive)
 
@@ -1643,7 +1742,8 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
             'engine_label': target_engine_label,
             'model': target_model,
             'effort': target_effort,
-            'is_continuation': True
+            'is_continuation': True,
+            'images': images or []
         }
         with state_lock:
             for prev_t in task_state.get('session', {}).get('turns', []):
@@ -1652,8 +1752,9 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
                 task_state['session']['turns'].append(turn_data)
             save_queue_state_unlocked()
 
+        stream_kwargs = {'attached_files': valid_files} if valid_files else {}
         response_text, elapsed = stream_process_turn(
-            cmd, curr_info['workspace'], turn_data, timeout=240, task_state=task_state, repo_label=curr_info['repo_label']
+            cmd, curr_info['workspace'], turn_data, timeout=240, task_state=task_state, repo_label=curr_info['repo_label'], **stream_kwargs
         )
         history.append(turn_data)
 
@@ -1687,6 +1788,11 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
             prompt_parts.append(f"[YÊU CẦU CỦA NGƯỜI DÙNG]:\n{display_p}")
         if clean_err:
             prompt_parts.append(f"[MÃ LỖI / CONSOLE LOG ĐÍNH KÈM]:\n```\n{clean_err}\n```")
+        if img_directive:
+            prompt_parts.append(img_directive)
+        iso_directive = build_workspace_isolation_directive(active_role)
+        if iso_directive:
+            prompt_parts.append(iso_directive)
         if skill_directive:
             prompt_parts.append(skill_directive)
         prompt_parts.append(directive)
@@ -1709,7 +1815,8 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
             'engine': target_engine,
             'engine_label': target_engine_label,
             'model': target_model,
-            'effort': target_effort
+            'effort': target_effort,
+            'images': images or []
         }
         with state_lock:
             for prev_t in task_state.get('session', {}).get('turns', []):
@@ -1718,8 +1825,9 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
                 task_state['session']['turns'].append(turn_data)
             save_queue_state_unlocked()
 
+        stream_kwargs = {'attached_files': valid_files} if valid_files else {}
         response_text, elapsed = stream_process_turn(
-            cmd, curr_info['workspace'], turn_data, timeout=360, task_state=task_state, repo_label=curr_info['repo_label']
+            cmd, curr_info['workspace'], turn_data, timeout=360, task_state=task_state, repo_label=curr_info['repo_label'], **stream_kwargs
         )
         history.append(turn_data)
 
@@ -1748,9 +1856,13 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
             skill_directive = build_skill_directive(skill)
             skill_part = f"\n\n{skill_directive}" if skill_directive else ""
 
+            iso_directive = build_workspace_isolation_directive(current_role)
+            iso_part = f"\n\n{iso_directive}" if iso_directive else ""
+            img_part = f"\n\n{img_directive}" if (img_directive and round_idx == 1) else ""
+
             if round_idx == 1:
                 agent_prompt = (
-                    f"{converted_prompt}{orig_part}{context_part}{err_part}{skill_part}\n\n"
+                    f"{converted_prompt}{orig_part}{context_part}{err_part}{img_part}{iso_part}{skill_part}\n\n"
                     f"[Phối hợp FE & BE - Lượt {curr_round_num}/{base_round + max_rounds} ({curr_info['label']})]:\n"
                     f"- Thực thi yêu cầu trên trong workspace của bạn ({curr_info['repo_label']}).\n"
                     f"- Nêu rõ API/DTO hoặc thay đổi liên quan cho {other_info['label']}.\n\n"
@@ -1760,7 +1872,7 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
                 last_turn = history[-1]
                 prev_summary = format_conversation_context(history)
                 agent_prompt = (
-                    f"{converted_prompt}{orig_part}{err_part}{skill_part}\n\n"
+                    f"{converted_prompt}{orig_part}{err_part}{iso_part}{skill_part}\n\n"
                     f"{prev_summary}\n\n"
                     f"PHẢN HỒI MỚI NHẤT TỪ {other_info['label'].upper()}:\n"
                     f"\"\"\"\n{last_turn['content']}\n\"\"\"\n\n"
@@ -1787,7 +1899,8 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
                 'engine': target_engine,
                 'engine_label': target_engine_label,
                 'model': target_model,
-                'effort': target_effort
+                'effort': target_effort,
+                'images': images or []
             }
             with state_lock:
                 for prev_t in task_state.get('session', {}).get('turns', []):
@@ -1796,8 +1909,9 @@ def run_task_worker(task_id: str, prompt: str, target: str, starter: str, rounds
                     task_state['session']['turns'].append(turn_data)
                 save_queue_state_unlocked()
 
+            stream_kwargs = {'attached_files': valid_files} if valid_files else {}
             response_text, elapsed = stream_process_turn(
-                cmd, curr_info['workspace'], turn_data, timeout=300, task_state=task_state, repo_label=curr_info['repo_label']
+                cmd, curr_info['workspace'], turn_data, timeout=300, task_state=task_state, repo_label=curr_info['repo_label'], **stream_kwargs
             )
             history.append(turn_data)
 
@@ -1913,6 +2027,18 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
     agy_bin = get_agy_bin()
     session_id = f"fix_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
     start_time = time.time()
+
+    images = None
+    task_entry = app_state.get('active_tasks', {}).get(task_id, {})
+    if task_entry:
+        images = task_entry.get('session', {}).get('images') or task_entry.get('images')
+    if not images:
+        for q in app_state.get('task_queue', []):
+            if q.get('id') == task_id:
+                images = q.get('images')
+                break
+
+    img_directive, valid_files = build_image_directive(images)
 
     if isinstance(skill, list):
         skill_list = [str(s).strip() for s in skill if str(s).strip()]
@@ -2099,6 +2225,13 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
         if skill_directive:
             prompt_parts.append(skill_directive)
 
+        if img_directive and (round_idx == 1 or is_continuation):
+            prompt_parts.append(img_directive)
+
+        iso_directive = build_workspace_isolation_directive(r_role)
+        if iso_directive:
+            prompt_parts.append(iso_directive)
+
         prompt_parts.append(directive)
         prompt_body = "\n\n".join(prompt_parts)
 
@@ -2118,7 +2251,8 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
             'engine': target_engine,
             'engine_label': target_engine_label,
             'model': target_model,
-            'effort': target_effort
+            'effort': target_effort,
+            'images': images or []
         }
         with state_lock:
             for prev_t in task_state.get('session', {}).get('turns', []):
@@ -2127,8 +2261,9 @@ def run_fixbug_worker(task_id: str, skill, scope: str, description: str, error_l
                 task_state['session']['turns'].append(turn_data)
             save_queue_state_unlocked()
 
+        stream_kwargs = {'attached_files': valid_files} if valid_files else {}
         response_text, elapsed = stream_process_turn(
-            cmd, curr_info['workspace'], turn_data, timeout=360, task_state=task_state, repo_label=curr_info['repo_label']
+            cmd, curr_info['workspace'], turn_data, timeout=360, task_state=task_state, repo_label=curr_info['repo_label'], **stream_kwargs
         )
         history.append(turn_data)
 
@@ -2310,6 +2445,7 @@ def enqueue_task_item(item_dict: dict) -> dict:
             'effort': target_effort,
             'turns': existing_turns,
             'changed_files': existing_changes,
+            'images': item_dict.get('images', []),
             'status': 'QUEUED',
             'created_at': existing_session.get('created_at', datetime.datetime.now().strftime('%H:%M:%S')) if existing_session else datetime.datetime.now().strftime('%H:%M:%S')
         }
@@ -2379,7 +2515,8 @@ def queue_worker_loop():
                         next_item.get('rounds', 4),
                         skill_str,
                         original_prompt=orig_p,
-                        continuation=bool(next_item.get('continuation') or next_item.get('is_continuation'))
+                        continuation=bool(next_item.get('continuation') or next_item.get('is_continuation')),
+                        images=next_item.get('images', [])
                     )
                 else:
                     run_fixbug_worker(

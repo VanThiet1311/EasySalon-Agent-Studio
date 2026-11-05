@@ -1044,6 +1044,27 @@ let _savedNotifications = [];
 try {
   _savedNotifications = JSON.parse(localStorage.getItem(NOTIF_STORAGE_KEY) || '[]');
   if (!Array.isArray(_savedNotifications)) _savedNotifications = [];
+  // Chuẩn hóa các thông báo task Jira cũ đã tạo lâu nhưng được cập nhật lại thành "Cập nhật doc"
+  _savedNotifications.forEach(n => {
+    if (n && n.tag === 'jira' && n.notifType !== 'comment_added') {
+      const ageMs = Date.now() - (n.timestamp || 0);
+      if (ageMs > 86400 * 1000 && (n.title || '').includes('Task mới vừa log')) {
+        n.notifType = 'issue_updated';
+        n.title = n.title.replace('Task mới vừa log:', 'Cập nhật doc:');
+        if (n.desc) n.desc = n.desc.replace(' vừa log ', ' vừa cập nhật doc ');
+      }
+    }
+  });
+  // Không lưu thông báo "Đã pull thành công" của Git: thao tác pull do người dùng tự thực hiện
+  const _gitSuccessCount = _savedNotifications.length;
+  _savedNotifications = _savedNotifications.filter(
+    n => !(n && n.tag === 'git' && (n.status === 'completed' || n.status === 'success'))
+  );
+  if (_savedNotifications.length !== _gitSuccessCount) {
+    try {
+      localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(_savedNotifications));
+    } catch (e) {}
+  }
 } catch (e) {
   _savedNotifications = [];
 }
@@ -1269,45 +1290,55 @@ function renderNotificationList() {
 
     let tagBadge = '';
     let titleClass = 'notif-title-default';
-    let titleStyle = 'color: #0f172a;';
+    let titleStyle = 'color: #0f172a';
 
     if (item.tag === 'git') {
       if (item.status === 'completed' || item.status === 'success') {
         tagBadge = '<span class="notif-tag-badge notif-tag-git-done">Git · Đã pull</span>';
         titleClass = 'notif-title-done';
-        titleStyle = 'color: #389e0d;';
+        titleStyle = 'color: #389e0d';
       } else {
         tagBadge = '<span onclick="setNotifTagFilter(\'git\', event)" class="notif-tag-badge notif-tag-git-pull" title="Nhấp để lọc theo Git">Git cần pull</span>';
         titleClass = 'notif-title-running';
-        titleStyle = 'color: #d48806;';
+        titleStyle = 'color: #d48806';
       }
     } else if (item.tag === 'jira') {
+      const isDocUpdate = (
+        item.notifType === 'issue_updated' ||
+        item.notifType === 'doc_updated' ||
+        (item.title && item.title.toLowerCase().includes('cập nhật doc')) ||
+        (item.desc && item.desc.toLowerCase().includes('cập nhật doc'))
+      );
       if (item.notifType === 'comment_added') {
         tagBadge = '<span onclick="setNotifTagFilter(\'jira\', event)" class="notif-tag-badge notif-tag-jira-comment" title="Nhấp để lọc theo Jira">Jira · Bình luận</span>';
         titleClass = 'notif-title-running';
-        titleStyle = 'color: #d48806;';
+        titleStyle = 'color: #d48806';
+      } else if (isDocUpdate) {
+        tagBadge = '<span onclick="setNotifTagFilter(\'jira\', event)" class="notif-tag-badge notif-tag-jira-doc" title="Nhấp để lọc theo Jira">Jira · Cập nhật doc</span>';
+        titleClass = 'notif-title-running';
+        titleStyle = 'color: #08979c';
       } else {
         tagBadge = '<span onclick="setNotifTagFilter(\'jira\', event)" class="notif-tag-badge notif-tag-jira-task" title="Nhấp để lọc theo Jira">Jira · Task mới</span>';
         titleClass = 'notif-title-done';
-        titleStyle = 'color: #389e0d;';
+        titleStyle = 'color: #389e0d';
       }
     } else {
       if (isDone) {
         tagBadge = '<span onclick="setNotifTagFilter(\'agent\', event)" class="notif-tag-badge notif-tag-done" title="Nhấp để lọc theo Tác vụ Agent">Tác vụ Agent</span>';
         titleClass = 'notif-title-done';
-        titleStyle = 'color: #389e0d;';
+        titleStyle = 'color: #389e0d';
       } else if (isRunning) {
         tagBadge = '<span onclick="setNotifTagFilter(\'agent\', event)" class="notif-tag-badge notif-tag-running" title="Nhấp để lọc theo Tác vụ Agent">Tác vụ Agent</span>';
         titleClass = 'notif-title-running';
-        titleStyle = 'color: #d48806;';
+        titleStyle = 'color: #d48806';
       } else if (isStopped) {
         tagBadge = '<span onclick="setNotifTagFilter(\'agent\', event)" class="notif-tag-badge notif-tag-stopped" title="Nhấp để lọc theo Tác vụ Agent">Tác vụ Agent</span>';
         titleClass = 'notif-title-stopped';
-        titleStyle = 'color: #1677ff;';
+        titleStyle = 'color: #1677ff';
       } else {
         tagBadge = '<span onclick="setNotifTagFilter(\'agent\', event)" class="notif-tag-badge notif-tag-default" title="Nhấp để lọc theo Tác vụ Agent">Tác vụ Agent</span>';
         titleClass = 'notif-title-default';
-        titleStyle = 'color: #475569;';
+        titleStyle = 'color: #475569';
       }
     }
 
@@ -1470,33 +1501,25 @@ function markPullSuccess(role, branch) {
     renderBranchSyncStatus(role, branch, { needs_pull: false, behind_count: 0 });
   }
 
-  _savedNotifications.forEach(n => {
-    if (n.tag === 'git' && n.role === role && n.branch === branch && n.status === 'pending') {
-      n.status = 'completed';
-      n.title = `${role.toUpperCase()} ${branch}: Đã pull thành công`;
-      n.desc = 'Mã nguồn đã được pull về local thành công.';
-      _readNotifIds.add(n.id);
+  // Pull do chính người dùng thực hiện: không hiển thị trên thông báo.
+  // Loại bỏ các mục "Có N commit mới" đang chờ và "Đã pull thành công" cũ của nhánh này.
+  const beforeLen = _savedNotifications.length;
+  _savedNotifications = _savedNotifications.filter(n => {
+    if (!n || n.tag !== 'git' || n.role !== role || n.branch !== branch) return true;
+    if (n.status === 'pending' || n.status === 'completed' || n.status === 'success') {
+      _readNotifIds.delete(n.id);
+      return false;
     }
+    return true;
   });
 
-  const successId = `git_success_${role}_${branch}_${Date.now()}`;
-  addOrUpdateNotification({
-    id: successId,
-    tag: 'git',
-    tagLabel: 'Git',
-    title: `${role.toUpperCase()} ${branch}: Đã pull thành công`,
-    desc: `Đã đồng bộ mã nguồn nhánh ${branch.toUpperCase()} của ${role === 'fe' ? 'Frontend' : 'Backend'} về local thành công.`,
-    date: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-    role: role,
-    branch: branch,
-    status: 'success'
-  });
-  _readNotifIds.add(successId);
-  try {
-    localStorage.setItem('easysalon_read_notifs', JSON.stringify([..._readNotifIds]));
-  } catch (e) {}
+  if (_savedNotifications.length !== beforeLen) {
+    savePersistentNotifications();
+    try {
+      localStorage.setItem('easysalon_read_notifs', JSON.stringify([..._readNotifIds]));
+    } catch (e) {}
+  }
 
-  savePersistentNotifications();
   updateNotifBadgeUI();
   renderNotificationList();
 }
@@ -1705,13 +1728,13 @@ async function loadCherryPickInfo() {
           box.classList.remove('hidden');
           mountGitConflictResolver(role, role === 'fe' ? 'feCherryConflictTerminal' : 'beCherryConflictTerminal');
           if (filesBox) {
+            const terminalId = role === 'fe' ? 'feCherryConflictTerminal' : 'beCherryConflictTerminal';
             if (st.conflicted_files && st.conflicted_files.length > 0) {
-              filesBox.innerHTML = '<div class="text-amber-300 font-bold mb-1">Các file đang xung đột:</div>' +
-                st.conflicted_files.map(f => `<div class="text-rose-300 font-mono text-[11px]">• ${escapeHtml(f)}</div>`).join('');
+              filesBox.innerHTML = renderConflictedFilesHtml(role, terminalId, st.conflicted_files);
             } else if (st.status_raw) {
               filesBox.innerHTML = `<pre class="text-[11px] whitespace-pre-wrap">${escapeHtml(st.status_raw)}</pre>`;
             } else {
-              filesBox.innerHTML = '<div>Đang trong trạng thái cherry-pick chưa hoàn tất.</div>';
+              filesBox.innerHTML = '<div class="text-amber-300">Đang trong trạng thái cherry-pick chưa hoàn tất.</div>';
             }
           }
         } else {
@@ -2745,8 +2768,9 @@ async function doSyncPull(target, branch) {
         }
         if (conflictTitle) conflictTitle.textContent = `Xung đột (Conflict) khi pull nhánh '${branch}' trên ${role === 'fe' ? 'Frontend' : 'Backend'}!`;
         if (conflictFiles) {
+          const terminalId = role === 'fe' ? 'feSyncConflictTerminal' : 'beSyncConflictTerminal';
           if (roleResult.conflicted_files && roleResult.conflicted_files.length > 0) {
-            conflictFiles.innerHTML = roleResult.conflicted_files.map(f => `<div class="text-rose-300 font-mono text-[11px]">• ${escapeHtml(f)}</div>`).join('');
+            conflictFiles.innerHTML = renderConflictedFilesHtml(role, terminalId, roleResult.conflicted_files);
           } else {
             conflictFiles.textContent = roleResult.output || 'Có xung đột mã nguồn khi merge.';
           }
@@ -3061,17 +3085,9 @@ async function loadMergeInfo() {
             mountGitConflictResolver(role, role === 'fe' ? 'feMergeConflictTerminal' : 'beMergeConflictTerminal');
           }
           if (conflictFiles) {
+            const terminalId = role === 'fe' ? 'feMergeConflictTerminal' : 'beMergeConflictTerminal';
             if (s.conflicted_files && s.conflicted_files.length > 0) {
-              conflictFiles.innerHTML = s.conflicted_files.map(f => `
-                <div class="text-amber-200 font-mono text-[11px] flex items-center justify-between gap-2 py-0.5 border-b border-amber-900/40 last:border-0">
-                  <span class="flex items-center gap-1.5 truncate">
-                    <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
-                    <span class="text-rose-400 font-bold shrink-0">[CONFLICT]</span>
-                    <span class="truncate" title="${escapeHtml(f)}">${escapeHtml(f)}</span>
-                  </span>
-                  <button type="button" onclick="copyToClipboard('${escapeHtml(f)}')" class="text-[10px] text-amber-400/80 hover:text-white px-1.5 py-0.5 rounded hover:bg-amber-800/40 shrink-0">Sao chép</button>
-                </div>
-              `).join('');
+              conflictFiles.innerHTML = renderConflictedFilesHtml(role, terminalId, s.conflicted_files);
             } else {
               conflictFiles.innerHTML = '<div class="text-amber-300">Đang trong tiến trình merge chưa hoàn tất.</div>';
             }
@@ -3260,17 +3276,9 @@ async function doExecuteMerge(role) {
         conflictBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
       if (conflictFiles) {
+        const terminalId = role === 'fe' ? 'feMergeConflictTerminal' : 'beMergeConflictTerminal';
         if (data.conflicted_files && data.conflicted_files.length > 0) {
-          conflictFiles.innerHTML = data.conflicted_files.map(f => `
-            <div class="text-amber-200 font-mono text-[11px] flex items-center justify-between gap-2 py-0.5 border-b border-amber-900/40 last:border-0">
-              <span class="flex items-center gap-1.5 truncate">
-                <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
-                <span class="text-rose-400 font-bold shrink-0">[CONFLICT]</span>
-                <span class="truncate" title="${escapeHtml(f)}">${escapeHtml(f)}</span>
-              </span>
-              <button type="button" onclick="copyToClipboard('${escapeHtml(f)}')" class="text-[10px] text-amber-400/80 hover:text-white px-1.5 py-0.5 rounded hover:bg-amber-800/40 shrink-0">Sao chép</button>
-            </div>
-          `).join('');
+          conflictFiles.innerHTML = renderConflictedFilesHtml(role, terminalId, data.conflicted_files);
         } else {
           conflictFiles.innerHTML = '<div class="text-amber-300">Có xung đột mã nguồn trong quá trình merge.</div>';
         }
@@ -3379,17 +3387,9 @@ async function doMergeContinue(role) {
     if (data.has_conflicts) {
       showToast(`Vẫn còn file bị xung đột chưa giải quyết!`);
       const conflictFiles = document.getElementById(role === 'fe' ? 'feMergeConflictFiles' : 'beMergeConflictFiles');
+      const terminalId = role === 'fe' ? 'feMergeConflictTerminal' : 'beMergeConflictTerminal';
       if (conflictFiles && data.conflicted_files) {
-        conflictFiles.innerHTML = data.conflicted_files.map(f => `
-          <div class="text-amber-200 font-mono text-[11px] flex items-center justify-between gap-2 py-0.5 border-b border-amber-900/40 last:border-0">
-            <span class="flex items-center gap-1.5 truncate">
-              <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
-              <span class="text-rose-400 font-bold shrink-0">[CÒN CONFLICT]</span>
-              <span class="truncate" title="${escapeHtml(f)}">${escapeHtml(f)}</span>
-            </span>
-            <button type="button" onclick="copyToClipboard('${escapeHtml(f)}')" class="text-[10px] text-amber-400/80 hover:text-white px-1.5 py-0.5 rounded hover:bg-amber-800/40 shrink-0">Sao chép</button>
-          </div>
-        `).join('');
+        conflictFiles.innerHTML = renderConflictedFilesHtml(role, terminalId, data.conflicted_files);
       }
       await antdAlert({
         title: 'Chưa giải quyết hết xung đột',
@@ -3470,6 +3470,125 @@ async function doAbortConflictAction(role) {
 }
 window.doAbortConflictAction = doAbortConflictAction;
 
+const conflictFilesContainerMap = {
+  'feMergeConflictTerminal': 'feMergeConflictFiles',
+  'beMergeConflictTerminal': 'beMergeConflictFiles',
+  'feCherryConflictTerminal': 'feCherryConflictFiles',
+  'beCherryConflictTerminal': 'beCherryConflictFiles',
+  'feSyncConflictTerminal': 'feSyncConflictFiles',
+  'beSyncConflictTerminal': 'beSyncConflictFiles'
+};
+
+function renderConflictedFilesHtml(role, containerId, files) {
+  if (!files || files.length === 0) {
+    return '<div class="text-emerald-400 font-sans text-[11px] p-1">✓ Không còn file nào bị xung đột.</div>';
+  }
+
+  const batchToolbar = `
+    <div class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-amber-900/50 font-sans">
+      <div class="flex items-center gap-1.5 text-amber-300 font-semibold text-xs">
+        <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+        <span>Phát hiện ${files.length} file bị xung đột:</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button type="button" onclick="quickResolveGitConflictFile('${role}', '${containerId}', 'all', 'current')"
+          class="px-2.5 py-1 rounded bg-cyan-700 hover:bg-cyan-600 text-white font-medium text-[11px] transition cursor-pointer flex items-center gap-1 shadow-sm"
+          title="Áp dụng Current (Ours / HEAD) cho TẤT CẢ các file xung đột và tự động git add">
+          <span>Dùng ALL Current (Ours)</span>
+        </button>
+        <button type="button" onclick="quickResolveGitConflictFile('${role}', '${containerId}', 'all', 'incoming')"
+          class="px-2.5 py-1 rounded bg-purple-700 hover:bg-purple-600 text-white font-medium text-[11px] transition cursor-pointer flex items-center gap-1 shadow-sm"
+          title="Áp dụng Incoming (Theirs) cho TẤT CẢ các file xung đột và tự động git add">
+          <span>Dùng ALL Incoming (Theirs)</span>
+        </button>
+      </div>
+    </div>
+  `;
+
+  const filesList = files.map(f => `
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-1.5 rounded bg-black/40 border border-amber-900/40 hover:border-amber-700/60 transition text-[11px]">
+      <div class="flex items-center gap-1.5 min-w-0">
+        <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
+        <span class="text-rose-400 font-bold shrink-0 font-mono">[CONFLICT]</span>
+        <span class="text-amber-200 font-mono truncate" title="${escapeHtml(f)}">${escapeHtml(f)}</span>
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0 font-sans">
+        <button type="button" onclick="quickResolveGitConflictFile('${role}', '${containerId}', '${escapeHtml(f)}', 'current')"
+          class="px-2 py-0.5 rounded bg-cyan-900/80 hover:bg-cyan-700 text-cyan-200 border border-cyan-600/50 transition cursor-pointer"
+          title="Dùng Current (Ours) cho toàn bộ file này (tự động git checkout --ours & git add)">
+          Dùng Current (Ours)
+        </button>
+        <button type="button" onclick="quickResolveGitConflictFile('${role}', '${containerId}', '${escapeHtml(f)}', 'incoming')"
+          class="px-2 py-0.5 rounded bg-purple-900/80 hover:bg-purple-700 text-purple-200 border border-purple-600/50 transition cursor-pointer"
+          title="Dùng Incoming (Theirs) cho toàn bộ file này (tự động git checkout --theirs & git add)">
+          Dùng Incoming (Theirs)
+        </button>
+        <button type="button" onclick="refreshConflictResolver('${role}', '${containerId}', '${escapeHtml(f)}')"
+          class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600/50 transition cursor-pointer"
+          title="Mở giải quyết chi tiết từng khối trong terminal bên dưới">
+          Mở giải quyết
+        </button>
+        <button type="button" onclick="copyToClipboard('${escapeHtml(f)}')"
+          class="px-1.5 py-0.5 rounded text-amber-300/80 hover:text-white hover:bg-amber-800/40 transition cursor-pointer text-[10px]"
+          title="Sao chép đường dẫn file">
+          Sao chép
+        </button>
+      </div>
+    </div>
+  `).join('');
+
+  return batchToolbar + filesList;
+}
+window.renderConflictedFilesHtml = renderConflictedFilesHtml;
+
+async function quickResolveGitConflictFile(role, containerId, filePath, action) {
+  const isAll = filePath === 'all' || filePath === '*';
+  const label = action === 'current' ? 'Current (Ours)' : 'Incoming (Theirs)';
+  const msg = isAll
+    ? `Bạn có chắc muốn áp dụng ${label} cho TẤT CẢ các file đang bị xung đột? Hệ thống sẽ tự động giải quyết và git add.`
+    : `Bạn có chắc muốn áp dụng ${label} cho file: "${filePath}"? Hệ thống sẽ tự động git checkout --${action === 'current' ? 'ours' : 'theirs'} và git add.`;
+
+  const confirmed = await antdConfirm({
+    title: 'Xác nhận giải quyết xung đột',
+    content: msg,
+    okText: `Đồng ý dùng ${label}`
+  });
+  if (!confirmed) return;
+
+  try {
+    showToast(`Đang giải quyết xung đột bằng ${label}...`);
+    const res = await fetch('/api/git/conflict/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        role,
+        file: filePath,
+        action,
+        block_index: null
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isAll
+        ? `Đã giải quyết tất cả file bằng ${label} và tự động git add.`
+        : `Đã giải quyết ${filePath} bằng ${label} và tự động git add.`);
+
+      if (typeof refreshConflictResolver === 'function') {
+        await refreshConflictResolver(role, containerId);
+      }
+      if (typeof loadMergeInfo === 'function') await loadMergeInfo();
+      if (typeof loadGitBranchInfo === 'function') await loadGitBranchInfo();
+      if (typeof loadPullSyncInfo === 'function') await loadPullSyncInfo();
+      if (typeof loadCherryPickInfo === 'function') await loadCherryPickInfo();
+    } else {
+      showToast('Lỗi giải quyết xung đột: ' + (data.message || 'Không thành công'));
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối khi giải quyết xung đột: ' + err.message);
+  }
+}
+window.quickResolveGitConflictFile = quickResolveGitConflictFile;
+
 async function mountGitConflictResolver(role, containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -3512,6 +3631,11 @@ async function refreshConflictResolver(role, containerId, targetFile = null) {
           <div class="text-xs text-slate-400">Các thay đổi đã được tự động staged (git add). Bạn có thể nhấn <strong>Đã sửa xong & Tiếp tục (--continue)</strong>.</div>
         </div>
       `;
+      const filesBoxId = conflictFilesContainerMap[containerId];
+      if (filesBoxId) {
+        const fb = document.getElementById(filesBoxId);
+        if (fb) fb.innerHTML = '<div class="text-emerald-400 font-sans text-[11px] p-1">✓ Tất cả các file xung đột đã được giải quyết và git add!</div>';
+      }
       return;
     }
 
@@ -3519,6 +3643,13 @@ async function refreshConflictResolver(role, containerId, targetFile = null) {
     let activeFile = targetFile || (files.length > 0 ? files[0] : null);
     if (activeFile && !files.includes(activeFile) && files.length > 0) {
       activeFile = files[0];
+    }
+
+    // Đồng bộ lại danh sách file conflict ở box phía trên nếu có
+    const filesBoxId = conflictFilesContainerMap[containerId];
+    if (filesBoxId) {
+      const fb = document.getElementById(filesBoxId);
+      if (fb) fb.innerHTML = renderConflictedFilesHtml(role, containerId, files);
     }
 
     if (statusEl) {
@@ -3532,7 +3663,7 @@ async function refreshConflictResolver(role, containerId, targetFile = null) {
           <button type="button" onclick="refreshConflictResolver('${role}', '${containerId}', '${escapeHtml(f)}')"
             class="px-3 py-1 rounded-t flex items-center gap-1.5 cursor-pointer transition select-none ${isActive ? 'bg-[#1e1e1e] text-white border-t-2 border-cyan-400 font-semibold' : 'bg-[#2d2d2d] text-slate-400 hover:text-slate-200'}">
             <span class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-amber-400' : 'bg-slate-500'}"></span>
-            <span class="truncate max-w-[150px]">${escapeHtml(f.split('/').pop())}</span>
+            <span class="truncate max-w-[150px] font-mono">${escapeHtml(f.split('/').pop())}</span>
           </button>
         `;
       }).join('');
@@ -3551,7 +3682,7 @@ async function refreshConflictResolver(role, containerId, targetFile = null) {
       return;
     }
 
-    const blocks = fData.conflict_blocks || [];
+    const blocks = fData.conflict_blocks || fData.blocks || [];
     if (blocks.length === 0) {
       if (editorEl) editorEl.innerHTML = `
         <div class="p-3 bg-emerald-950/30 border border-emerald-800/60 rounded text-emerald-300 font-sans text-xs">
@@ -3563,44 +3694,56 @@ async function refreshConflictResolver(role, containerId, targetFile = null) {
 
     if (editorEl) {
       editorEl.innerHTML = `
-        <div class="text-[11px] text-slate-400 pb-1 mb-2 border-b border-[#333333] flex items-center justify-between font-sans">
-          <span>File: <strong class="text-slate-200 font-mono">${escapeHtml(activeFile)}</strong> (${blocks.length} khối xung đột)</span>
-          <div class="flex items-center gap-2">
+        <div class="text-[11px] text-slate-300 pb-1.5 mb-2.5 border-b border-[#333333] flex flex-wrap items-center justify-between gap-2 font-sans">
+          <span>File: <strong class="text-white font-mono">${escapeHtml(activeFile)}</strong> (${blocks.length} khối xung đột)</span>
+          <div class="flex items-center gap-1.5">
             <button type="button" onclick="resolveConflictAction('${role}', '${containerId}', '${escapeHtml(activeFile)}', 'current', null)"
-              class="px-2 py-0.5 rounded bg-cyan-900/60 hover:bg-cyan-800 text-cyan-200 text-[10px] transition cursor-pointer">Accept All Current</button>
+              class="px-2.5 py-1 rounded bg-cyan-800 hover:bg-cyan-700 text-white font-medium text-[11px] transition cursor-pointer flex items-center gap-1 shadow-sm"
+              title="Dùng toàn bộ Current (Ours / HEAD) cho toàn bộ file này và git add">Accept All Current</button>
             <button type="button" onclick="resolveConflictAction('${role}', '${containerId}', '${escapeHtml(activeFile)}', 'incoming', null)"
-              class="px-2 py-0.5 rounded bg-purple-900/60 hover:bg-purple-800 text-purple-200 text-[10px] transition cursor-pointer">Accept All Incoming</button>
+              class="px-2.5 py-1 rounded bg-purple-800 hover:bg-purple-700 text-white font-medium text-[11px] transition cursor-pointer flex items-center gap-1 shadow-sm"
+              title="Dùng toàn bộ Incoming (Theirs) cho toàn bộ file này và git add">Accept All Incoming</button>
+            <button type="button" onclick="resolveConflictAction('${role}', '${containerId}', '${escapeHtml(activeFile)}', 'both', null)"
+              class="px-2.5 py-1 rounded bg-emerald-800 hover:bg-emerald-700 text-white font-medium text-[11px] transition cursor-pointer flex items-center gap-1 shadow-sm"
+              title="Giữ cả Current và Incoming cho toàn bộ file này và git add">Accept All Both</button>
           </div>
         </div>
-      ` + blocks.map((blk, idx) => `
-        <div class="border border-[#3c3c3c] rounded bg-[#181818] overflow-hidden mb-3">
+      ` + blocks.map((blk, idx) => {
+        const curCode = blk.current != null ? blk.current : (blk.current_code != null ? blk.current_code : '');
+        const incCode = blk.incoming != null ? blk.incoming : (blk.incoming_code != null ? blk.incoming_code : '');
+        const curHeader = blk.current_header || '<<<<<<< HEAD (Current Change)';
+        const incFooter = blk.incoming_footer || '>>>>>>> Incoming Change';
+
+        return `
+        <div class="border border-[#3c3c3c] rounded bg-[#181818] overflow-hidden mb-3 shadow-md">
           <!-- CodeLens Action Bar -->
-          <div class="flex items-center gap-2 px-3 py-1 bg-[#252526] border-b border-[#333333] text-[11px] font-sans">
+          <div class="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-[#252526] border-b border-[#333333] text-[11px] font-sans">
             <span class="text-slate-400 font-semibold">Khối #${idx + 1}:</span>
             <button type="button" onclick="resolveConflictAction('${role}', '${containerId}', '${escapeHtml(activeFile)}', 'current', ${idx})"
-              class="text-cyan-400 hover:text-cyan-300 hover:underline font-medium cursor-pointer transition">Accept Current Change</button>
+              class="text-cyan-400 hover:text-cyan-300 hover:underline font-semibold cursor-pointer transition">Accept Current Change</button>
             <span class="text-slate-600">|</span>
             <button type="button" onclick="resolveConflictAction('${role}', '${containerId}', '${escapeHtml(activeFile)}', 'incoming', ${idx})"
-              class="text-purple-400 hover:text-purple-300 hover:underline font-medium cursor-pointer transition">Accept Incoming Change</button>
+              class="text-purple-400 hover:text-purple-300 hover:underline font-semibold cursor-pointer transition">Accept Incoming Change</button>
             <span class="text-slate-600">|</span>
             <button type="button" onclick="resolveConflictAction('${role}', '${containerId}', '${escapeHtml(activeFile)}', 'both', ${idx})"
-              class="text-emerald-400 hover:text-emerald-300 hover:underline font-medium cursor-pointer transition">Accept Both Changes</button>
+              class="text-emerald-400 hover:text-emerald-300 hover:underline font-semibold cursor-pointer transition">Accept Both Changes</button>
           </div>
 
           <!-- Diff Visualization -->
           <div class="font-mono text-xs leading-5">
-            <div class="bg-cyan-950/30 border-l-4 border-cyan-500 px-3 py-1">
-              <div class="text-[10px] text-cyan-400 select-none font-bold">&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD (Current Change)</div>
-              <pre class="text-slate-200 whitespace-pre-wrap">${escapeHtml(blk.current || '')}</pre>
+            <div class="bg-cyan-950/30 border-l-4 border-cyan-500 px-3 py-1.5">
+              <div class="text-[10px] text-cyan-400 select-none font-bold">${escapeHtml(curHeader)}</div>
+              <pre class="text-slate-200 whitespace-pre-wrap">${escapeHtml(curCode)}</pre>
             </div>
-            <div class="bg-purple-950/30 border-l-4 border-purple-500 px-3 py-1 border-t border-dashed border-[#333333]">
-              <div class="text-[10px] text-purple-400 select-none font-bold">=======</div>
-              <pre class="text-slate-200 whitespace-pre-wrap">${escapeHtml(blk.incoming || '')}</pre>
-              <div class="text-[10px] text-purple-400 select-none font-bold">&gt;&gt;&gt;&gt;&gt;&gt;&gt; Incoming Change</div>
+            <div class="bg-purple-950/30 border-l-4 border-purple-500 px-3 py-1.5 border-t border-dashed border-[#333333]">
+              <div class="text-[10px] text-slate-500 select-none font-bold">=======</div>
+              <pre class="text-slate-200 whitespace-pre-wrap">${escapeHtml(incCode)}</pre>
+              <div class="text-[10px] text-purple-400 select-none font-bold">${escapeHtml(incFooter)}</div>
             </div>
           </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
   } catch (err) {
     if (editorEl) editorEl.innerHTML = `<div class="text-rose-400 p-2 font-sans">Lỗi kết nối resolver: ${escapeHtml(err.message)}</div>`;
@@ -3622,8 +3765,13 @@ async function resolveConflictAction(role, containerId, filePath, action, blockI
     });
     const d = await res.json();
     if (d.success) {
-      showToast(`Đã giải quyết khối conflict [${action}] và lưu file.`);
+      const actLabel = action === 'current' ? 'Current (Ours)' : (action === 'incoming' ? 'Incoming (Theirs)' : 'Both');
+      showToast(`Đã áp dụng [${actLabel}] và lưu file.`);
       await refreshConflictResolver(role, containerId, filePath);
+      if (typeof loadMergeInfo === 'function') await loadMergeInfo();
+      if (typeof loadGitBranchInfo === 'function') await loadGitBranchInfo();
+      if (typeof loadPullSyncInfo === 'function') await loadPullSyncInfo();
+      if (typeof loadCherryPickInfo === 'function') await loadCherryPickInfo();
     } else {
       showToast('Lỗi giải quyết conflict: ' + (d.message || 'Không thành công'));
     }

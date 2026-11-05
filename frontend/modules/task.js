@@ -150,7 +150,213 @@ function promptRenameTask(taskId) {
   startInlineEditTask(taskId);
 }
 
+function extractImagesFromText(text) {
+  if (!text) return [];
+  const list = [];
+  const seen = new Set();
+
+  // 1. Markdown link ảnh: [filename.png](/api/jira/attachment?id=...&name=...) hoặc [alt](url)
+  const mdPattern = /\[([^\]]*?\.(?:png|jpg|jpeg|gif|webp|svg))\]\(([^)]+)\)/gi;
+  let m;
+  while ((m = mdPattern.exec(text)) !== null) {
+    const name = m[1].trim();
+    const url = m[2].trim();
+    if (!seen.has(url)) {
+      seen.add(url);
+      list.push({ url, name });
+    }
+  }
+
+  // 2. Đường dẫn /api/jira/attachment?id=...
+  const jiraAttPattern = /(?:https?:\/\/[^\s"'<>\)]+)?(\/api\/jira\/attachment\?[^\s"'<>\)]+)/gi;
+  while ((m = jiraAttPattern.exec(text)) !== null) {
+    const url = m[1];
+    if (!seen.has(url)) {
+      seen.add(url);
+      let fn = 'image.png';
+      try {
+        const u = new URL(url, window.location.origin);
+        fn = u.searchParams.get('name') || 'image.png';
+      } catch (e) { }
+      list.push({ url, name: fn });
+    }
+  }
+
+  // 3. URL ảnh trực tiếp http(s)://...png|jpg...
+  const rawUrlPattern = /(https?:\/\/[^\s"'<>\)]+\.(?:png|jpg|jpeg|gif|webp|svg)(?:\?[^\s"'<>\)]*)?)/gi;
+  while ((m = rawUrlPattern.exec(text)) !== null) {
+    const url = m[1];
+    if (!seen.has(url)) {
+      seen.add(url);
+      const fn = url.split('/').pop().split('?')[0] || 'image.png';
+      list.push({ url, name: decodeURIComponent(fn) });
+    }
+  }
+
+  return list;
+}
+window.extractImagesFromText = extractImagesFromText;
+
+async function uploadScreenshotFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64Data = reader.result;
+        const res = await fetch('/api/upload-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: base64Data,
+            filename: file.name || `screenshot_${Date.now()}.png`
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          resolve(data);
+        } else {
+          reject(new Error(data.message || 'Tải ảnh thất bại'));
+        }
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = () => reject(new Error('Đọc file ảnh thất bại'));
+    reader.readAsDataURL(file);
+  });
+}
+window.uploadScreenshotFile = uploadScreenshotFile;
+
+function removeTaskPromptImage(idx) {
+  const cur = parallelTasks.find(t => t.id === activeTaskId);
+  if (cur && cur.images && cur.images[idx]) {
+    cur.images.splice(idx, 1);
+    renderTaskPromptImages(cur.images);
+    syncFormToCurrentTask();
+    saveDraft(false);
+  }
+}
+window.removeTaskPromptImage = removeTaskPromptImage;
+
+function handleTaskPromptPaste(event) {
+  const items = (event.clipboardData || event.originalEvent?.clipboardData)?.items;
+  if (!items) return;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.type && item.type.indexOf('image') !== -1) {
+      event.preventDefault();
+      const blob = item.getAsFile();
+      if (!blob) continue;
+      showToast('Đang tải ảnh chụp màn hình lên...', 'info');
+      uploadScreenshotFile(blob).then(uploaded => {
+        const cur = parallelTasks.find(t => t.id === activeTaskId);
+        if (cur) {
+          if (!cur.images) cur.images = [];
+          cur.images.push(uploaded);
+          renderTaskPromptImages(cur.images);
+          syncFormToCurrentTask();
+          saveDraft(false);
+        }
+        showToast('Đã đính kèm ảnh chụp màn hình vào tác vụ', 'success');
+      }).catch(err => {
+        showToast('Lỗi khi tải ảnh: ' + err.message, 'error');
+      });
+      break;
+    }
+  }
+}
+window.handleTaskPromptPaste = handleTaskPromptPaste;
+
+async function onTaskPromptImageSelect(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  try {
+    showToast('Đang tải ảnh đính kèm lên...', 'info');
+    const uploaded = await uploadScreenshotFile(file);
+    const cur = parallelTasks.find(t => t.id === activeTaskId);
+    if (cur) {
+      if (!cur.images) cur.images = [];
+      cur.images.push(uploaded);
+      renderTaskPromptImages(cur.images);
+      syncFormToCurrentTask();
+      saveDraft(false);
+    }
+    showToast('Đã đính kèm ảnh thành công', 'success');
+  } catch (err) {
+    showToast('Lỗi tải ảnh: ' + err.message, 'error');
+  } finally {
+    e.target.value = '';
+  }
+}
+window.onTaskPromptImageSelect = onTaskPromptImageSelect;
+
+function renderTaskPromptImages(images) {
+  const container = document.getElementById('taskPromptImagesContainer');
+  const countEl = document.getElementById('taskPromptImagesCount');
+  const listEl = document.getElementById('taskPromptImagesList');
+  if (!container || !listEl) return;
+
+  const cur = parallelTasks.find(t => t.id === activeTaskId);
+  if (images === undefined && cur) {
+    images = cur.images || [];
+  }
+  if (!Array.isArray(images)) images = [];
+
+  if (cur) {
+    cur.images = images;
+  }
+
+  if (images.length === 0) {
+    container.classList.add('hidden');
+    listEl.innerHTML = '';
+    if (countEl) countEl.textContent = '0';
+    return;
+  }
+
+  container.classList.remove('hidden');
+  if (countEl) countEl.textContent = String(images.length);
+
+  listEl.innerHTML = images.map((img, idx) => {
+    const safeUrl = escapeHtml(img.url);
+    const safeName = escapeHtml(img.name || img.filename || 'Ảnh minh chứng');
+    return `
+      <div class="group relative rounded-md border border-[#244170] bg-[#101e38] overflow-hidden hover:border-[#1677ff] transition shadow cursor-pointer max-w-[200px]"
+           onclick="openImagePreviewModal('${safeUrl}', '${safeName}')"
+           title="Bấm để phóng to ảnh: ${safeName}">
+        <div class="h-28 w-44 bg-black/60 flex items-center justify-center overflow-hidden p-1">
+          <img src="${safeUrl}" alt="${safeName}" class="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-200" loading="lazy" />
+        </div>
+        <div class="p-1.5 bg-[#0c1628] border-t border-[#244170]/60 flex items-center justify-between gap-1">
+          <span class="text-[10px] font-mono text-slate-300 truncate" title="${safeName}">${safeName}</span>
+          <div class="flex items-center gap-1 shrink-0">
+            <span class="text-[9px] text-blue-400 font-medium group-hover:underline">Phóng to</span>
+            <button type="button" onclick="event.stopPropagation(); removeTaskPromptImage(${idx})"
+                    class="p-0.5 text-slate-400 hover:text-rose-400 transition" title="Xóa ảnh này">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+window.renderTaskPromptImages = renderTaskPromptImages;
+
 function onTaskPromptInput() {
+  const promptVal = document.getElementById('taskPromptInput')?.value || '';
+  const extracted = extractImagesFromText(promptVal);
+  const cur = parallelTasks.find(t => t.id === activeTaskId);
+  const existing = (cur && cur.images) || [];
+  const merged = [...existing];
+  extracted.forEach(img => {
+    if (!merged.some(m => m.url === img.url || m.name === img.name)) {
+      merged.push(img);
+    }
+  });
+  renderTaskPromptImages(merged);
+
   updateFixBugPromptPreview();
   syncFormToCurrentTask();
   saveDraft(false);
@@ -246,6 +452,7 @@ function loadTaskToForm(taskId) {
   if (promptInput) promptInput.value = task.prompt || '';
   const logInput = document.getElementById('taskLogInput');
   if (logInput) logInput.value = task.error_log || '';
+  renderTaskPromptImages(task.images || []);
   updateFixBugPromptPreview();
 }
 
@@ -592,7 +799,8 @@ async function startSingleTaskById(taskId) {
           scope: task.target || 'both',
           description: task.prompt || formattedPrompt,
           original_prompt: task.original_prompt || task.prompt || '',
-          error_log: task.error_log
+          error_log: task.error_log,
+          images: task.images || []
         })
       });
       const d = await res.json();
@@ -620,7 +828,8 @@ async function startSingleTaskById(taskId) {
           starter: 'fe',
           rounds: 4,
           skills: task.skills,
-          skill: task.skills.join(', ')
+          skill: task.skills.join(', '),
+          images: task.images || []
         })
       });
       const d = await res.json();
@@ -1048,6 +1257,96 @@ let _collapsedTurnCards = new Set();
 let _userInteractedTurnCards = new Map();
 let _collapsedStepBoxes = new Set();
 let _collapsedDiffBoxes = new Set();
+const _continuationImages = {};
+
+function renderContinuationImages(taskIdKey) {
+  const container = document.getElementById('continueImagesContainer_' + taskIdKey);
+  if (!container) return;
+  const images = _continuationImages[taskIdKey] || [];
+  if (images.length === 0) {
+    container.classList.add('hidden');
+    container.innerHTML = '';
+    return;
+  }
+  container.classList.remove('hidden');
+  container.innerHTML = images.map((img, idx) => {
+    const safeUrl = escapeHtml(img.url);
+    const safeName = escapeHtml(img.name || img.filename || 'Ảnh minh chứng');
+    return `
+      <div class="continue-image-item group relative rounded-md border border-[#244170] bg-[#101e38] overflow-hidden hover:border-[#1677ff] transition shadow cursor-pointer max-w-[180px]"
+           onclick="openImagePreviewModal('${safeUrl}', '${safeName}')"
+           title="Bấm để phóng to ảnh: ${safeName}">
+        <div class="h-20 w-36 bg-black/60 flex items-center justify-center overflow-hidden p-1">
+          <img src="${safeUrl}" alt="${safeName}" class="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-200" loading="lazy" />
+        </div>
+        <div class="p-1.5 bg-[#0c1628] border-t border-[#244170]/60 flex items-center justify-between gap-1">
+          <span class="continue-image-name text-[10px] font-mono text-slate-300 truncate" title="${safeName}">${safeName}</span>
+          <button type="button" onclick="event.stopPropagation(); removeContinuationImage('${taskIdKey}', ${idx})"
+                  class="p-0.5 text-slate-400 hover:text-rose-400 transition" title="Xóa ảnh này">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+window.renderContinuationImages = renderContinuationImages;
+
+function removeContinuationImage(taskIdKey, idx) {
+  if (_continuationImages[taskIdKey] && _continuationImages[taskIdKey][idx]) {
+    _continuationImages[taskIdKey].splice(idx, 1);
+    renderContinuationImages(taskIdKey);
+  }
+}
+window.removeContinuationImage = removeContinuationImage;
+
+function handleContinuePaste(event, taskIdKey) {
+  const items = (event.clipboardData || event.originalEvent?.clipboardData)?.items;
+  if (!items) return;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.type && item.type.indexOf('image') !== -1) {
+      event.preventDefault();
+      const blob = item.getAsFile();
+      if (!blob) continue;
+      showToast('Đang tải ảnh chụp màn hình lên...', 'info');
+      uploadScreenshotFile(blob).then(uploaded => {
+        if (!_continuationImages[taskIdKey]) {
+          _continuationImages[taskIdKey] = [];
+        }
+        _continuationImages[taskIdKey].push(uploaded);
+        renderContinuationImages(taskIdKey);
+        showToast('Đã đính kèm ảnh chụp màn hình vào lượt tiếp theo', 'success');
+      }).catch(err => {
+        showToast('Lỗi khi tải ảnh: ' + err.message, 'error');
+      });
+      break;
+    }
+  }
+}
+window.handleContinuePaste = handleContinuePaste;
+
+async function onContinueFileSelect(e, taskIdKey) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  try {
+    showToast('Đang tải ảnh đính kèm lên...', 'info');
+    const uploaded = await uploadScreenshotFile(file);
+    if (!_continuationImages[taskIdKey]) {
+      _continuationImages[taskIdKey] = [];
+    }
+    _continuationImages[taskIdKey].push(uploaded);
+    renderContinuationImages(taskIdKey);
+    showToast('Đã đính kèm ảnh thành công', 'success');
+  } catch (err) {
+    showToast('Lỗi tải ảnh: ' + err.message, 'error');
+  } finally {
+    e.target.value = '';
+  }
+}
+window.onContinueFileSelect = onContinueFileSelect;
 
 function toggleTurnCollapse(cardId, event) {
   if (event) {
@@ -1692,23 +1991,23 @@ function renderFeedView(data) {
       let loadingPlaceholderHtml = '';
       if (isSessRunning && isLatestTurn && !hasContent && !hasStepLogs) {
         loadingPlaceholderHtml = `
-          <div class="tool-step-box my-2.5 rounded-lg border border-[#244170] bg-[#070d18] overflow-hidden shadow-inner p-3.5 space-y-2.5">
-            <div class="flex items-center justify-between">
+          <div class="thinking-card-box my-2.5 rounded-lg border border-[#1677ff]/40 bg-[#070d18] overflow-hidden shadow-inner p-3.5 space-y-2.5">
+            <div class="thinking-card-header flex items-center justify-between">
               <div class="flex items-center gap-2.5">
                 <div class="wave-dots">
                   <span class="wave-dot"></span>
                   <span class="wave-dot"></span>
                   <span class="wave-dot"></span>
                 </div>
-                <span class="text-xs font-semibold text-cyan-300 font-sans">AI Agent đang suy nghĩ &amp; chuẩn bị tiến trình ngầm...</span>
+                <span class="thinking-card-title text-xs font-semibold text-cyan-300 font-sans">AI Agent đang suy nghĩ &amp; chuẩn bị tiến trình ngầm...</span>
               </div>
-              <span class="text-[10.5px] font-mono text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800 animate-pulse">Đang xử lý</span>
+              <span class="thinking-card-badge text-[10.5px] font-mono text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800 animate-pulse">Đang xử lý</span>
             </div>
-            <div class="p-2.5 rounded bg-[#040810] border border-[#1e3458] text-[11px] font-mono text-slate-300 flex items-center gap-2">
+            <div class="thinking-card-cmd p-2.5 rounded bg-[#040810] border border-[#1e3458] text-[11px] font-mono text-slate-300 flex items-center gap-2">
               <span class="text-cyan-400 select-none font-bold">$</span>
-              <span class="truncate text-slate-200">${escapeHtml(sess._statusText || t.status_text || 'Đang chuẩn bị workspace và chạy lệnh trên AI Terminal...')}</span>
+              <span class="thinking-card-cmd-text truncate text-slate-200">${escapeHtml(sess._statusText || t.status_text || 'Đang chuẩn bị workspace và chạy lệnh trên AI Terminal...')}</span>
             </div>
-            <div class="space-y-1.5 pt-1">
+            <div class="thinking-card-bars space-y-1.5 pt-1">
               <div class="h-1.5 bg-gradient-to-r from-cyan-500/30 via-cyan-400/10 to-transparent rounded animate-pulse w-4/5"></div>
               <div class="h-1.5 bg-gradient-to-r from-cyan-500/20 via-cyan-400/5 to-transparent rounded animate-pulse w-1/2"></div>
             </div>
@@ -1745,8 +2044,26 @@ function renderFeedView(data) {
       const isTurnOpenCode = (turnEngine === 'opencode');
       const turnEngineLabel = t.engine_label || (isTurnOpenCode ? 'OpenCode CLI' : 'Gemini CLI');
 
+      const turnImagesHtml = (t.images && t.images.length > 0) ? `
+        <div class="turn-images-strip mb-2.5 p-2 rounded-lg border border-[#244170]/70 bg-[#091426] flex flex-wrap gap-2">
+          ${t.images.map(img => {
+            const sUrl = escapeHtml(img.url);
+            const sName = escapeHtml(img.name || img.filename || 'Ảnh minh chứng');
+            return `
+              <div class="cursor-pointer group flex items-center gap-1.5 px-2 py-1 rounded bg-[#0d1c33] border border-[#1e3860] hover:border-[#1677ff] transition"
+                   onclick="openImagePreviewModal('${sUrl}', '${sName}')" title="Phóng to ảnh: ${sName}">
+                <svg class="w-3.5 h-3.5 text-sky-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="text-[11px] font-mono text-slate-200 group-hover:text-sky-300 max-w-[160px] truncate">${sName}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      ` : '';
+
       const changesSig = (t.changed_files || []).map(cf => `${cf.path}:${cf.status}:${cf.additions}:${cf.deletions}`).join('|');
-      const currentSig = `${(t.content || '').length}_${(t.step_logs || []).length}_${t.elapsed_sec}_${isStreaming}_${Boolean(loadingPlaceholderHtml)}_${(t.step_logs || []).map(s => s.state + (s.output ? s.output.length : 0)).join(',')}_${changesSig}_${isCollapsed}_${isStepCollapsed}_${isDiffCollapsed}_${turnEngine}`;
+      const currentSig = `${(t.content || '').length}_${(t.step_logs || []).length}_${t.elapsed_sec}_${isStreaming}_${Boolean(loadingPlaceholderHtml)}_${(t.step_logs || []).map(s => s.state + (s.output ? s.output.length : 0)).join(',')}_${changesSig}_${isCollapsed}_${isStepCollapsed}_${isDiffCollapsed}_${turnEngine}_${(t.images || []).length}`;
       if (card.dataset.sig !== currentSig) {
         card.dataset.sig = currentSig;
         card.innerHTML = `
@@ -1767,6 +2084,7 @@ function renderFeedView(data) {
                 <span class="text-slate-400 text-[10px] font-mono shrink-0 ml-2">${t.timestamp || ''} (${formatDuration(t.elapsed_sec || 0)})</span>
               </div>
               <div id="turnBody_${cardId}" class="turn-body-content mt-2.5 ${isCollapsed ? 'hidden' : ''}">
+                ${turnImagesHtml}
                 ${stepLogsHtml}
                 ${changedFilesHtml}
                 ${loadingPlaceholderHtml}
@@ -1791,36 +2109,50 @@ function renderFeedView(data) {
                   <span>Tiếp tục task trên AI Terminal ngầm</span>
                   <span class="text-[10px] font-normal text-slate-400">• Giữ nguyên ngữ cảnh</span>
                 </span>
+                <div class="flex items-center gap-2">
+                  <label for="continueFileInput_${taskIdKey}"
+                    class="text-[11px] font-sans text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer select-none transition hover:underline"
+                    title="Đính kèm ảnh minh chứng hoặc dán trực tiếp (Ctrl+V) vào ô nhập liệu">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>Đính kèm ảnh</span>
+                    <input id="continueFileInput_${taskIdKey}" type="file" accept="image/*" class="hidden" onchange="onContinueFileSelect(event, '${taskIdKey}')" />
+                  </label>
+                </div>
               </div>
               <div class="flex items-center gap-2">
                 <input id="continueInput_${taskIdKey}" type="text"
-                  placeholder="Nhập yêu cầu tiếp theo (hoặc để trống để AI tiếp tục hoàn thiện task)..."
+                  placeholder="Nhập yêu cầu tiếp theo (hoặc để trống để AI hoàn thiện task, có thể dán Ctrl+V ảnh)..."
+                  onpaste="handleContinuePaste(event, '${taskIdKey}')"
                   onkeydown="if(event.key==='Enter'){event.preventDefault();continueTaskFromFeed('${taskIdKey}');}"
-                  class="flex-1 bg-[#0b1322] border border-[#244170] rounded px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-[#199cff]" />
+                  class="flex-1 bg-[#0b1322] border border-[#244170] rounded px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-[#1677ff]" />
                 <button type="button" onclick="continueTaskFromFeed('${taskIdKey}')"
-                  class="px-3.5 py-1.5 rounded bg-[#199cff] hover:bg-[#1585d8] text-white text-xs font-bold shrink-0 flex items-center gap-1.5 shadow-sm transition" style="color: #ffffff !important;">
+                  class="ant-btn ant-btn-primary px-3.5 py-1.5 rounded text-white text-xs font-bold shrink-0 flex items-center gap-1.5 shadow-sm transition" style="color: #ffffff !important; background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%) !important;">
                   <span class="text-white font-bold" style="color: #ffffff !important;">▶ Tiếp tục task</span>
                 </button>
               </div>
+              <div id="continueImagesContainer_${taskIdKey}" class="continue-images-container hidden p-2 rounded-lg border border-[#244170] bg-[#0c1628] flex flex-wrap gap-2"></div>
             `;
         sessWrap.appendChild(contBox);
       } else if (contBox.parentElement === sessWrap && sessWrap.lastElementChild !== contBox) {
         sessWrap.appendChild(contBox);
       }
+      renderContinuationImages(taskIdKey);
     } else if (contBox) {
       contBox.remove();
     }
   });
 }
 
-async function startContinuationTask(task, followUp) {
+async function startContinuationTask(task, followUp, attachedImages = []) {
   if (!task) return;
   const anyRunning = parallelTasks.some(t => t.status === 'running' && t.id !== task.id);
   task.status = anyRunning ? 'queued' : 'running';
   renderParallelTaskTabs();
   updateTaskActionButtons();
 
-  const followText = (followUp || '').trim() || 'Tiếp tục kiểm tra và hoàn thiện task này.';
+  const followText = (followUp || '').trim() || (attachedImages && attachedImages.length > 0 ? 'Xem ảnh minh chứng đính kèm và kiểm tra/sửa lỗi.' : 'Tiếp tục kiểm tra và hoàn thiện task này.');
   const goal = (task.original_prompt || task.prompt || '').trim();
   const isFix = task.type === 'fixbug';
   const common = {
@@ -1832,7 +2164,8 @@ async function startContinuationTask(task, followUp) {
     skill: (task.skills || []).join(', '),
     original_prompt: goal,
     error_log: '',
-    continuation: true
+    continuation: true,
+    images: attachedImages || []
   };
 
   try {
@@ -1881,7 +2214,9 @@ async function continueTaskFromFeed(taskId) {
 
   const inputEl = document.getElementById('continueInput_' + taskId);
   const followUp = inputEl ? inputEl.value.trim() : '';
-  if (!followUp && !task.prompt && !task.error_log) {
+  const attachedImages = _continuationImages[taskId] ? [..._continuationImages[taskId]] : [];
+
+  if (!followUp && attachedImages.length === 0 && !task.prompt && !task.error_log) {
     showToast('Vui lòng nhập nội dung cần hỏi hoặc tiếp tục.', 'warning');
     return;
   }
@@ -1889,10 +2224,13 @@ async function continueTaskFromFeed(taskId) {
     task.original_prompt = task.prompt || '';
   }
   if (inputEl) inputEl.value = '';
+  _continuationImages[taskId] = [];
+  renderContinuationImages(taskId);
+
   activeTaskId = task.id;
   // Tiếp tục = một lượt hội thoại tiếp theo trong cùng phiên, KHÔNG chạy lại toàn bộ task
   // và KHÔNG nạp lại skill tác vụ ban đầu.
-  await startContinuationTask(task, followUp);
+  await startContinuationTask(task, followUp, attachedImages);
 }
 
 let _lastShownApiErrorId = null;

@@ -14,10 +14,8 @@
   `Trở lại trạng thái chưa merge hay cherry-pick` (kích hoạt `doAbortConflictAction(role)` -> `git merge --abort` / `git cherry-pick --abort`).
 - Hiển thị terminal giả lập VS Code giải quyết xung đột với CodeLens (`Accept Current Change`, `Accept Incoming Change`, `Accept Both Changes`).
 
-## 3. BẢO TOÀN KIỂM THỬ (TEST CONSTRAINTS)
-- Mọi thay đổi phải vượt qua toàn bộ 78 bài test:
-  ```bash
-  python3 -m unittest discover -s tests
-  ```
-- Hàm `switchDiagramViewTab(tab)` trong `frontend/app.js` phải giữ đúng regex matching kết thúc bằng `\n    }` (4 spaces) và gọi `renderTreeView(window.diagramData.tree_nodes)`.
-- Luôn giữ các escape `escapeHtml(m.title)`, `escapeHtml(m.skill)`, `escapeHtml(m.name)`.
+## 3. QUY TẮC KIỂM THỬ (TESTING RULES)
+- **ĐƯỢC PHÉP CHẠY TEST (NGOẠI TRỪ DATABASE & JIRA)**: Được phép chạy kiểm thử khi cần thiết, nhưng **TUYỆT ĐỐI NÉ / KHÔNG CHẠY các bài test liên quan đến Database và Jira** (như `test_mysql*`, `test_database*`, `test_jira*`, các test mutate dữ liệu DB hoặc gọi đến Jira).
+- **Bảo toàn tính toàn vẹn của code & kiểm thử**:
+  - Hàm `switchDiagramViewTab(tab)` trong `frontend/app.js` phải giữ đúng regex matching kết thúc bằng `\n    }` (4 spaces) và gọi `renderTreeView(window.diagramData.tree_nodes)`.
+  - Luôn giữ các escape an toàn như `escapeHtml(m.title)`, `escapeHtml(m.skill)`, `escapeHtml(m.name)`.

@@ -1392,6 +1392,8 @@ def parse_git_conflict_content(content):
             'current_code': current_code,
             'incoming_code': incoming_code,
             'incoming_footer': incoming_footer,
+            'current': current_code,
+            'incoming': incoming_code,
             'start': m.start(),
             'end': m.end()
         })
@@ -1403,7 +1405,7 @@ def parse_git_conflict_content(content):
 def resolve_conflict_content(content, action, block_index=None):
     """
     Giải quyết khối conflict trong content:
-    - action: 'accept_current' | 'accept_incoming' | 'accept_both'
+    - action: 'current' / 'accept_current' | 'incoming' / 'accept_incoming' | 'both' / 'accept_both'
     - block_index: int (chỉ giải quyết 1 khối cụ thể) hoặc None/'all' (giải quyết tất cả các khối)
     """
     pattern = re.compile(
@@ -1412,6 +1414,16 @@ def resolve_conflict_content(content, action, block_index=None):
     matches = list(pattern.finditer(content))
     if not matches:
         return content
+
+    action_norm = str(action or '').lower().replace('accept_', '').strip()
+    if action_norm in ('current', 'ours', 'head'):
+        target_mode = 'current'
+    elif action_norm in ('incoming', 'theirs'):
+        target_mode = 'incoming'
+    elif action_norm in ('both', 'all'):
+        target_mode = 'both'
+    else:
+        target_mode = action_norm
 
     if block_index is not None and str(block_index).lower() != 'all':
         try:
@@ -1422,11 +1434,11 @@ def resolve_conflict_content(content, action, block_index=None):
             m = matches[idx]
             cur = m.group(2)
             inc = m.group(4)
-            if action == 'accept_current':
+            if target_mode == 'current':
                 repl = cur
-            elif action == 'accept_incoming':
+            elif target_mode == 'incoming':
                 repl = inc
-            elif action == 'accept_both':
+            elif target_mode == 'both':
                 repl = cur + inc
             else:
                 return content
@@ -1436,11 +1448,11 @@ def resolve_conflict_content(content, action, block_index=None):
     def repl_all(m):
         cur = m.group(2)
         inc = m.group(4)
-        if action == 'accept_current':
+        if target_mode == 'current':
             return cur
-        elif action == 'accept_incoming':
+        elif target_mode == 'incoming':
             return inc
-        elif action == 'accept_both':
+        elif target_mode == 'both':
             return cur + inc
         return m.group(0)
 
@@ -1515,22 +1527,97 @@ def get_git_conflict_file_info(workspace, file_path):
         'conflict_count': len(blocks),
         'total_lines': len(lines),
         'blocks': blocks,
+        'conflict_blocks': blocks,
         'raw_content': content
     }
 
 
 def resolve_git_conflict_file(workspace, file_path, action, block_index=None):
     """
-    Thực hiện giải quyết xung đột (Current/Incoming/Both) trên 1 file và tự động git add nếu đã hết conflict.
+    Thực hiện giải quyết xung đột (Current/Incoming/Both) trên 1 file hoặc toàn bộ file ('all')
+    và tự động git add nếu đã hết conflict.
     """
     if not workspace or not file_path:
         return {'success': False, 'message': 'Thiếu workspace hoặc đường dẫn file.'}
+
+    action_norm = str(action or '').lower().replace('accept_', '').strip()
+    if action_norm in ('current', 'ours', 'head'):
+        canonical_action = 'accept_current'
+    elif action_norm in ('incoming', 'theirs'):
+        canonical_action = 'accept_incoming'
+    elif action_norm in ('both', 'all'):
+        canonical_action = 'accept_both'
+    elif action_norm == 'stage_only':
+        canonical_action = 'stage_only'
+    else:
+        canonical_action = action
+
+    # Trường hợp giải quyết hàng loạt toàn bộ file bị conflict
+    if file_path in ('all', '*'):
+        status_info = get_git_active_conflict_status(workspace)
+        files = status_info.get('conflicted_files', [])
+        resolved_count = 0
+        for f in files:
+            res = resolve_git_conflict_file(workspace, f, canonical_action, block_index=None)
+            if res.get('success'):
+                resolved_count += 1
+        try:
+            subprocess.run(['git', 'add', '-A'], cwd=workspace, capture_output=True)
+        except Exception:
+            pass
+        post_status = get_git_active_conflict_status(workspace)
+        return {
+            'success': True,
+            'file_path': 'all',
+            'action_applied': canonical_action,
+            'resolved_files_count': resolved_count,
+            'all_conflicts_resolved': len(post_status['conflicted_files']) == 0,
+            'conflicted_files': post_status['conflicted_files']
+        }
 
     clean_path = os.path.normpath(file_path).lstrip('/')
     abs_file = os.path.abspath(os.path.join(workspace, clean_path))
     abs_ws = os.path.abspath(workspace)
     if not abs_file.startswith(abs_ws):
         return {'success': False, 'message': 'Đường dẫn file không hợp lệ.'}
+
+    # Nếu chỉ muốn stage_only (đánh dấu đã giải quyết thủ công)
+    if canonical_action == 'stage_only':
+        try:
+            subprocess.run(['git', 'add', clean_path], cwd=workspace, check=True, capture_output=True)
+            status_info = get_git_active_conflict_status(workspace)
+            return {
+                'success': True,
+                'file_path': clean_path,
+                'action_applied': 'stage_only',
+                'file_staged': True,
+                'all_conflicts_resolved': len(status_info['conflicted_files']) == 0,
+                'conflicted_files': status_info['conflicted_files']
+            }
+        except Exception as e:
+            return {'success': False, 'message': f'Lỗi git add: {str(e)}'}
+
+    # Nếu chọn giải quyết toàn bộ file bằng Current (Ours) hoặc Incoming (Theirs)
+    if block_index is None and canonical_action in ('accept_current', 'accept_incoming'):
+        flag = '--ours' if canonical_action == 'accept_current' else '--theirs'
+        try:
+            co_res = subprocess.run(['git', 'checkout', flag, '--', clean_path], cwd=workspace, capture_output=True, text=True)
+            if co_res.returncode == 0:
+                subprocess.run(['git', 'add', clean_path], cwd=workspace, check=True, capture_output=True)
+                status_info = get_git_active_conflict_status(workspace)
+                return {
+                    'success': True,
+                    'file_path': clean_path,
+                    'action_applied': canonical_action,
+                    'block_index': None,
+                    'remaining_conflicts_in_file': 0,
+                    'file_staged': True,
+                    'all_conflicts_resolved': len(status_info['conflicted_files']) == 0,
+                    'conflicted_files': status_info['conflicted_files']
+                }
+        except Exception:
+            pass
+
     if not os.path.exists(abs_file):
         return {'success': False, 'message': f'Không tìm thấy file: {clean_path}'}
 
@@ -1540,7 +1627,7 @@ def resolve_git_conflict_file(workspace, file_path, action, block_index=None):
     except Exception as e:
         return {'success': False, 'message': f'Không thể đọc file: {str(e)}'}
 
-    new_content = resolve_conflict_content(content, action, block_index=block_index)
+    new_content = resolve_conflict_content(content, canonical_action, block_index=block_index)
     try:
         with open(abs_file, 'w', encoding='utf-8') as f:
             f.write(new_content)
@@ -1561,7 +1648,7 @@ def resolve_git_conflict_file(workspace, file_path, action, block_index=None):
     return {
         'success': True,
         'file_path': clean_path,
-        'action_applied': action,
+        'action_applied': canonical_action,
         'block_index': block_index,
         'remaining_conflicts_in_file': len(rem_blocks),
         'file_staged': file_staged,
@@ -3893,13 +3980,13 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             })
         elif path == '/api/git/conflict/status':
             qs = urllib.parse.parse_qs(parsed.query)
-            target = qs.get('target', ['fe'])[0]
+            target = qs.get('target', qs.get('role', ['fe']))[0]
             ws = get_workspace(target)
             data = get_git_active_conflict_status(ws)
             self.send_json(data)
         elif path == '/api/git/conflict/file':
             qs = urllib.parse.parse_qs(parsed.query)
-            target = qs.get('target', ['fe'])[0]
+            target = qs.get('target', qs.get('role', ['fe']))[0]
             file_path = qs.get('file', [''])[0]
             ws = get_workspace(target)
             data = get_git_conflict_file_info(ws, file_path)
@@ -4352,14 +4439,14 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             self.send_json(res)
 
         elif path == '/api/git/conflict/resolve':
-            target = body.get('target', 'fe')
+            target = body.get('target') or body.get('role') or 'fe'
             file_path = body.get('file', '').strip()
             action = body.get('action', 'accept_current')
             block_index = body.get('block_index')
             ws = get_workspace(target)
             repo_label = 'Frontend' if target == 'fe' else 'Backend'
             res = resolve_git_conflict_file(ws, file_path, action, block_index=block_index)
-            if res.get('file_staged'):
+            if res.get('file_staged') or res.get('resolved_files_count'):
                 add_work_log(
                     'GIT_CONFLICT_RESOLVED',
                     f"Giải quyết xong conflict file {file_path} ({repo_label})",
@@ -4370,7 +4457,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             self.send_json(res)
 
         elif path == '/api/git/conflict/abort':
-            target = body.get('target', 'fe')
+            target = body.get('target') or body.get('role') or 'fe'
             ws = get_workspace(target)
             repo_label = 'Frontend' if target == 'fe' else 'Backend'
             res = abort_git_conflict(ws)
@@ -4381,10 +4468,13 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'SUCCESS' if res.get('success') else 'ERROR',
                 target=target
             )
+            with state_lock:
+                app_state['diagram_cache'] = None
+                app_state['diagram_cache_key'] = None
             self.send_json(res)
 
         elif path == '/api/git/conflict/continue':
-            target = body.get('target', 'fe')
+            target = body.get('target') or body.get('role') or 'fe'
             commit_message = body.get('commit_message')
             ws = get_workspace(target)
             repo_label = 'Frontend' if target == 'fe' else 'Backend'
@@ -4396,6 +4486,9 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'SUCCESS' if res.get('success') else 'ERROR',
                 target=target
             )
+            with state_lock:
+                app_state['diagram_cache'] = None
+                app_state['diagram_cache_key'] = None
             self.send_json(res)
 
         elif path == '/api/logs/clear':
@@ -6432,6 +6525,24 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       border: 1px solid #b7eb8f !important;
       color: #389e0d !important;
     }
+    .notif-tag-jira-task {
+      background-color: #e6f4ff !important;
+      border: 1px solid #91caff !important;
+      color: #0958d9 !important;
+    }
+    .notif-tag-jira-task:hover { background-color: #bae0ff !important; }
+    .notif-tag-jira-doc {
+      background-color: #e6fffb !important;
+      border: 1px solid #87e8de !important;
+      color: #08979c !important;
+    }
+    .notif-tag-jira-doc:hover { background-color: #b5f5ec !important; }
+    .notif-tag-jira-comment {
+      background-color: #f9f0ff !important;
+      border: 1px solid #d3adf7 !important;
+      color: #722ed1 !important;
+    }
+    .notif-tag-jira-comment:hover { background-color: #efdbff !important; }
     .notif-item.is-unread .notif-item-title,
     .notif-item.is-unread .notif-title-done,
     .notif-item.is-unread .notif-title-running,
@@ -14142,6 +14253,26 @@ function renderNotificationList() {
         tagBadge = '<span onclick="setNotifTagFilter(\'git\', event)" class="notif-tag-badge notif-tag-git-pull" title="Nhấp để lọc theo Git">Git cần pull</span>';
         titleClass = 'notif-title-running';
         titleStyle = 'color: #d48806;';
+      }
+    } else if (item.tag === 'jira') {
+      const isDocUpdate = (
+        item.notifType === 'issue_updated' ||
+        item.notifType === 'doc_updated' ||
+        (item.title && item.title.toLowerCase().includes('cập nhật doc')) ||
+        (item.desc && item.desc.toLowerCase().includes('cập nhật doc'))
+      );
+      if (item.notifType === 'comment_added') {
+        tagBadge = '<span onclick="setNotifTagFilter(\'jira\', event)" class="notif-tag-badge notif-tag-jira-comment" title="Nhấp để lọc theo Jira">Jira · Bình luận</span>';
+        titleClass = 'notif-title-running';
+        titleStyle = 'color: #d48806;';
+      } else if (isDocUpdate) {
+        tagBadge = '<span onclick="setNotifTagFilter(\'jira\', event)" class="notif-tag-badge notif-tag-jira-doc" title="Nhấp để lọc theo Jira">Jira · Cập nhật doc</span>';
+        titleClass = 'notif-title-running';
+        titleStyle = 'color: #08979c;';
+      } else {
+        tagBadge = '<span onclick="setNotifTagFilter(\'jira\', event)" class="notif-tag-badge notif-tag-jira-task" title="Nhấp để lọc theo Jira">Jira · Task mới</span>';
+        titleClass = 'notif-title-done';
+        titleStyle = 'color: #389e0d;';
       }
     } else {
       if (isDone) {

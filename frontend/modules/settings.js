@@ -537,6 +537,7 @@ function populateOpenCodeModelSelects(models) {
   const otherModels = [];
   const seenIds = new Set();
   const variantMap = {};
+  const effortSupportMap = {};
 
   (models || []).forEach(m => {
     const rawId = m.id || '';
@@ -546,8 +547,13 @@ function populateOpenCodeModelSelects(models) {
     if (Array.isArray(m.raw_variants) && m.raw_variants.length) {
       variantMap[cleanId] = m.raw_variants;
     }
+    const hasVariant = Array.isArray(m.raw_variants) && m.raw_variants.some(
+      v => v !== cleanId && /-(low|medium|high|xhigh|max)$/i.test(v)
+    );
+    effortSupportMap[cleanId] = Boolean(m.effort_supported) || hasVariant;
   });
   window._openCodeVariantMap = variantMap;
+  window._openCodeEffortSupportMap = effortSupportMap;
 
   (models || []).forEach(m => {
     const rawId = m.id || '';
@@ -816,16 +822,6 @@ function resolveEffectiveOpenCodeModel(baseModel, effort) {
   const isFree = /free/i.test(raw);
   const isAgent = /-agent$/i.test(raw);
 
-  if (isAgent || isFree) {
-    const cleanRaw = raw.replace(/-(low|medium|high|xhigh|max)$/i, '');
-    return {
-      effective: cleanRaw,
-      supportsEffort: false,
-      isFree: isFree,
-      baseModel: cleanRaw
-    };
-  }
-
   const prefixMatch = raw.match(/^(9router\/|opencode\/)/i);
   const prefix = prefixMatch ? prefixMatch[0] : '';
   const rawId = prefix ? raw.slice(prefix.length) : raw;
@@ -838,31 +834,44 @@ function resolveEffectiveOpenCodeModel(baseModel, effort) {
   const variantMap = window._openCodeVariantMap || {};
   const variants = variantMap[prefix + baseId] || variantMap[baseId] || variantMap['9router/ag/' + baseId] || variantMap['ag/' + baseId] || null;
 
-  let effectiveId = `${baseId}-${eff}`;
-  let supportsEffort = heuristics;
+  // Model có hỗ trợ reasoning effort gốc (thinkingEffortSupported) dù không có biến thể tên model
+  const effortSupportMap = window._openCodeEffortSupportMap || {};
+  const nativeEffort = effortSupportMap[prefix + baseId] ?? effortSupportMap[baseId] ?? effortSupportMap['9router/' + baseId] ?? false;
 
-  if (Array.isArray(variants) && variants.length) {
-    const hasEffortVariant = variants.some(v => v !== baseId && /-(low|medium|high|xhigh|max)$/i.test(v));
-    supportsEffort = heuristics || hasEffortVariant;
-    if (variants.includes(`${baseId}-${eff}`)) {
+  let effectiveId = baseId;
+  let usesVariant = false;
+
+  if (!isFree && !isAgent) {
+    if (Array.isArray(variants) && variants.length) {
+      const matchEffort = (level) => variants.find(v => v !== baseId && new RegExp(`-${level}$`, 'i').test(v));
+      const preferred = matchEffort(eff);
+      if (preferred) {
+        effectiveId = preferred;
+        usesVariant = true;
+      } else {
+        const hasAnyEffortVariant = variants.some(v => v !== baseId && /-(low|medium|high|xhigh|max)$/i.test(v));
+        if (hasAnyEffortVariant) {
+          const fallback = ['high', 'medium', 'low', 'xhigh', 'max'].map(matchEffort).find(Boolean);
+          if (fallback) {
+            effectiveId = fallback;
+            usesVariant = true;
+          }
+        }
+      }
+    } else if (heuristics) {
+      // Khi chưa tải được danh sách biến thể, dùng hậu tố cho các họ model hỗ trợ effort.
       effectiveId = `${baseId}-${eff}`;
-    } else if (variants.includes(`ag/${baseId}-${eff}`)) {
-      effectiveId = `ag/${baseId}-${eff}`;
-    } else if (variants.includes(baseId)) {
-      effectiveId = supportsEffort ? `${baseId}-${eff}` : baseId;
-    } else {
-      effectiveId = ['high', 'medium', 'low', 'xhigh', 'max']
-        .map(e => `${baseId}-${e}`)
-        .find(v => variants.includes(v)) || (supportsEffort ? `${baseId}-${eff}` : baseId);
+      usesVariant = true;
     }
-  } else if (!heuristics) {
-    effectiveId = baseId;
   }
 
   return {
     effective: prefix + effectiveId,
-    supportsEffort,
-    isFree: false,
+    supportsEffort: true,
+    usesVariant: usesVariant,
+    modelSupportsEffort: Boolean(usesVariant || nativeEffort || heuristics),
+    isFree: isFree,
+    isAgent: isAgent,
     baseModel: prefix + baseId
   };
 }
@@ -877,41 +886,32 @@ function updateDynamicEffortPanel(res) {
 
   const isOpencode = (currentStudioSettings.engine === 'opencode');
 
+  // Luôn hiển thị bộ chọn Effort cho mọi model/engine. Với model không có
+  // biến thể effort, lựa chọn vẫn được lưu và đồng bộ vào cấu hình (reasoningEffort).
+  if (cardsGrid) cardsGrid.classList.remove('hidden');
+
   if (isOpencode) {
-    if (res && res.supportsEffort) {
-      if (titleEl) {
-        const isGemini = (res.baseModel || '').toLowerCase().includes('gemini') || (res.baseModel || '').toLowerCase().includes('argon');
-        titleEl.textContent = isGemini ? 'Mức độ suy luận cho Gemini (OpenCode):' : `Mức độ suy luận cho ${escapeHtml(res.baseModel)}:`;
-      }
-      if (cardsGrid) cardsGrid.classList.remove('hidden');
-      if (noticeEl) noticeEl.classList.add('hidden');
-    } else {
-      const modelName = (res && res.baseModel) || currentStudioSettings.opencode_model || 'Mô hình cố định';
-      const isFree = (res && res.isFree) || (/free/i.test(modelName));
-      if (titleEl) {
-        titleEl.textContent = isFree
-          ? `Mô hình Miễn phí (${modelName}): Tiêu chuẩn (Không áp dụng mức suy luận)`
-          : `Mô hình tiêu chuẩn (${modelName}): Không áp dụng mức suy luận`;
-      }
-      if (cardsGrid) cardsGrid.classList.add('hidden');
-      if (noticeEl) {
+    const modelName = (res && res.baseModel) || currentStudioSettings.opencode_model || 'OpenCode';
+    const isGemini = /gemini|argon/i.test(modelName);
+    if (titleEl) {
+      titleEl.textContent = isGemini ? 'Mức độ suy luận cho Gemini (OpenCode):' : `Mức độ suy luận cho ${modelName}:`;
+    }
+    if (noticeEl) {
+      if (res && res.modelSupportsEffort === false) {
         noticeEl.classList.remove('hidden');
         if (noticeTitle) {
-          noticeTitle.textContent = isFree
-            ? `Mô hình Miễn phí ${modelName} (Free - Không tốn token)`
-            : `Mô hình ${modelName} hoạt động ở chế độ tiêu chuẩn`;
+          noticeTitle.textContent = `Mô hình ${modelName} chưa hỗ trợ chia mức suy luận gốc`;
         }
         if (noticeDesc) {
-          noticeDesc.textContent = isFree
-            ? `Mô hình này là mô hình miễn phí (Free model) từ OpenCode / 9router, hoạt động cố định ở mức suy luận tiêu chuẩn và không hỗ trợ chọn Low / Medium / High. Mọi tác vụ được xử lý phản hồi trực tiếp nhanh nhất.`
-            : `Mô hình này hoạt động ở chế độ tiêu chuẩn mặc định, không hỗ trợ phân mức suy luận Low / Medium / High.`;
+          noticeDesc.textContent = 'Lựa chọn Effort vẫn được lưu và đồng bộ vào cấu hình OpenCode (thuộc tính reasoningEffort) cùng Gemini CLI. Khi chuyển sang mô hình hỗ trợ, mức đã chọn sẽ được áp dụng ngay.';
         }
+      } else {
+        noticeEl.classList.add('hidden');
       }
     }
   } else {
     // gemini_cli
     if (titleEl) titleEl.textContent = 'Mức độ suy luận cho Gemini CLI:';
-    if (cardsGrid) cardsGrid.classList.remove('hidden');
     if (noticeEl) noticeEl.classList.add('hidden');
   }
 }
@@ -943,13 +943,13 @@ function updateQuickOpencodeDisplay(effort) {
   if (activeModelEffortBadge) {
     if (res.isFree) {
       activeModelEffortBadge.textContent = 'Mô hình Miễn phí / Tiêu chuẩn';
-      activeModelEffortBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/60';
+      activeModelEffortBadge.className = 'text-[10px] font-sans font-bold px-2 py-0.5 rounded bg-emerald-800 text-emerald-100 border border-emerald-600 shadow-sm';
     } else if (res.supportsEffort) {
       activeModelEffortBadge.textContent = `Suy luận: ${eff.toUpperCase()}`;
-      activeModelEffortBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-blue-900/60 text-blue-200 border border-blue-700/60';
+      activeModelEffortBadge.className = 'text-[10px] font-sans font-bold px-2 py-0.5 rounded bg-blue-800 text-white border border-blue-600 shadow-sm';
     } else {
       activeModelEffortBadge.textContent = 'Mô hình Tiêu chuẩn';
-      activeModelEffortBadge.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700';
+      activeModelEffortBadge.className = 'text-[10px] font-sans font-bold px-2 py-0.5 rounded bg-slate-700 text-slate-200 border border-slate-600 shadow-sm';
     }
   }
 
@@ -957,7 +957,7 @@ function updateQuickOpencodeDisplay(effort) {
   if (badgeEl) {
     if (res.isFree) {
       badgeEl.textContent = 'Mô hình Miễn phí / Tiêu chuẩn (Không tốn token)';
-      badgeEl.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/60';
+      badgeEl.className = 'text-[10px] font-sans font-bold px-2 py-0.5 rounded bg-emerald-800 text-emerald-100 border border-emerald-600 shadow-sm';
     } else if (res.supportsEffort) {
       const effLabels = {
         'low': 'Suy luận: Low (Tốc độ cao)',
@@ -967,32 +967,32 @@ function updateQuickOpencodeDisplay(effort) {
         'max': 'Suy luận: Maximum'
       };
       badgeEl.textContent = effLabels[eff] || `Suy luận: ${eff.toUpperCase()}`;
-      badgeEl.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-blue-900/60 text-blue-200 border border-blue-700/60';
+      badgeEl.className = 'text-[10px] font-sans font-bold px-2 py-0.5 rounded bg-blue-800 text-white border border-blue-600 shadow-sm';
     } else {
       badgeEl.textContent = 'Mô hình Tiêu chuẩn (Không áp dụng suy luận)';
-      badgeEl.className = 'text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700';
+      badgeEl.className = 'text-[10px] font-sans font-bold px-2 py-0.5 rounded bg-slate-700 text-slate-200 border border-slate-600 shadow-sm';
     }
   }
 
   const descEl = document.getElementById('quickOpencodeActiveDesc');
   if (descEl) {
     if (res.isFree) {
-      descEl.textContent = 'Mô hình miễn phí (Free) không tốn token và hoạt động ở chế độ tiêu chuẩn, không chia mức suy luận.';
-    } else if (res.supportsEffort) {
-      descEl.textContent = 'Mô hình thực thi tự động áp dụng mức suy luận đã chọn (Low / Medium / High) bên dưới.';
+      descEl.textContent = 'Mô hình miễn phí (Free) không tốn token. Mức suy luận đã chọn vẫn được lưu và đồng bộ vào cấu hình.';
+    } else if (res.modelSupportsEffort === false) {
+      descEl.textContent = `Mức suy luận ${eff.toUpperCase()} được lưu và đồng bộ vào cấu hình OpenCode (reasoningEffort) / Gemini CLI; model hiện tại chưa hỗ trợ gốc.`;
     } else {
-      descEl.textContent = 'Mô hình cố định không hỗ trợ chia mức suy luận.';
+      descEl.textContent = 'Mô hình thực thi tự động áp dụng mức suy luận đã chọn (Low / Medium / High) bên dưới.';
     }
   }
 
   const pageDescEl = document.getElementById('pageModelActiveDesc');
   if (pageDescEl) {
     if (res.isFree) {
-      pageDescEl.textContent = 'Mô hình miễn phí (Free) không tốn token và hoạt động ở chế độ tiêu chuẩn, không chia mức suy luận.';
-    } else if (res.supportsEffort) {
-      pageDescEl.textContent = `Mô hình thực thi tự động áp dụng mức suy luận đã chọn (${eff.toUpperCase()}) trong tab Effort.`;
+      pageDescEl.textContent = 'Mô hình miễn phí (Free) không tốn token. Mức suy luận đã chọn vẫn được lưu và đồng bộ vào cấu hình OpenCode / Gemini CLI.';
+    } else if (res.modelSupportsEffort === false) {
+      pageDescEl.textContent = `Mức suy luận ${eff.toUpperCase()} được lưu và đồng bộ vào cấu hình OpenCode (reasoningEffort) / Gemini CLI; model hiện tại chưa hỗ trợ gốc.`;
     } else {
-      pageDescEl.textContent = 'Mô hình cố định không hỗ trợ chia mức suy luận.';
+      pageDescEl.textContent = `Mô hình thực thi tự động áp dụng mức suy luận đã chọn (${eff.toUpperCase()}) trong tab Effort.`;
     }
   }
 
@@ -1204,7 +1204,10 @@ function updateEffortUI(effort) {
       else btn.classList.remove('is-active');
     }
     if (panel) {
-      if (f === currentModelFamily) panel.classList.remove('hidden');
+      // Với OpenCode chỉ có panel Effort Gemini trong DOM, luôn hiển thị panel này
+      // để bộ chọn Effort không bị ẩn khi model family cũ là claude/openai.
+      const shouldShow = (f === currentModelFamily) || (f === 'gemini' && currentStudioSettings.engine === 'opencode');
+      if (shouldShow) panel.classList.remove('hidden');
       else panel.classList.add('hidden');
     }
   });
@@ -1219,11 +1222,13 @@ function updateEffortUI(effort) {
     accActiveModel.textContent = currentStudioSettings.model || geminiCliStatus.cli_model || 'Gemini 3.8 Flash (High)';
   }
 
+  const usePrimaryEffortCards = (currentModelFamily === 'gemini') || (currentStudioSettings.engine === 'opencode');
+
   ['low', 'medium', 'high'].forEach(lvl => {
     const card = document.getElementById('page_card_effort_' + lvl);
     const radio = card ? card.querySelector('input[type="radio"]') : null;
     if (card) {
-      if (lvl === eff && currentModelFamily === 'gemini') {
+      if (lvl === eff && usePrimaryEffortCards) {
         if (radio) radio.checked = true;
         card.classList.add('is-active');
       } else {
@@ -1407,6 +1412,9 @@ window.markSettingsDirty = markSettingsDirty;
 
 function onSettingsOptionChanged(tab = null) {
   markSettingsDirty(true, tab);
+  if (tab === 'api') {
+    updateApiKeyBadges(currentStudioSettings);
+  }
 }
 window.onSettingsOptionChanged = onSettingsOptionChanged;
 
@@ -1464,6 +1472,9 @@ function switchSettingsSidebarTab(tab, updateHistory = true) {
   if (tab === 'mcp') {
     reorderMcpPresetCards(_cachedMcpServers || window.currentMcpServers || []);
     fetchMcpServers(false);
+  }
+  if (tab === 'api') {
+    updateApiUI(currentStudioSettings);
   }
   if (tab === 'effort' || tab === 'model' || tab === 'engine') {
     if (currentStudioSettings.engine === 'opencode') {
@@ -1730,13 +1741,32 @@ function renderMcpServers(servers) {
         : 'text-[9.5px] font-sans font-medium px-2 py-0.5 rounded is-connected';
     }
     if (cardPresetMysql) cardPresetMysql.classList.remove('is-unconfigured');
+
+    // Cấu hình MySQL MCP lưu qua biến môi trường (MYSQL_HOST/PORT/USER/PASS/DB)
+    const env = mysqlServer.env || {};
+    const hostEl = document.getElementById('input_mysql_host');
+    const portEl = document.getElementById('input_mysql_port');
+    const userEl = document.getElementById('input_mysql_user');
+    const passEl = document.getElementById('input_mysql_password');
+    const dbEl = document.getElementById('input_mysql_database');
+    const sslEl = document.getElementById('input_mysql_ssl');
     const urlInput = document.getElementById('input_mysql_url');
-    if (Array.isArray(mysqlServer.args) && mysqlServer.args.length > 0) {
-      const connStr = mysqlServer.args.find(a => typeof a === 'string' && a.startsWith('mysql'));
-      if (connStr) {
-        if (urlInput && !urlInput.value) urlInput.value = connStr;
-        syncMysqlUrlToFields(connStr);
-      }
+
+    if (env.MYSQL_HOST && hostEl && !hostEl.value) hostEl.value = env.MYSQL_HOST;
+    if (env.MYSQL_PORT && portEl && (!portEl.value || portEl.value === '3306')) portEl.value = env.MYSQL_PORT;
+    if (env.MYSQL_USER && userEl && (!userEl.value || userEl.value === 'root')) userEl.value = env.MYSQL_USER;
+    if (env.MYSQL_PASS && passEl && !passEl.value) passEl.value = env.MYSQL_PASS;
+    if (env.MYSQL_DB && dbEl && !dbEl.value) dbEl.value = env.MYSQL_DB;
+    if (sslEl && env.MYSQL_SSL !== undefined) sslEl.checked = String(env.MYSQL_SSL).toLowerCase() !== 'false';
+
+    if (urlInput && !urlInput.value && hostEl && hostEl.value) {
+      urlInput.value = buildMysqlUrl({
+        host: hostEl.value,
+        port: portEl ? portEl.value : '3306',
+        user: userEl ? userEl.value : 'root',
+        password: passEl ? passEl.value : '',
+        database: dbEl ? dbEl.value : ''
+      });
     }
   } else {
     if (btnToggleMysqlFooter) btnToggleMysqlFooter.classList.add('hidden');
@@ -1752,7 +1782,7 @@ function renderMcpServers(servers) {
     if (cardPresetMysql) cardPresetMysql.classList.add('is-unconfigured');
   }
 
-  // 5. GitLab
+  // 6. GitLab
   const gitlabServer = (servers || []).find(s => s.name === 'gitlab' || s.preset === 'gitlab');
   const cardPresetGitlab = document.getElementById('cardPreset_gitlab');
   const gitlabBadge = document.getElementById('gitlabSyncStatusBadge');
@@ -1804,7 +1834,7 @@ function renderMcpServers(servers) {
     if (cardPresetGitlab) cardPresetGitlab.classList.add('is-unconfigured');
   }
 
-  // 6. Slack
+  // 7. Slack
   const slackServer = (servers || []).find(s => s.name === 'slack' || s.preset === 'slack');
   const cardPresetSlack = document.getElementById('cardPreset_slack');
   const slackBadge = document.getElementById('slackSyncStatusBadge');
@@ -1856,7 +1886,7 @@ function renderMcpServers(servers) {
     if (cardPresetSlack) cardPresetSlack.classList.add('is-unconfigured');
   }
 
-  // 7. Custom
+  // 8. Custom
   const customBadge = document.getElementById('badgePreset_custom');
   if (customBadge) {
     const customServers = (servers || []).filter(s => !['jira', 'github', 'postgres', 'mysql', 'gitlab', 'slack'].includes(s.name) && s.preset !== 'jira');
@@ -2728,6 +2758,7 @@ async function saveGitlabMcp(btn) {
   }
 }
 
+// Backward compatibility aliases
 function parseMysqlUrl(urlStr) {
   if (!urlStr || typeof urlStr !== 'string') return null;
   const trimmed = urlStr.trim();
@@ -2824,6 +2855,7 @@ async function testMysqlConnection(btn) {
   const user = document.getElementById('input_mysql_user')?.value?.trim() || '';
   const password = document.getElementById('input_mysql_password')?.value || '';
   const database = document.getElementById('input_mysql_database')?.value?.trim() || '';
+  const ssl = document.getElementById('input_mysql_ssl')?.checked !== false;
   const resultBox = document.getElementById('mysqlTestStatusResult');
 
   if (!url && !host && !user) {
@@ -2856,7 +2888,7 @@ async function testMysqlConnection(btn) {
     const res = await fetch('/api/mcp/test-mysql', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, host, port, user, password, database })
+      body: JSON.stringify({ url, host, port, user, password, database, ssl })
     });
     const d = await res.json();
     if (d && d.success) {
@@ -2912,6 +2944,7 @@ async function saveMysqlMcp(btn) {
   const user = document.getElementById('input_mysql_user')?.value?.trim() || '';
   const password = document.getElementById('input_mysql_password')?.value || '';
   const database = document.getElementById('input_mysql_database')?.value?.trim() || '';
+  const ssl = document.getElementById('input_mysql_ssl')?.checked !== false;
 
   if (!url && (host || user)) {
     url = buildMysqlUrl({ host, port, user, password, database });
@@ -2931,7 +2964,7 @@ async function saveMysqlMcp(btn) {
     const res = await fetch('/api/mcp/add-mysql', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, host, port, user, password, database, name: 'mysql' })
+      body: JSON.stringify({ url, host, port, user, password, database, ssl, name: 'mysql' })
     });
     const d = await res.json();
     if (d && d.success) {
@@ -3234,15 +3267,26 @@ window.saveCustomMcp = saveCustomMcp;
 window.removeMcpServer = removeMcpServer;
 window.toggleMcpServer = toggleMcpServer;
 
-function selectActiveApiProvider(provider) {
+function selectActiveApiProvider(provider, isUserClick = false) {
   if (!['gemini', 'claude', 'openai', 'deepseek', 'custom'].includes(provider)) provider = 'gemini';
   currentStudioSettings.api_provider = provider;
 
   ['gemini', 'claude', 'openai', 'deepseek', 'custom'].forEach(p => {
+    // 1. Cập nhật thẻ chọn overview ở trên
     const btn = document.getElementById('btn_provider_' + p);
     if (btn) {
       if (p === provider) btn.classList.add('is-active');
       else btn.classList.remove('is-active');
+    }
+
+    // 2. Chỉ hiển thị card của provider đang chọn, ẩn các card còn lại
+    const card = document.getElementById('apiConfigCard_' + p);
+    if (card) {
+      if (p === provider) {
+        card.classList.remove('hidden');
+      } else {
+        card.classList.add('hidden');
+      }
     }
   });
 
@@ -3258,9 +3302,56 @@ function selectActiveApiProvider(provider) {
     tag.textContent = labels[provider] || provider.toUpperCase();
   }
 
-  markSettingsDirty(true, 'api');
+  if (isUserClick) {
+    markSettingsDirty(true, 'api');
+  }
 }
 window.selectActiveApiProvider = selectActiveApiProvider;
+
+function isProviderConnected(provider, settings) {
+  if (!settings) settings = currentStudioSettings || {};
+  if (provider === 'gemini') {
+    const val = (document.getElementById('input_gemini_api_key')?.value || settings.gemini_api_key || '').trim();
+    return !!val;
+  }
+  if (provider === 'claude') {
+    const val = (document.getElementById('input_claude_api_key')?.value || settings.claude_api_key || '').trim();
+    return !!val;
+  }
+  if (provider === 'openai') {
+    const val = (document.getElementById('input_openai_api_key')?.value || settings.openai_api_key || '').trim();
+    return !!val;
+  }
+  if (provider === 'deepseek') {
+    const val = (document.getElementById('input_deepseek_api_key')?.value || settings.deepseek_api_key || '').trim();
+    return !!val;
+  }
+  if (provider === 'custom') {
+    const endpoint = (document.getElementById('input_custom_endpoint')?.value || settings.custom_endpoint || '').trim();
+    const key = (document.getElementById('input_custom_api_key')?.value || settings.custom_api_key || '').trim();
+    return !!(endpoint || key);
+  }
+  return false;
+}
+window.isProviderConnected = isProviderConnected;
+
+function reorderApiProviderCards(settings) {
+  const container = document.getElementById('apiProviderCardsGrid');
+  if (!container) return;
+  const providers = ['gemini', 'claude', 'openai', 'deepseek', 'custom'];
+  const sorted = [...providers].sort((a, b) => {
+    const aConn = isProviderConnected(a, settings) ? 0 : 1;
+    const bConn = isProviderConnected(b, settings) ? 0 : 1;
+    return aConn - bConn;
+  });
+  sorted.forEach(p => {
+    const btn = document.getElementById('btn_provider_' + p);
+    if (btn && btn.parentElement === container) {
+      container.appendChild(btn);
+    }
+  });
+}
+window.reorderApiProviderCards = reorderApiProviderCards;
 
 function togglePasswordVisibility(inputId, btnEl) {
   const el = document.getElementById(inputId);
@@ -3274,25 +3365,35 @@ function togglePasswordVisibility(inputId, btnEl) {
 }
 window.togglePasswordVisibility = togglePasswordVisibility;
 
-async function testApiKey(provider) {
+async function testApiKey(provider, btnEl) {
   let key = '';
   let endpoint = '';
   if (provider === 'gemini') {
-    key = document.getElementById('input_gemini_api_key')?.value?.trim() || '';
+    key = document.getElementById('input_gemini_api_key')?.value?.trim() || currentStudioSettings.gemini_api_key || '';
   } else if (provider === 'claude') {
-    key = document.getElementById('input_claude_api_key')?.value?.trim() || '';
+    key = document.getElementById('input_claude_api_key')?.value?.trim() || currentStudioSettings.claude_api_key || '';
   } else if (provider === 'openai') {
-    key = document.getElementById('input_openai_api_key')?.value?.trim() || '';
+    key = document.getElementById('input_openai_api_key')?.value?.trim() || currentStudioSettings.openai_api_key || '';
   } else if (provider === 'deepseek') {
-    key = document.getElementById('input_deepseek_api_key')?.value?.trim() || '';
+    key = document.getElementById('input_deepseek_api_key')?.value?.trim() || currentStudioSettings.deepseek_api_key || '';
   } else if (provider === 'custom') {
-    key = document.getElementById('input_custom_api_key')?.value?.trim() || '';
-    endpoint = document.getElementById('input_custom_endpoint')?.value?.trim() || '';
+    key = document.getElementById('input_custom_api_key')?.value?.trim() || currentStudioSettings.custom_api_key || '';
+    endpoint = document.getElementById('input_custom_endpoint')?.value?.trim() || currentStudioSettings.custom_endpoint || '';
   }
 
   if (!key && provider !== 'custom') {
     showToast('Vui lòng nhập API Key trước khi kiểm tra.', 'warning');
+    const inputEl = document.getElementById(`input_${provider}_api_key`);
+    if (inputEl) inputEl.focus();
     return;
+  }
+
+  const btn = btnEl || document.getElementById('btn_test_' + provider);
+  let origText = '';
+  if (btn) {
+    origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">⟳</span> Đang kiểm tra...';
   }
 
   showToast(`Đang kiểm tra kết nối tới ${provider.toUpperCase()}...`, 'info');
@@ -3308,8 +3409,13 @@ async function testApiKey(provider) {
       showToast(d.message || `Kết nối ${provider.toUpperCase()} thành công!`, 'success');
       const badge = document.getElementById(`badge_${provider}_key_status`);
       if (badge) {
-        badge.textContent = 'Ưu tiên kích hoạt';
+        badge.textContent = 'Hoạt động tốt';
         badge.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-700 font-medium';
+      }
+      const pill = document.getElementById(`pill_provider_${provider}`);
+      if (pill) {
+        pill.textContent = 'Đã kết nối';
+        pill.classList.add('is-connected');
       }
     } else {
       showToast(d.message || `Kiểm tra ${provider.toUpperCase()} thất bại`, 'error');
@@ -3350,32 +3456,196 @@ async function testApiKey(provider) {
     }
   } catch (err) {
     showToast('Lỗi kiểm tra API: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origText || 'Kiểm tra kết nối';
+    }
   }
 }
 window.testApiKey = testApiKey;
 
+async function connectApiKey(provider, btnEl) {
+  let key = '';
+  let endpoint = '';
+  if (provider === 'gemini') {
+    key = document.getElementById('input_gemini_api_key')?.value?.trim() || currentStudioSettings.gemini_api_key || '';
+  } else if (provider === 'claude') {
+    key = document.getElementById('input_claude_api_key')?.value?.trim() || currentStudioSettings.claude_api_key || '';
+  } else if (provider === 'openai') {
+    key = document.getElementById('input_openai_api_key')?.value?.trim() || currentStudioSettings.openai_api_key || '';
+  } else if (provider === 'deepseek') {
+    key = document.getElementById('input_deepseek_api_key')?.value?.trim() || currentStudioSettings.deepseek_api_key || '';
+  } else if (provider === 'custom') {
+    key = document.getElementById('input_custom_api_key')?.value?.trim() || currentStudioSettings.custom_api_key || '';
+    endpoint = document.getElementById('input_custom_endpoint')?.value?.trim() || currentStudioSettings.custom_endpoint || '';
+  }
+
+  if (!key && provider !== 'custom') {
+    showToast('Vui lòng nhập API Key để kết nối.', 'warning');
+    const inputEl = document.getElementById(`input_${provider}_api_key`);
+    if (inputEl) inputEl.focus();
+    return;
+  }
+
+  if (provider === 'custom' && !endpoint && !key) {
+    showToast('Vui lòng nhập Base URL Endpoint.', 'warning');
+    const inputEl = document.getElementById('input_custom_endpoint');
+    if (inputEl) inputEl.focus();
+    return;
+  }
+
+  const btn = btnEl || document.getElementById('btn_connect_' + provider);
+  let origText = '';
+  if (btn) {
+    origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="inline-block animate-spin mr-1">⟳</span> Đang kết nối...';
+  }
+
+  try {
+    const res = await fetch('/api/test-api-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, api_key: key, endpoint })
+    });
+    const d = await res.json();
+    if (d.success) {
+      currentStudioSettings.api_provider = provider;
+      if (provider === 'gemini') currentStudioSettings.gemini_api_key = key;
+      else if (provider === 'claude') currentStudioSettings.claude_api_key = key;
+      else if (provider === 'openai') currentStudioSettings.openai_api_key = key;
+      else if (provider === 'deepseek') currentStudioSettings.deepseek_api_key = key;
+      else if (provider === 'custom') {
+        currentStudioSettings.custom_api_key = key;
+        currentStudioSettings.custom_endpoint = endpoint;
+      }
+      await saveSettingsFromPage();
+      updateApiUI(currentStudioSettings);
+      showToast(`Đã kết nối và kích hoạt thành công với ${provider.toUpperCase()}!`, 'success');
+      if (btn) {
+        btn.innerHTML = 'Đã kết nối ✓';
+        setTimeout(() => {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origText || 'Kết nối';
+          }
+        }, 1500);
+      }
+    } else {
+      showToast(d.message || `Kiểm tra kết nối ${provider.toUpperCase()} thất bại`, 'error');
+      if (d.error_type === 'quota_exceeded') {
+        antdConfirm({
+          title: d.title || 'API Key Hết Token / Quota',
+          content: `
+            <div class="space-y-2.5 font-sans text-left">
+              <div class="text-sm text-rose-300 font-medium">${escapeHtml(d.message)}</div>
+              ${d.raw_error ? `<div class="p-2.5 rounded bg-[#160b13] border border-rose-800 text-[11px] font-mono text-rose-300 break-all max-h-32 overflow-y-auto">${escapeHtml(d.raw_error)}</div>` : ''}
+              <div class="text-xs text-slate-300">Khóa API của bạn không còn đủ token để phục vụ các yêu cầu AI. Vui lòng nạp thêm token hoặc đổi sang khóa khác.</div>
+            </div>
+          `,
+          okText: 'Đã hiểu',
+          cancelText: 'Đóng',
+          danger: true
+        });
+      } else if (d.error_type === 'invalid_key') {
+        antdConfirm({
+          title: d.title || 'API Key Không Hợp Lệ',
+          content: `
+            <div class="space-y-2.5 font-sans text-left">
+              <div class="text-sm text-rose-300 font-medium">${escapeHtml(d.message)}</div>
+              ${d.raw_error ? `<div class="p-2.5 rounded bg-[#160b13] border border-rose-800 text-[11px] font-mono text-rose-300 break-all max-h-32 overflow-y-auto">${escapeHtml(d.raw_error)}</div>` : ''}
+              <div class="text-xs text-slate-300">Vui lòng kiểm tra lại API Key đã copy chính xác từ bảng điều khiển của nhà cung cấp chưa.</div>
+            </div>
+          `,
+          okText: 'Đã hiểu',
+          cancelText: 'Đóng',
+          danger: true
+        });
+      }
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origText || 'Kết nối';
+      }
+    }
+  } catch (err) {
+    showToast('Lỗi kết nối API: ' + err.message, 'error');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origText || 'Kết nối';
+    }
+  }
+}
+window.connectApiKey = connectApiKey;
+
+async function removeApiKey(provider) {
+  const providerLabels = {
+    'gemini': 'Google Gemini',
+    'claude': 'Anthropic Claude',
+    'openai': 'OpenAI / GPT',
+    'deepseek': 'DeepSeek',
+    'custom': 'Custom Endpoint / 9router'
+  };
+  const pName = providerLabels[provider] || provider.toUpperCase();
+  const confirmed = await antdConfirm({
+    title: `Gỡ API Key của ${pName}?`,
+    content: `
+      <div class="space-y-2 font-sans text-left text-xs text-slate-300">
+        <p>Bạn có chắc chắn muốn gỡ cấu hình API Key này không?</p>
+        <p class="text-rose-400">Sau khi gỡ, EasySalon Studio sẽ không thể gửi yêu cầu AI qua ${pName} cho đến khi bạn kết nối lại.</p>
+      </div>
+    `,
+    okText: 'Gỡ API Key',
+    cancelText: 'Hủy',
+    danger: true
+  });
+  if (!confirmed) return;
+
+  if (provider === 'gemini') {
+    const el = document.getElementById('input_gemini_api_key');
+    if (el) el.value = '';
+    currentStudioSettings.gemini_api_key = '';
+  } else if (provider === 'claude') {
+    const el = document.getElementById('input_claude_api_key');
+    if (el) el.value = '';
+    currentStudioSettings.claude_api_key = '';
+  } else if (provider === 'openai') {
+    const el = document.getElementById('input_openai_api_key');
+    if (el) el.value = '';
+    currentStudioSettings.openai_api_key = '';
+  } else if (provider === 'deepseek') {
+    const el = document.getElementById('input_deepseek_api_key');
+    if (el) el.value = '';
+    currentStudioSettings.deepseek_api_key = '';
+  } else if (provider === 'custom') {
+    const elK = document.getElementById('input_custom_api_key');
+    const elE = document.getElementById('input_custom_endpoint');
+    if (elK) elK.value = '';
+    if (elE) elE.value = '';
+    currentStudioSettings.custom_api_key = '';
+    currentStudioSettings.custom_endpoint = '';
+  }
+
+  // Nếu provider vừa gỡ đang là provider ưu tiên, tự động chuyển sang provider khác đã kết nối hoặc mặc định gemini
+  if (currentStudioSettings.api_provider === provider) {
+    const providers = ['gemini', 'claude', 'openai', 'deepseek', 'custom'];
+    const otherConnected = providers.find(p => p !== provider && isProviderConnected(p, currentStudioSettings));
+    const fallback = otherConnected || 'gemini';
+    currentStudioSettings.api_provider = fallback;
+    selectActiveApiProvider(fallback, false);
+  }
+
+  await saveSettingsFromPage();
+  updateApiUI(currentStudioSettings);
+  showToast(`Đã gỡ API Key của ${pName} thành công.`, 'info');
+}
+window.removeApiKey = removeApiKey;
+
 function updateApiUI(settings) {
   if (!settings) settings = currentStudioSettings;
   const prov = settings.api_provider || 'gemini';
-  ['gemini', 'claude', 'openai', 'deepseek', 'custom'].forEach(p => {
-    const btn = document.getElementById('btn_provider_' + p);
-    if (btn) {
-      if (p === prov) btn.classList.add('is-active');
-      else btn.classList.remove('is-active');
-    }
-  });
 
-  const tag = document.getElementById('pageCurrentApiProviderTag');
-  if (tag) {
-    const labels = {
-      'gemini': 'GOOGLE GEMINI',
-      'claude': 'ANTHROPIC CLAUDE',
-      'openai': 'OPENAI / GPT',
-      'deepseek': 'DEEPSEEK',
-      'custom': 'CUSTOM / 9ROUTER'
-    };
-    tag.textContent = labels[prov] || prov.toUpperCase();
-  }
+  selectActiveApiProvider(prov, false);
 
   if (settings.gemini_api_key !== undefined) {
     const el = document.getElementById('input_gemini_api_key');
@@ -3407,8 +3677,9 @@ function updateApiUI(settings) {
 window.updateApiUI = updateApiUI;
 
 function updateApiKeyBadges(settings) {
-  if (!settings) settings = currentStudioSettings;
-  const setBadge = (id, hasVal, opt = false) => {
+  if (!settings) settings = currentStudioSettings || {};
+
+  const setCardBadge = (id, hasVal, opt = false) => {
     const b = document.getElementById(id);
     if (!b) return;
     if (hasVal) {
@@ -3419,12 +3690,56 @@ function updateApiKeyBadges(settings) {
       b.className = 'text-[10px] font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-medium';
     }
   };
-  setBadge('badge_gemini_key_status', !!settings.gemini_api_key);
-  setBadge('badge_claude_key_status', !!settings.claude_api_key);
-  setBadge('badge_openai_key_status', !!settings.openai_api_key);
-  setBadge('badge_deepseek_key_status', !!settings.deepseek_api_key);
-  setBadge('badge_custom_key_status', !!(settings.custom_endpoint || settings.custom_api_key), true);
+
+  const setPill = (id, hasVal, opt = false) => {
+    const pill = document.getElementById(id);
+    if (!pill) return;
+    if (hasVal) {
+      pill.textContent = 'Đã kết nối';
+      pill.classList.add('is-connected');
+    } else {
+      pill.textContent = opt ? 'Tùy chọn' : 'Chưa lưu';
+      pill.classList.remove('is-connected');
+    }
+  };
+
+  const setRemoveBtn = (id, hasVal) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    if (hasVal) {
+      btn.classList.remove('hidden');
+    } else {
+      btn.classList.add('hidden');
+    }
+  };
+
+  const geminiConn = isProviderConnected('gemini', settings);
+  const claudeConn = isProviderConnected('claude', settings);
+  const openaiConn = isProviderConnected('openai', settings);
+  const deepseekConn = isProviderConnected('deepseek', settings);
+  const customConn = isProviderConnected('custom', settings);
+
+  setCardBadge('badge_gemini_key_status', geminiConn);
+  setCardBadge('badge_claude_key_status', claudeConn);
+  setCardBadge('badge_openai_key_status', openaiConn);
+  setCardBadge('badge_deepseek_key_status', deepseekConn);
+  setCardBadge('badge_custom_key_status', customConn, true);
+
+  setPill('pill_provider_gemini', geminiConn);
+  setPill('pill_provider_claude', claudeConn);
+  setPill('pill_provider_openai', openaiConn);
+  setPill('pill_provider_deepseek', deepseekConn);
+  setPill('pill_provider_custom', customConn, true);
+
+  setRemoveBtn('btn_remove_key_gemini', geminiConn);
+  setRemoveBtn('btn_remove_key_claude', claudeConn);
+  setRemoveBtn('btn_remove_key_openai', openaiConn);
+  setRemoveBtn('btn_remove_key_deepseek', deepseekConn);
+  setRemoveBtn('btn_remove_key_custom', customConn);
+
+  reorderApiProviderCards(settings);
 }
+window.updateApiKeyBadges = updateApiKeyBadges;
 
 async function handleSaveSettingsClick() {
   if (!dirtySubTabs[activeSettingsSubTab]) return;
@@ -3643,6 +3958,7 @@ function switchTab(tab, updateHistory = true) {
     const subRoutes = window.GIT_SUBTAB_ROUTES || {
       'pull_sync': '/git-control',
       'branch': '/git-control/checkout-branch',
+      'switch': '/git-control/switch-branch',
       'cherry_pick': '/git-control/cherry-pick',
       'merge': '/git-control/merge'
     };
@@ -3714,7 +4030,8 @@ function switchTab(tab, updateHistory = true) {
     const urlSub = window.ROUTE_TO_GIT_SUBTAB && window.ROUTE_TO_GIT_SUBTAB[currentPath];
     const sub = window.initGitSubTab || urlSub || activeGitSubTab || 'pull_sync';
     activeGitSubTab = sub;
-    window.initGitSubTab = sub;
+    window.initGitSubTab = null;
+    window.initSettingsSubTab = null;
     if (typeof switchGitSubTab === 'function') {
       switchGitSubTab(sub, false);
     }
@@ -3722,10 +4039,14 @@ function switchTab(tab, updateHistory = true) {
     const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
     const urlSub = window.ROUTE_TO_SETTINGS_SUBTAB && window.ROUTE_TO_SETTINGS_SUBTAB[currentPath];
     const sub = window.initSettingsSubTab || urlSub || activeSettingsSubTab || 'engine';
+    window.initGitSubTab = null;
     window.initSettingsSubTab = null;
     if (typeof switchSettingsSidebarTab === 'function') {
       switchSettingsSidebarTab(sub, false);
     }
+  } else {
+    window.initGitSubTab = null;
+    window.initSettingsSubTab = null;
   }
 
   if (tab !== 'jira' && typeof stopJiraAutoSync === 'function') {
@@ -3927,13 +4248,19 @@ window.refreshCurrentGitView = refreshCurrentGitView;
 window.addEventListener('popstate', (e) => {
   const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
   let targetTab = (e.state && e.state.tab) || (typeof window.getTabFromUrl === 'function' ? window.getTabFromUrl() : null) || 'task';
-  let targetSubTab = (e.state && e.state.subTab) || (window.ROUTE_TO_GIT_SUBTAB && window.ROUTE_TO_GIT_SUBTAB[currentPath]) || window.initGitSubTab;
+  let targetGitSub = (e.state && e.state.subTab) || (window.ROUTE_TO_GIT_SUBTAB && window.ROUTE_TO_GIT_SUBTAB[currentPath]) || 'pull_sync';
+  let targetSettingsSub = (e.state && e.state.settingsSubTab) || (window.ROUTE_TO_SETTINGS_SUBTAB && window.ROUTE_TO_SETTINGS_SUBTAB[currentPath]) || activeSettingsSubTab || 'engine';
+
   switchTab(targetTab, false);
   if (targetTab === 'branch') {
-    if (!targetSubTab) targetSubTab = 'pull_sync';
     if (typeof switchGitSubTab === 'function') {
       window.initGitSubTab = null;
-      switchGitSubTab(targetSubTab, false);
+      switchGitSubTab(targetGitSub, false);
+    }
+  } else if (targetTab === 'settings') {
+    if (typeof switchSettingsSidebarTab === 'function') {
+      window.initSettingsSubTab = null;
+      switchSettingsSidebarTab(targetSettingsSub, false);
     }
   }
 });

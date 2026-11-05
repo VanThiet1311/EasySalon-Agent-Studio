@@ -964,12 +964,30 @@ async function selectJiraIssue(key, silent = false) {
           descEl.classList.remove('is-plaintext');
           descEl.innerHTML = issue.description_html;
         } else if (issue.description_text) {
-          descEl.classList.add('is-plaintext');
-          descEl.textContent = issue.description_text;
+          descEl.classList.remove('is-plaintext');
+          const formatted = typeof formatJiraText === 'function' ? formatJiraText(issue.description_text) : issue.description_text;
+          if (typeof marked !== 'undefined' && marked.parse) {
+            descEl.innerHTML = marked.parse(formatted);
+          } else {
+            descEl.classList.add('is-plaintext');
+            descEl.textContent = formatted;
+          }
         } else {
           descEl.classList.remove('is-plaintext');
           descEl.innerHTML = '<span class="text-slate-400 italic">Ticket này không có mô tả chi tiết.</span>';
         }
+
+        // Gắn sự kiện click mở modal phóng to ảnh cho tất cả ảnh trong mô tả
+        descEl.querySelectorAll('img').forEach(img => {
+          img.classList.add('cursor-pointer', 'hover:opacity-90', 'transition');
+          img.setAttribute('title', 'Bấm vào ảnh để phóng to');
+          img.onclick = (e) => {
+            e.stopPropagation();
+            if (typeof openImagePreviewModal === 'function') {
+              openImagePreviewModal(img.src, img.alt || 'Ảnh minh chứng');
+            }
+          };
+        });
       }
 
       // Render Minh chứng Video & Tệp đính kèm (mp4, webm, images, docs)
@@ -1214,10 +1232,14 @@ function renderJiraAttachments(attachments, container) {
     html += others.map(att => {
       if (att.is_image) {
         return `
-          <a href="${escapeHtml(att.url)}" target="_blank" class="group relative rounded-lg overflow-hidden border border-[#244170] bg-[#0c1628] hover:border-[#1677ff] transition block aspect-video">
+          <a href="${escapeHtml(att.url)}" target="_blank"
+             onclick="event.preventDefault(); if (typeof openImagePreviewModal === 'function') openImagePreviewModal('${escapeHtml(att.url)}', '${escapeHtml(att.filename)}');"
+             title="Bấm để xem ảnh phóng to: ${escapeHtml(att.filename)}"
+             class="group relative rounded-lg overflow-hidden border border-[#244170] bg-[#0c1628] hover:border-[#1677ff] transition block aspect-video cursor-pointer">
             <img src="${escapeHtml(att.url)}" alt="${escapeHtml(att.filename)}" class="w-full h-full object-cover group-hover:scale-105 transition duration-200" loading="lazy" />
-            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 text-[10px] text-white truncate">
-              ${escapeHtml(att.filename)}
+            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5 text-[10px] text-white truncate flex items-center justify-between">
+              <span class="truncate">${escapeHtml(att.filename)}</span>
+              <span class="text-[9px] text-blue-300 shrink-0 opacity-0 group-hover:opacity-100 transition">Phóng to</span>
             </div>
           </a>
         `;
@@ -1349,20 +1371,46 @@ function formatJiraText(text) {
   // Chuẩn hóa ký tự xuống dòng
   s = s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-  // Format Acceptance Criteria / Tiêu chí chấp nhận headers
-  s = s.replace(/(?:^|\n|\s+)(Acceptance Criteria[^\n]*?|Tiêu chí chấp nhận[^\n]*?)(?=(?:\s+(?:AC\s*\d+|Kịch bản|Scenario)|$|\n))/gi, '\n\n### $1\n');
+  // Loại bỏ link markdown hình ảnh & video vì đã có gallery ảnh minh chứng hiển thị
+  s = s.replace(/\[([^\]]*\.(?:png|jpg|jpeg|gif|webp|svg|mp4|webm|mov|mkv))\]\([^)]+\)/gi, '');
+  s = s.replace(/\[Ảnh minh chứng:[^\]]*\]/gi, '');
+  s = s.replace(/\[[^\]]*\.(?:png|jpg|jpeg|gif|webp|svg|mp4|webm|mov|mkv)\]/gi, '');
 
-  // Format AC1, AC2, AC3 / Kịch bản 1 / Scenario 1
-  s = s.replace(/(?:^|\n|\s+)((?:AC\s*\d+|Kịch bản\s*\d+|Scenario\s*\d+)[\s:\-]+[^\n]*?)(?=(?:\s+(?:Given|When|Then|And|But)\b|$|\n))/g, '\n\n#### $1\n');
+  // Tạm thời bảo vệ URL và API attachment
+  const urlPlaceholders = [];
+  s = s.replace(/(https?:\/\/[^\s)\]]+|\/api\/jira\/attachment[^\s)\]]+)/gi, (m) => {
+    urlPlaceholders.push(m);
+    return '___URL_TOKEN_' + (urlPlaceholders.length - 1) + '___';
+  });
 
-  // Format BDD Given / When / Then / And / But
-  s = s.replace(/(?:^|\n|\s+)\b(Given)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:When|Then|And|But|AC\s*\d+|Kịch bản|Scenario)\b|$|\n))/g, '\n- **Given**: $2');
-  s = s.replace(/(?:^|\n|\s+)\b(When)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:Then|And|But|AC\s*\d+|Given|Kịch bản|Scenario)\b|$|\n))/g, '\n- **When**: $2');
-  s = s.replace(/(?:^|\n|\s+)\b(Then)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:And|But|AC\s*\d+|Given|When|Kịch bản|Scenario)\b|$|\n))/g, '\n- **Then**: $2');
-  s = s.replace(/(?:^|\n|\s+)\b(And)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:And|But|AC\s*\d+|Given|When|Then|Kịch bản|Scenario)\b|$|\n))/g, '\n  - **And**: $2');
-  s = s.replace(/(?:^|\n|\s+)\b(But)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:And|But|AC\s*\d+|Given|When|Then|Kịch bản|Scenario)\b|$|\n))/g, '\n  - **But**: $2');
+  // 1. Loại bỏ các ký tự lạ ** (ví dụ: **Là** -> Là, **Tôi muốn** -> Tôi muốn, **Given** -> Given)
+  s = s.replace(/\*\*([^*]+)\*\*/g, '$1');
+  s = s.replace(/\*\*/g, '');
 
-  // Format các đề mục kiểm thử / Bug report thông dụng nếu dính liền
+  // 2. Loại bỏ các ký tự in nghiêng // hoặc // lạ không thuộc URL
+  s = s.replace(/\/\/([^\/\n]+)\/\//g, '$1');
+  s = s.replace(/(^|\s)\/\/(?!\/)(\s|$)/g, '$1$2');
+
+  // 3. Loại bỏ dấu ngoặc vuông quanh email [email@domain.com] -> email@domain.com
+  s = s.replace(/\[([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)\]/g, '$1');
+
+  // 4. Loại bỏ các ký tự thăng #, ##, ###, #### của Markdown tiêu đề
+  s = s.replace(/^[ \t]*#{1,6}[ \t]*/gm, '');
+
+  // Format Acceptance Criteria / Tiêu chí chấp nhận headers (không dùng dấu #)
+  s = s.replace(/(?:^|\n|\s+)(Acceptance Criteria[^\n]*?|Tiêu chí chấp nhận[^\n]*?)(?=(?:\s+(?:AC\s*\d+|Kịch bản|Scenario)|$|\n))/gi, '\n\n$1:\n');
+
+  // Format AC1, AC2, AC3 / Kịch bản 1 / Scenario 1 (không dùng dấu #)
+  s = s.replace(/(?:^|\n|\s+)((?:AC\s*\d+|Kịch bản\s*\d+|Scenario\s*\d+)[\s:\-]+[^\n]*?)(?=(?:\s+(?:Given|When|Then|And|But)\b|$|\n))/g, '\n\n$1:\n');
+
+  // Format BDD Given / When / Then / And / But (Không dùng dấu - mồ côi)
+  s = s.replace(/^[ \t]*[-*•]?[ \t]*\b(Given)\b\s*[:\-]?\s*/gim, 'Given: ');
+  s = s.replace(/^[ \t]*[-*•]?[ \t]*\b(When)\b\s*[:\-]?\s*/gim, 'When: ');
+  s = s.replace(/^[ \t]*[-*•]?[ \t]*\b(Then)\b\s*[:\-]?\s*/gim, 'Then: ');
+  s = s.replace(/^[ \t]*[-*•]?[ \t]*\b(And)\b\s*[:\-]?\s*/gim, '  And: ');
+  s = s.replace(/^[ \t]*[-*•]?[ \t]*\b(But)\b\s*[:\-]?\s*/gim, '  But: ');
+
+  // Format các đề mục kiểm thử / Bug report thông dụng nếu dính liền (không dùng dấu #)
   const headings = [
     'Hiện tượng lỗi', 'Mô tả lỗi', 'Bug description',
     'Các bước tái hiện', 'Steps to reproduce',
@@ -1374,11 +1422,26 @@ function formatJiraText(text) {
   ];
   headings.forEach(h => {
     const re = new RegExp(`(?:^|\\n|(?:(?<=[.!?])\\s+))(${h})\\s*:\\s*`, 'gi');
-    s = s.replace(re, '\n\n### $1:\n');
+    s = s.replace(re, '\n\n$1:\n');
   });
 
+  // Loại bỏ các dòng chỉ chứa dấu gạch ngang mồ côi hoặc ký tự thăng
+  s = s.replace(/^[ \t]*[-*•#]+[ \t]*$/gm, '');
+
+  // Xóa trùng lặp dấu gạch đầu dòng '- - ' -> '- '
+  s = s.replace(/^[ \t]*[-*•][ \t]+[-*•][ \t]+/gm, '- ');
+
+  // Xử lý trường hợp Then: - Thành phần -> Then:\n- Thành phần
+  s = s.replace(/\b(Then:)[ \t]*-[ \t]+/g, '$1\n- ');
+
+  // Loại bỏ ngoặc vuông rỗng []
+  s = s.replace(/\[\s*\]/g, '');
+
+  // Khôi phục URL
+  s = s.replace(/___URL_TOKEN_(\d+)___/g, (_, idx) => urlPlaceholders[Number(idx)]);
+
   // Dọn dẹp khoảng trắng dư thừa
-  const lines = s.split('\n').map(line => line.replace(/[ \t]+/g, ' ').trimEnd());
+  const lines = s.split('\n').map(line => line.replace(/\t/g, '    ').trimEnd());
   s = lines.join('\n');
   s = s.replace(/\n{3,}/g, '\n\n');
   return s.trim();
@@ -1402,7 +1465,7 @@ function formatTaskPromptInput() {
   if (typeof onTaskPromptInput === 'function') {
     onTaskPromptInput();
   }
-  showToast('Đã định dạng lại nội dung theo chuẩn BDD & đề mục!', 'success');
+  showToast('Đã định dạng lại nội dung và dọn sạch các ký tự lạ!', 'success');
 }
 window.formatTaskPromptInput = formatTaskPromptInput;
 
@@ -1422,14 +1485,44 @@ function sendActiveJiraToTask() {
   const key = issue.key;
   const summary = (issue.summary || '').trim();
   const rawDesc = (issue.description_text || issue.description || '').trim();
-  const cleanDesc = formatJiraText(rawDesc);
+  let cleanDesc = formatJiraText(rawDesc);
   const isBug = (issue.issuetype || '').toLowerCase().includes('bug');
 
   if (typeof setTaskActionType === 'function') {
     setTaskActionType(isBug ? 'fixbug' : 'task');
   }
 
-  let formattedPrompt = `[Jira ${key}] ${summary}`;
+  // Trích xuất toàn bộ hình ảnh đính kèm từ issue và từ rawDesc
+  const attachedImages = [];
+  if (issue.attachments && Array.isArray(issue.attachments)) {
+    issue.attachments.forEach(att => {
+      if (att.is_image || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(att.filename || '')) {
+        attachedImages.push({
+          url: att.url,
+          name: att.filename,
+          size: att.size_formatted || ''
+        });
+      }
+    });
+  }
+
+  // Quét thêm ảnh từ rawDesc nếu có cú pháp markdown
+  const mdImgRegex = /\[([^\]]+\.(?:png|jpg|jpeg|gif|webp|svg))\]\(([^)]+)\)/gi;
+  let match;
+  while ((match = mdImgRegex.exec(rawDesc)) !== null) {
+    const name = match[1];
+    const url = match[2];
+    if (!attachedImages.some(img => img.url === url || img.name === name)) {
+      attachedImages.push({ url, name });
+    }
+  }
+
+  // Làm sạch hoàn toàn các link ảnh markdown trong prompt vì đã có khung gallery hiển thị bên dưới
+  cleanDesc = cleanDesc.replace(/\[([^\]]+\.(?:png|jpg|jpeg|gif|webp|svg|mp4|webm|mov|mkv))\]\([^)]+\)/gi, '');
+  cleanDesc = cleanDesc.replace(/\[Ảnh minh chứng:[^\]]*\]/gi, '');
+  cleanDesc = cleanDesc.replace(/\[[^\]]+\.(?:png|jpg|jpeg|gif|webp|svg|mp4|webm)\]/gi, '');
+
+  let formattedPrompt = `Jira ${key}: ${summary}`;
   if (cleanDesc) {
     formattedPrompt += `\n\n${cleanDesc}`;
   }
@@ -1438,14 +1531,19 @@ function sendActiveJiraToTask() {
       const author = c.author || 'Thành viên';
       const timeStr = c.created ? ` (${formatJiraDate(c.created)})` : '';
       const body = formatJiraText(c.body_text || '').trim();
-      return `- **${author}**${timeStr}:\n  ${body.replace(/\n/g, '\n  ')}`;
+      return `${author}${timeStr}:\n  ${body.replace(/\n/g, '\n  ')}`;
     }).filter(Boolean).join('\n\n');
     if (recentComments) {
-      formattedPrompt += `\n\n### Thảo luận gần nhất:\n${recentComments}`;
+      formattedPrompt += `\n\nThảo luận gần nhất:\n${recentComments}`;
     }
   }
 
   promptInput.value = formattedPrompt.trim();
+
+  // Hiển thị khung ảnh minh chứng đính kèm
+  if (typeof renderTaskPromptImages === 'function') {
+    renderTaskPromptImages(attachedImages);
+  }
 
   if (typeof parallelTasks !== 'undefined' && Array.isArray(parallelTasks)) {
     const cur = parallelTasks.find(t => t.id === activeTaskId);
@@ -1453,6 +1551,7 @@ function sendActiveJiraToTask() {
       cur.name = `${key}: ${summary.slice(0, 24)}`;
       cur.isCustomName = true;
       cur.prompt = formattedPrompt.trim();
+      cur.images = attachedImages;
       cur.type = isBug ? 'fixbug' : 'task';
       if (typeof renderParallelTaskTabs === 'function') renderParallelTaskTabs();
     }
@@ -1789,7 +1888,7 @@ function sendRovoAnalysisToTask() {
     setTaskActionType(isBug ? 'fixbug' : 'task');
   }
 
-  const fullPrompt = `[Jira ${key}] ${issue.summary}\n\n=== BẢN PHÂN TÍCH KỸ THUẬT ATLASSIAN ROVO AI ===\n${window.activeRovoAnalysisText}`;
+  const fullPrompt = `Jira ${key}: ${issue.summary}\n\n=== BẢN PHÂN TÍCH KỸ THUẬT ATLASSIAN ROVO AI ===\n${window.activeRovoAnalysisText}`;
   promptInput.value = fullPrompt.trim();
 
   if (typeof onTaskPromptInput === 'function') {
@@ -2934,6 +3033,8 @@ async function checkJiraRealtimeUpdates() {
         if (exists) return;
 
         const isComment = notif.type === 'comment_added';
+        const isDocUpdate = notif.type === 'issue_updated' || notif.type === 'doc_updated';
+        const notifType = notif.type || (isComment ? 'comment_added' : (isDocUpdate ? 'issue_updated' : 'issue_created'));
         if (typeof addOrUpdateNotification === 'function') {
           addOrUpdateNotification({
             id: notifId,
@@ -2942,10 +3043,12 @@ async function checkJiraRealtimeUpdates() {
             title: notif.title || `Cập nhật Jira ${notif.key || ''}`,
             desc: notif.message || notif.summary || '',
             issueKey: notif.key,
-            notifType: isComment ? 'comment_added' : 'issue_created',
+            notifType: notifType,
             author: notif.author,
-            date: notif.created || new Date().toISOString(),
-            timestamp: notif.created ? (Date.parse(notif.created) || Date.now()) : Date.now()
+            created: notif.created,
+            updated: notif.updated,
+            date: (isDocUpdate ? notif.updated : notif.created) || notif.updated || notif.created || new Date().toISOString(),
+            timestamp: (isDocUpdate ? (notif.updated ? Date.parse(notif.updated) : Date.now()) : (notif.created ? Date.parse(notif.created) : Date.now())) || Date.now()
           });
           addedCount++;
         }
@@ -2998,8 +3101,14 @@ function showJiraToastCard(notif) {
   const toastId = `jiraToast_${safeId}_${Math.random().toString(36).substring(2, 6)}`;
 
   const isComment = notif.type === 'comment_added';
+  const isDocUpdate = (
+    notif.type === 'issue_updated' ||
+    notif.type === 'doc_updated' ||
+    (notif.title && notif.title.toLowerCase().includes('cập nhật doc')) ||
+    (notif.message && notif.message.toLowerCase().includes('cập nhật doc'))
+  );
   const issueKey = notif.key || '';
-  const notifType = notif.type || (isComment ? 'comment_added' : 'issue_created');
+  const notifType = notif.type || (isComment ? 'comment_added' : (isDocUpdate ? 'issue_updated' : 'issue_created'));
 
   let badgeLabel = 'JIRA CLOUD';
   let badgeColorClass = 'bg-[#1677ff]/15 text-[#60a5fa] border-[#1677ff]/30';
@@ -3009,6 +3118,10 @@ function showJiraToastCard(notif) {
     badgeLabel = 'BÌNH LUẬN MỚI';
     badgeColorClass = 'bg-sky-500/15 text-sky-400 border-sky-500/30';
     typeIconSvg = `<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>`;
+  } else if (isDocUpdate) {
+    badgeLabel = 'CẬP NHẬT DOC';
+    badgeColorClass = 'bg-teal-500/15 text-teal-400 border-teal-500/30';
+    typeIconSvg = `<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
   } else if (notif.issuetype) {
     badgeLabel = notif.issuetype.toUpperCase();
   } else {
@@ -3017,11 +3130,15 @@ function showJiraToastCard(notif) {
 
   const cardTitle = isComment
     ? (notif.author ? `${notif.author} vừa bình luận` : `Bình luận mới trên ${issueKey || 'Ticket'}`)
-    : (notif.summary || notif.title || `Cập nhật Jira ${issueKey}`);
+    : (isDocUpdate
+        ? (notif.title || `Cập nhật doc: ${issueKey}`)
+        : (notif.summary || notif.title || `Cập nhật Jira ${issueKey}`));
 
   let cardBody = '';
   if (isComment) {
     cardBody = notif.comment_body || notif.message || notif.summary || '';
+  } else if (isDocUpdate) {
+    cardBody = notif.message || (notif.summary && notif.author ? `${notif.author} vừa cập nhật doc: ${notif.summary}` : (notif.summary || ''));
   } else {
     if (notif.summary && notif.author) {
       cardBody = `${notif.author} vừa tạo: ${notif.summary}`;
@@ -3031,9 +3148,10 @@ function showJiraToastCard(notif) {
   }
 
   let timeStr = 'Vừa xong';
-  if (notif.created) {
+  const timeSource = (isDocUpdate ? notif.updated : notif.created) || notif.updated || notif.created;
+  if (timeSource) {
     try {
-      const dt = new Date(notif.created);
+      const dt = new Date(timeSource);
       if (!isNaN(dt.getTime())) {
         timeStr = dt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
       }

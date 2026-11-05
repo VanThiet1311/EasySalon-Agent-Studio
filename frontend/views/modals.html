@@ -22,6 +22,38 @@
     </div>
   </div>
 
+  <!-- Image Preview Lightbox Modal -->
+  <div id="imagePreviewModalRoot"
+    class="hidden fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md transition-opacity duration-150"
+    onclick="closeImagePreviewModal()">
+    <div class="relative max-w-5xl w-full max-h-[92vh] flex flex-col items-center" onclick="event.stopPropagation()">
+      <div class="w-full flex items-center justify-between pb-2 text-white">
+        <div class="flex items-center gap-2 min-w-0">
+          <svg class="w-4 h-4 text-blue-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span id="imagePreviewModalTitle" class="text-xs font-mono text-slate-200 truncate"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <a id="imagePreviewModalLink" href="#" target="_blank"
+            class="px-2.5 py-1 text-xs rounded bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white transition flex items-center gap-1.5 select-none"
+            title="Mở ảnh trong tab mới">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+            <span>Tab mới</span>
+          </a>
+          <button type="button" onclick="closeImagePreviewModal()"
+            class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer select-none"
+            title="Đóng (Esc)">
+            ✕
+          </button>
+        </div>
+      </div>
+      <div class="w-full flex-1 min-h-0 flex items-center justify-center bg-black/60 rounded-lg border border-[#244170] p-2 overflow-auto">
+        <img id="imagePreviewModalImg" src="" alt="Minh chứng" class="max-w-full max-h-[80vh] object-contain rounded shadow-2xl transition" />
+      </div>
+    </div>
+  </div>
+
   <!-- In-app Full File Editor Modal (VS Code Simulator) -->
   <div id="fileEditorModalRoot"
     class="hidden fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-5 bg-black/85 backdrop-blur-md">

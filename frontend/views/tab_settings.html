@@ -125,9 +125,11 @@
                   tác vụ lập trình & fix bug (chạy native trực tiếp qua Gemini CLI persistent stream hoặc OpenCode CLI
                   kết nối proxy 9router nội bộ). Hệ thống tự động chuyển đổi phương thức thực thi ngay khi chọn.</p>
               </div>
+              <!-- Ẩn thẻ engine tag bên phải theo yêu cầu
               <span id="pageCurrentEngineTag"
                 class="text-[10px] font-sans px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 uppercase font-semibold tracking-wider">GEMINI
                 CLI</span>
+              -->
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -283,16 +285,16 @@
                 </div>
                 <div class="flex items-center gap-2">
                   <span id="activeModelEffortBadge"
-                    class="text-[10px] font-sans font-medium px-2.5 py-0.5 rounded bg-blue-900/60 text-blue-200 border border-blue-700/60">Suy luận: HIGH</span>
+                    class="text-[10px] font-sans font-bold px-2.5 py-0.5 rounded bg-blue-800 text-white border border-blue-600 shadow-sm">Suy luận: HIGH</span>
                   <span id="activeModelEngineBadge"
-                    class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-[#182c4f] text-slate-300 border border-[#244170]">9router
+                    class="text-[10px] font-sans font-bold px-2 py-0.5 rounded bg-blue-900 text-blue-100 border border-blue-600 shadow-sm">9router
                     Proxy</span>
                 </div>
               </div>
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div class="min-w-0 flex-1">
                   <code id="activeModelDisplayBadge"
-                    class="font-mono text-xs md:text-sm font-semibold px-2.5 py-1 rounded bg-[#0958d9]/30 text-sky-300 border border-sky-600/50 select-all tracking-tight inline-block">ag/gemini-3.8-flash-high</code>
+                    class="font-mono text-xs md:text-sm font-bold px-2.5 py-1 rounded bg-[#0958d9]/40 text-sky-200 border border-sky-500 select-all tracking-tight inline-block">ag/gemini-3.8-flash-high</code>
                   <p id="pageModelActiveDesc" class="text-[11px] text-slate-400 mt-1.5 font-sans leading-snug">
                     Kết nối 9router proxy (port 20128) &bull; Định danh OpenCode: <span id="activeModelOpencodeFullId" class="font-mono text-slate-300">9router/ag/gemini-3.8-flash-high</span>
                   </p>
@@ -345,9 +347,11 @@
                     Bộ máy đang áp dụng cho phiên làm việc. Để thay đổi bộ máy thực thi, vui lòng chuyển sang tab <button type="button" onclick="switchSettingsSidebarTab('engine')" class="text-sky-400 hover:underline font-semibold font-sans">AI Execution Engine</button>.
                   </p>
                 </div>
+                <!-- Ẩn thẻ quick engine tag bên phải theo yêu cầu
                 <span id="quickEngineTag"
                   class="text-[10px] font-sans px-2.5 py-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 uppercase font-semibold tracking-wider">GEMINI
                   CLI</span>
+                -->
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -396,9 +400,9 @@
                       <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-[11px] font-sans font-medium text-slate-300 opencode-active-label">Mô hình đang kích hoạt:</span>
                         <code id="quickOpencodeActiveModel"
-                          class="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-[#0958d9]/30 text-sky-300 border border-sky-600/50 select-all tracking-tight">ag/gemini-3.8-flash-high</code>
+                          class="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[#0958d9]/40 text-sky-200 border border-sky-500 select-all tracking-tight">ag/gemini-3.8-flash-high</code>
                         <span id="quickOpencodeEffortBadge"
-                          class="text-[10px] font-sans font-medium px-2 py-0.5 rounded bg-blue-900/60 text-blue-200 border border-blue-700/60">Suy luận: High</span>
+                          class="text-[10px] font-sans font-bold px-2 py-0.5 rounded bg-blue-800 text-white border border-blue-600 shadow-sm">Suy luận: High</span>
                       </div>
                       <p id="quickOpencodeActiveDesc"
                         class="text-[11px] text-slate-400 opencode-active-desc mt-1 leading-snug font-sans">
@@ -421,6 +425,10 @@
                 <div class="text-[11px] font-semibold text-slate-300 mb-2.5">
                   <span id="pageEffortSectionTitle">Mức độ suy luận cho Gemini:</span>
                 </div>
+                <p class="text-[11px] text-slate-400 -mt-1.5 mb-2.5 font-sans">
+                  Mức đã chọn được tự động đồng bộ sang cấu hình OpenCode (<span class="font-mono text-slate-300">opencode.json</span>)
+                  và Gemini CLI (<span class="font-mono text-slate-300">settings.json</span>) khi bấm Lưu cài đặt.
+                </p>
                 <!-- Reasoning Effort Cards Grid cho Gemini: ĐÚNG 3 MỨC -->
                 <div id="pageEffortCardsGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <label id="page_card_effort_low" onclick="onPageEffortChange('low')"
@@ -471,7 +479,7 @@
 
                 <!-- Thông báo khi mô hình không hỗ trợ Thinking / Reasoning Effort (Free / Fixed models) -->
                 <div id="pageEffortNotSupportedNotice"
-                  class="hidden p-4 rounded-xl bg-[#0c1628] border border-[#244170]/70 text-slate-300 space-y-1.5">
+                  class="hidden p-4 mt-3 rounded-xl bg-[#0c1628] border border-[#244170]/70 text-slate-300 space-y-1.5">
                   <div class="flex items-center gap-2 text-xs font-semibold text-white">
                     <span class="w-2 h-2 rounded-full bg-blue-400"></span>
                     <span id="pageEffortNoticeTitle">Mô hình hoạt động ở chế độ tiêu chuẩn (Standard Inference)</span>
@@ -529,7 +537,7 @@
             </div>
 
             <!-- Grid 7 Cards: Jira, GitHub, PostgreSQL, MySQL, GitLab, Slack, Custom -->
-            <div id="mcpPresetCardsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            <div id="mcpPresetCardsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
               <!-- 1. Card Atlassian Jira -->
               <div id="cardPreset_jira" onclick="selectMcpPreset('jira')"
                 class="mcp-preset-card is-selected p-3 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
@@ -638,7 +646,7 @@
                 </div>
               </div>
 
-              <!-- 5. Card GitLab -->
+              <!-- 6. Card GitLab -->
               <div id="cardPreset_gitlab" onclick="selectMcpPreset('gitlab')"
                 class="mcp-preset-card is-unconfigured p-3 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
                 <div class="space-y-2.5">
@@ -666,7 +674,7 @@
                 </div>
               </div>
 
-              <!-- 6. Card Slack -->
+              <!-- 7. Card Slack -->
               <div id="cardPreset_slack" onclick="selectMcpPreset('slack')"
                 class="mcp-preset-card is-unconfigured p-3 rounded-xl flex flex-col justify-between transition select-none cursor-pointer">
                 <div class="space-y-2.5">
@@ -1060,6 +1068,13 @@
                 </div>
               </div>
 
+              <!-- SSL/TLS giống MySQL Workbench (useSSL=1) -->
+              <label class="flex items-center gap-2 text-[11px] text-slate-300 select-none cursor-pointer">
+                <input type="checkbox" id="input_mysql_ssl" checked
+                  class="w-3.5 h-3.5 rounded border-[#244170] bg-[#0c1628] text-[#199cff] focus:ring-0 cursor-pointer">
+                <span>Bật SSL/TLS (giống MySQL Workbench <span class="font-mono">useSSL=1</span>)</span>
+              </label>
+
               <!-- Connection String / URL (Đồng bộ 2 chiều) -->
               <div class="space-y-1.5">
                 <label class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
@@ -1100,7 +1115,7 @@
             </div>
           </div>
 
-          <!-- 3.4 Khung Cấu hình GitLab MCP -->
+          <!-- 3.5 Khung Cấu hình GitLab MCP -->
           <div id="mcpConfigFrame_gitlab"
             class="hidden bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#244170]/60 pb-3">
@@ -1179,7 +1194,7 @@
             </div>
           </div>
 
-          <!-- 3.5 Khung Cấu hình Slack MCP -->
+          <!-- 3.6 Khung Cấu hình Slack MCP -->
           <div id="mcpConfigFrame_slack"
             class="hidden bg-[#101e38] border border-[#244170] rounded-lg p-5 shadow-sm space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-2 pb-3">
@@ -1393,80 +1408,69 @@
             <!-- Provider Selector Tabs -->
             <div class="space-y-2">
               <label class="text-[11px] font-semibold text-slate-300 block">Chọn Provider AI ưu tiên:</label>
-              <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2.5">
-                <button type="button" id="btn_provider_gemini" onclick="selectActiveApiProvider('gemini')"
-                  class="api-provider-btn is-active p-3 rounded-lg text-left transition select-none cursor-pointer">
-                  <div class="flex items-center gap-2.5">
-                    <div class="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white">G</div>
-                    <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M12 2v4l10 8-10 8v-4Z" />
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M8 12h8m-4-4h.01M12 8v8l3-3m5 0v.01" />
-                    </svg>
-                    <div class="flex-1">
-                      <div class="text-xs font-bold block">Google Gemini</div>
-                      <div class="text-[10px] text-slate-400 mt-0.5 font-sans">Flash, Pro Models</div>
+              <div id="apiProviderCardsGrid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2.5">
+                <!-- 1. Google Gemini -->
+                <button type="button" id="btn_provider_gemini" onclick="selectActiveApiProvider('gemini', true)"
+                  class="api-provider-btn is-active p-3 rounded-lg text-left transition select-none cursor-pointer flex flex-col justify-between">
+                  <div class="space-y-1.5 w-full">
+                    <div class="flex items-center justify-between gap-1.5">
+                      <span class="text-xs font-bold block truncate">Google Gemini</span>
+                      <span id="pill_provider_gemini" class="provider-status-pill text-[9.5px] font-sans px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium shrink-0">Chưa lưu</span>
                     </div>
+                    <div class="text-[10px] text-slate-400 font-sans">Flash, Pro Models</div>
                   </div>
                 </button>
-                <button type="button" id="btn_provider_claude" onclick="selectActiveApiProvider('claude')"
-                  class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer">
-                  <div class="flex items-center gap-2.5">
-                    <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                    <div class="flex-1">
-                      <div class="text-xs font-bold block">Anthropic Claude</div>
-                      <div class="text-[10px] text-slate-400 mt-0.5 font-sans">Sonnet, Opus Thinking</div>
+                <!-- 2. Anthropic Claude -->
+                <button type="button" id="btn_provider_claude" onclick="selectActiveApiProvider('claude', true)"
+                  class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer flex flex-col justify-between">
+                  <div class="space-y-1.5 w-full">
+                    <div class="flex items-center justify-between gap-1.5">
+                      <span class="text-xs font-bold block truncate">Anthropic Claude</span>
+                      <span id="pill_provider_claude" class="provider-status-pill text-[9.5px] font-sans px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium shrink-0">Chưa lưu</span>
                     </div>
+                    <div class="text-[10px] text-slate-400 font-sans">Sonnet, Opus Thinking</div>
                   </div>
                 </button>
-                <button type="button" id="btn_provider_openai" onclick="selectActiveApiProvider('openai')"
-                  class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer">
-                  <div class="flex items-center gap-2.5">
-                    <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M22.54 2.52a23.51 23.51 0 0 0-2.09-2.16c-.45.15-1.56.58-2.69 1.15a58.68 58.68 0 0 0-2.33 1.08c-.39-.2-1.02-.36-2.01-.36-2.86 0-3.33 1.46-3.33 3.33 0 .21.03.42.05.63a4.89 4.89 0 0 0 .73 1.31l.37.33a6.95 6.95 0 0 0 1.75 1.78l-.33.37a4.92 4.92 0 0 0 1.31.73 58.58 58.58 0 0 0 1.08 2.33c.15.45.58 1.56 1.15 2.69l.82-.66a59.16 59.16 0 0 0 1.15-2.33c.2-.39.36-1.02.36-2.01a3.31 3.31 0 0 0-1.31-2.09Zm-13.6 3.36a3.92 3.92 0 0 1 1.13-.07c.92.03 1.95.38 2.91.98a3.94 3.94 0 0 1 .98 1.13c.03.92-.38 1.95-.98 2.91a3.93 3.93 0 0 1-.98-.07c-.93-.01-1.95-.38-2.91-.98a3.93 3.93 0 0 1-1.13.07Zm7.66 0a3.92 3.92 0 0 1 1.13.07c.92.03 1.95.38 2.91.98a3.94 3.94 0 0 1 .98 1.13c.03.92-.38 1.95-.98 2.91a3.93 3.93 0 0 1-.98-.07c-.93-.01-1.95-.38-2.91-.98a3.93 3.93 0 0 1-1.13.07Zm-7.66 0a3.92 3.92 0 0 1-1.13.07c-.92.03-1.95.38-2.91.98a3.93 3.93 0 0 1-.98-.07c.93.01 1.95.38 2.91.98Z" />
-                    </svg>
-                    <div class="flex-1">
-                      <div class="text-xs font-bold block">OpenAI / GPT</div>
-                      <div class="text-[10px] text-slate-400 mt-0.5 font-sans">GPT-4o, o3-mini</div>
+                <!-- 3. OpenAI / GPT -->
+                <button type="button" id="btn_provider_openai" onclick="selectActiveApiProvider('openai', true)"
+                  class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer flex flex-col justify-between">
+                  <div class="space-y-1.5 w-full">
+                    <div class="flex items-center justify-between gap-1.5">
+                      <span class="text-xs font-bold block truncate">OpenAI / GPT</span>
+                      <span id="pill_provider_openai" class="provider-status-pill text-[9.5px] font-sans px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium shrink-0">Chưa lưu</span>
                     </div>
+                    <div class="text-[10px] text-slate-400 font-sans">GPT-4o, o3-mini</div>
                   </div>
                 </button>
-                <button type="button" id="btn_provider_deepseek" onclick="selectActiveApiProvider('deepseek')"
-                  class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer">
-                  <div class="flex items-center gap-2.5">
-                    <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.57l-6.18 3.21L5 12.27l-5 4.87 1.18 6.88L12 17.57l-6.18 3.21L5 12.27l6.95-2.13L12 5.24l3.78 1.92L12 2Z" />
-                    </svg>
-                    <div class="flex-1">
-                      <div class="text-xs font-bold block">DeepSeek</div>
-                      <div class="text-[10px] text-slate-400 mt-0.5 font-sans">Flash, Reasoner</div>
+                <!-- 4. DeepSeek -->
+                <button type="button" id="btn_provider_deepseek" onclick="selectActiveApiProvider('deepseek', true)"
+                  class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer flex flex-col justify-between">
+                  <div class="space-y-1.5 w-full">
+                    <div class="flex items-center justify-between gap-1.5">
+                      <span class="text-xs font-bold block truncate">DeepSeek</span>
+                      <span id="pill_provider_deepseek" class="provider-status-pill text-[9.5px] font-sans px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium shrink-0">Chưa lưu</span>
                     </div>
+                    <div class="text-[10px] text-slate-400 font-sans">Flash, Reasoner</div>
                   </div>
                 </button>
-                <button type="button" id="btn_provider_custom" onclick="selectActiveApiProvider('custom')"
-                  class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer">
-                  <div class="flex items-center gap-2.5">
-                    <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                      <circle cx="12" cy="12" r="10" />
-                    </svg>
-                    <div class="flex-1">
-                      <div class="text-xs font-bold block">Custom / 9router</div>
-                      <div class="text-[10px] text-slate-400 mt-0.5 font-sans">Custom Base URL</div>
+                <!-- 5. Custom / 9router -->
+                <button type="button" id="btn_provider_custom" onclick="selectActiveApiProvider('custom', true)"
+                  class="api-provider-btn p-3 rounded-lg text-left transition select-none cursor-pointer flex flex-col justify-between">
+                  <div class="space-y-1.5 w-full">
+                    <div class="flex items-center justify-between gap-1.5">
+                      <span class="text-xs font-bold block truncate">Custom / 9router</span>
+                      <span id="pill_provider_custom" class="provider-status-pill text-[9.5px] font-sans px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium shrink-0">Tùy chọn</span>
                     </div>
+                    <div class="text-[10px] text-slate-400 font-sans">Custom Base URL</div>
                   </div>
                 </button>
               </div>
             </div>
 
-            <!-- Danh sách các trường nhập API Key (dạng thẻ mềm, không border gắt) -->
+            <!-- Danh sách các trường nhập API Key (chỉ hiển thị card của provider đang chọn) -->
             <div class="space-y-4 pt-1">
               <!-- 1. Google Gemini API Key -->
-              <div class="api-key-item-box p-4 rounded-xl bg-[#0c1628]/70 space-y-2.5">
+              <div id="apiConfigCard_gemini" class="api-key-item-box p-5 rounded-xl bg-[#0c1628]/70 border border-[#244170]/50 space-y-3.5">
                 <div class="flex items-center justify-between">
                   <label for="input_gemini_api_key" class="text-xs font-bold text-white flex items-center gap-2">
                     <span>Google Gemini API Key</span>
@@ -1478,26 +1482,40 @@
                     Lấy API Key từ Google AI Studio ↗
                   </a>
                 </div>
-                <div class="flex items-center gap-2">
-                  <div class="relative flex-1">
+                <div class="space-y-1.5">
+                  <div class="relative">
                     <input type="password" id="input_gemini_api_key" placeholder="AIzaSy..."
                       oninput="onSettingsOptionChanged('api')"
-                      class="w-full bg-[#101e38] border border-[#244170]/80 rounded-lg px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-[#1677ff] pr-10" />
+                      class="w-full bg-[#101e38] border border-[#244170] rounded-lg px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-400 font-mono focus:outline-none focus:border-[#1677ff] pr-12" />
                     <button type="button" onclick="togglePasswordVisibility('input_gemini_api_key', this)"
                       class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs px-1 select-none cursor-pointer">
                       Hiện
                     </button>
                   </div>
-                  <button type="button" onclick="testApiKey('gemini')"
-                    class="ant-btn text-xs h-[34px] px-3.5 bg-[#182c4f] hover:bg-[#203a68] text-slate-200 hover:text-white shrink-0 cursor-pointer">
-                    <span>Kiểm tra kết nối</span>
-                  </button>
+                  <p class="text-[11px] text-slate-300">Dùng cho các dòng Gemini 3.8 Flash, Gemini 2.5 Pro qua API chuẩn của Google.</p>
                 </div>
-                <p class="text-[11px] text-slate-400">Dùng cho các dòng Gemini 3.8 Flash, Gemini 2.5 Pro qua API chuẩn của Google.</p>
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#244170]/40">
+                  <div>
+                    <button type="button" id="btn_remove_key_gemini" onclick="removeApiKey('gemini')"
+                      class="hidden text-xs px-3.5 py-1.5 rounded-lg border border-rose-900/60 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 transition cursor-pointer font-sans select-none">
+                      Gỡ API Key
+                    </button>
+                  </div>
+                  <div class="flex items-center gap-2 ml-auto">
+                    <button type="button" id="btn_test_gemini" onclick="testApiKey('gemini', this)"
+                      class="px-3.5 py-1.5 rounded-lg border border-[#244170] text-xs font-sans text-slate-200 hover:bg-white/5 transition cursor-pointer select-none">
+                      Kiểm tra kết nối
+                    </button>
+                    <button type="button" id="btn_connect_gemini" onclick="connectApiKey('gemini', this)"
+                      class="px-4 py-1.5 rounded-lg bg-[#1677ff] hover:bg-[#0958d9] text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5 select-none">
+                      Kết nối
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <!-- 2. Anthropic Claude API Key -->
-              <div class="api-key-item-box p-4 rounded-xl bg-[#0c1628]/70 space-y-2.5">
+              <div id="apiConfigCard_claude" class="api-key-item-box hidden p-5 rounded-xl bg-[#0c1628]/70 border border-[#244170]/50 space-y-3.5">
                 <div class="flex items-center justify-between">
                   <label for="input_claude_api_key" class="text-xs font-bold text-white flex items-center gap-2">
                     <span>Anthropic Claude API Key</span>
@@ -1509,26 +1527,40 @@
                     Lấy API Key từ Anthropic Console ↗
                   </a>
                 </div>
-                <div class="flex items-center gap-2">
-                  <div class="relative flex-1">
+                <div class="space-y-1.5">
+                  <div class="relative">
                     <input type="password" id="input_claude_api_key" placeholder="sk-ant-api03-..."
                       oninput="onSettingsOptionChanged('api')"
-                      class="w-full bg-[#101e38] border border-[#244170]/80 rounded-lg px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-[#1677ff] pr-10" />
+                      class="w-full bg-[#101e38] border border-[#244170]/80 rounded-lg px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-[#1677ff] pr-12" />
                     <button type="button" onclick="togglePasswordVisibility('input_claude_api_key', this)"
                       class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs px-1 select-none cursor-pointer">
                       Hiện
                     </button>
                   </div>
-                  <button type="button" onclick="testApiKey('claude')"
-                    class="ant-btn text-xs h-[34px] px-3.5 bg-[#182c4f] hover:bg-[#203a68] text-slate-200 hover:text-white shrink-0 cursor-pointer">
-                    <span>Kiểm tra kết nối</span>
-                  </button>
+                  <p class="text-[11px] text-slate-400">Dùng cho Claude Sonnet 4.6, Claude Opus với Extended Thinking Budget.</p>
                 </div>
-                <p class="text-[11px] text-slate-400">Dùng cho Claude Sonnet 4.6, Claude Opus với Extended Thinking Budget.</p>
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#244170]/40">
+                  <div>
+                    <button type="button" id="btn_remove_key_claude" onclick="removeApiKey('claude')"
+                      class="hidden text-xs px-3.5 py-1.5 rounded-lg border border-rose-900/60 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 transition cursor-pointer font-sans select-none">
+                      Gỡ API Key
+                    </button>
+                  </div>
+                  <div class="flex items-center gap-2 ml-auto">
+                    <button type="button" id="btn_test_claude" onclick="testApiKey('claude', this)"
+                      class="px-3.5 py-1.5 rounded-lg border border-[#244170] text-xs font-sans text-slate-200 hover:bg-white/5 transition cursor-pointer select-none">
+                      Kiểm tra kết nối
+                    </button>
+                    <button type="button" id="btn_connect_claude" onclick="connectApiKey('claude', this)"
+                      class="px-4 py-1.5 rounded-lg bg-[#1677ff] hover:bg-[#0958d9] text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5 select-none">
+                      Kết nối
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <!-- 3. OpenAI API Key -->
-              <div class="api-key-item-box p-4 rounded-xl bg-[#0c1628]/70 space-y-2.5">
+              <div id="apiConfigCard_openai" class="api-key-item-box hidden p-5 rounded-xl bg-[#0c1628]/70 border border-[#244170]/50 space-y-3.5">
                 <div class="flex items-center justify-between">
                   <label for="input_openai_api_key" class="text-xs font-bold text-white flex items-center gap-2">
                     <span>OpenAI API Key</span>
@@ -1540,26 +1572,40 @@
                     Lấy API Key từ OpenAI Platform ↗
                   </a>
                 </div>
-                <div class="flex items-center gap-2">
-                  <div class="relative flex-1">
+                <div class="space-y-1.5">
+                  <div class="relative">
                     <input type="password" id="input_openai_api_key" placeholder="sk-proj-..."
                       oninput="onSettingsOptionChanged('api')"
-                      class="w-full bg-[#101e38] border border-[#244170]/80 rounded-lg px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-[#1677ff] pr-10" />
+                      class="w-full bg-[#101e38] border border-[#244170]/80 rounded-lg px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-[#1677ff] pr-12" />
                     <button type="button" onclick="togglePasswordVisibility('input_openai_api_key', this)"
                       class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs px-1 select-none cursor-pointer">
                       Hiện
                     </button>
                   </div>
-                  <button type="button" onclick="testApiKey('openai')"
-                    class="ant-btn text-xs h-[34px] px-3.5 bg-[#182c4f] hover:bg-[#203a68] text-slate-200 hover:text-white shrink-0 cursor-pointer">
-                    <span>Kiểm tra kết nối</span>
-                  </button>
+                  <p class="text-[11px] text-slate-400">Dùng cho GPT-4o, o3-mini và các dòng mô hình OpenAI native.</p>
                 </div>
-                <p class="text-[11px] text-slate-400">Dùng cho GPT-4o, o3-mini và các dòng mô hình OpenAI native.</p>
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#244170]/40">
+                  <div>
+                    <button type="button" id="btn_remove_key_openai" onclick="removeApiKey('openai')"
+                      class="hidden text-xs px-3.5 py-1.5 rounded-lg border border-rose-900/60 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 transition cursor-pointer font-sans select-none">
+                      Gỡ API Key
+                    </button>
+                  </div>
+                  <div class="flex items-center gap-2 ml-auto">
+                    <button type="button" id="btn_test_openai" onclick="testApiKey('openai', this)"
+                      class="px-3.5 py-1.5 rounded-lg border border-[#244170] text-xs font-sans text-slate-200 hover:bg-white/5 transition cursor-pointer select-none">
+                      Kiểm tra kết nối
+                    </button>
+                    <button type="button" id="btn_connect_openai" onclick="connectApiKey('openai', this)"
+                      class="px-4 py-1.5 rounded-lg bg-[#1677ff] hover:bg-[#0958d9] text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5 select-none">
+                      Kết nối
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <!-- 4. DeepSeek API Key -->
-              <div class="api-key-item-box p-4 rounded-xl bg-[#0c1628]/70 space-y-2.5">
+              <div id="apiConfigCard_deepseek" class="api-key-item-box hidden p-5 rounded-xl bg-[#0c1628]/70 border border-[#244170]/50 space-y-3.5">
                 <div class="flex items-center justify-between">
                   <label for="input_deepseek_api_key" class="text-xs font-bold text-white flex items-center gap-2">
                     <span>DeepSeek API Key</span>
@@ -1571,31 +1617,45 @@
                     Lấy API Key từ DeepSeek Platform ↗
                   </a>
                 </div>
-                <div class="flex items-center gap-2">
-                  <div class="relative flex-1">
+                <div class="space-y-1.5">
+                  <div class="relative">
                     <input type="password" id="input_deepseek_api_key" placeholder="sk-..."
                       oninput="onSettingsOptionChanged('api')"
-                      class="w-full bg-[#101e38] border border-[#244170]/80 rounded-lg px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-[#1677ff] pr-10" />
+                      class="w-full bg-[#101e38] border border-[#244170]/80 rounded-lg px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-[#1677ff] pr-12" />
                     <button type="button" onclick="togglePasswordVisibility('input_deepseek_api_key', this)"
                       class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs px-1 select-none cursor-pointer">
                       Hiện
                     </button>
                   </div>
-                  <button type="button" onclick="testApiKey('deepseek')"
-                    class="ant-btn text-xs h-[34px] px-3.5 bg-[#182c4f] hover:bg-[#203a68] text-slate-200 hover:text-white shrink-0 cursor-pointer">
-                    <span>Kiểm tra kết nối</span>
-                  </button>
+                  <p class="text-[11px] text-slate-400">
+                    Tương thích OpenAI SDK với <code class="font-mono text-[11px] text-sky-300">base_url="https://api.deepseek.com"</code>. Hỗ trợ
+                    <code class="font-mono text-[11px] text-sky-300">deepseek-flash</code>,
+                    <code class="font-mono text-[11px] text-sky-300">deepseek-chat</code>,
+                    <code class="font-mono text-[11px] text-sky-300">deepseek-reasoner</code> và chế độ Thinking.
+                  </p>
                 </div>
-                <p class="text-[11px] text-slate-400">
-                  Tương thích OpenAI SDK với <code class="font-mono text-[11px] text-sky-300">base_url="https://api.deepseek.com"</code>. Hỗ trợ
-                  <code class="font-mono text-[11px] text-sky-300">deepseek-flash</code>,
-                  <code class="font-mono text-[11px] text-sky-300">deepseek-chat</code>,
-                  <code class="font-mono text-[11px] text-sky-300">deepseek-reasoner</code> và chế độ Thinking.
-                </p>
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#244170]/40">
+                  <div>
+                    <button type="button" id="btn_remove_key_deepseek" onclick="removeApiKey('deepseek')"
+                      class="hidden text-xs px-3.5 py-1.5 rounded-lg border border-rose-900/60 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 transition cursor-pointer font-sans select-none">
+                      Gỡ API Key
+                    </button>
+                  </div>
+                  <div class="flex items-center gap-2 ml-auto">
+                    <button type="button" id="btn_test_deepseek" onclick="testApiKey('deepseek', this)"
+                      class="px-3.5 py-1.5 rounded-lg border border-[#244170] text-xs font-sans text-slate-200 hover:bg-white/5 transition cursor-pointer select-none">
+                      Kiểm tra kết nối
+                    </button>
+                    <button type="button" id="btn_connect_deepseek" onclick="connectApiKey('deepseek', this)"
+                      class="px-4 py-1.5 rounded-lg bg-[#1677ff] hover:bg-[#0958d9] text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5 select-none">
+                      Kết nối
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <!-- 5. Custom API Base URL & Key -->
-              <div class="api-key-item-box p-4 rounded-xl bg-[#0c1628]/70 space-y-3">
+              <div id="apiConfigCard_custom" class="api-key-item-box hidden p-5 rounded-xl bg-[#0c1628]/70 border border-[#244170]/50 space-y-3.5">
                 <div class="flex items-center justify-between">
                   <label class="text-xs font-bold text-white flex items-center gap-2">
                     <span>Custom Endpoint / 9router Local Proxy</span>
@@ -1623,12 +1683,24 @@
                     </div>
                   </div>
                 </div>
-                <div class="flex items-center justify-between pt-1">
-                  <p class="text-[11px] text-slate-400">Kết nối các proxy nội bộ hoặc các dịch vụ tương thích OpenAI API (Groq, OpenRouter, LM Studio).</p>
-                  <button type="button" onclick="testApiKey('custom')"
-                    class="ant-btn text-xs h-[34px] px-3.5 bg-[#182c4f] hover:bg-[#203a68] text-slate-200 hover:text-white shrink-0 cursor-pointer">
-                    <span>Kiểm tra Custom API</span>
-                  </button>
+                <p class="text-[11px] text-slate-400">Kết nối các proxy nội bộ hoặc các dịch vụ tương thích OpenAI API (Groq, OpenRouter, LM Studio).</p>
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#244170]/40">
+                  <div>
+                    <button type="button" id="btn_remove_key_custom" onclick="removeApiKey('custom')"
+                      class="hidden text-xs px-3.5 py-1.5 rounded-lg border border-rose-900/60 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 transition cursor-pointer font-sans select-none">
+                      Gỡ API Key
+                    </button>
+                  </div>
+                  <div class="flex items-center gap-2 ml-auto">
+                    <button type="button" id="btn_test_custom" onclick="testApiKey('custom', this)"
+                      class="px-3.5 py-1.5 rounded-lg border border-[#244170] text-xs font-sans text-slate-200 hover:bg-white/5 transition cursor-pointer select-none">
+                      Kiểm tra Custom API
+                    </button>
+                    <button type="button" id="btn_connect_custom" onclick="connectApiKey('custom', this)"
+                      class="px-4 py-1.5 rounded-lg bg-[#1677ff] hover:bg-[#0958d9] text-xs font-sans text-white font-medium shadow-sm transition cursor-pointer flex items-center gap-1.5 select-none">
+                      Kết nối
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

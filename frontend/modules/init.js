@@ -27,16 +27,6 @@ runAdaptivePollLoop();
 
 window.addEventListener('DOMContentLoaded', () => {
 
-  TABS.forEach(t => {
-    const btn = document.getElementById('tabBtn_' + t);
-    if (btn) {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        switchTab(t);
-      });
-    }
-  });
-
   let initialTab = (typeof window.getTabFromUrl === 'function') ? window.getTabFromUrl() : null;
   const currentPath = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
   if (!initialTab || currentPath === '/' || currentPath === '/index.html') {

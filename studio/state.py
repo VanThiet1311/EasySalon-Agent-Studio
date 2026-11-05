@@ -362,6 +362,16 @@ def load_settings():
     except Exception:
         pass
 
+    # Đọc mức suy luận thực tế người dùng đã chọn trong OpenCode TUI.
+    # OpenCode lưu lựa chọn này ở ~/.local/state/opencode/model.json (khóa 'variant').
+    try:
+        if str(merged.get('engine') or '').strip().lower() == 'opencode':
+            variant_effort = get_opencode_model_variant(merged.get('opencode_model') or detect_opencode_active_model())
+            if variant_effort:
+                merged['effort'] = variant_effort
+    except Exception:
+        pass
+
     # Đồng bộ API key và biến môi trường ngay khi nạp cấu hình
     sync_all_api_keys_and_providers(merged)
 
@@ -503,25 +513,27 @@ def sync_opencode_provider_models(models_set):
         pass
 
 
+def _opencode_model_key(model_id: str) -> str:
+    """Bỏ tiền tố provider khỏi model id để tra cứu trong provider.models của opencode.json."""
+    s = str(model_id or '').strip()
+    for prefix in ('9router/', 'opencode/'):
+        if s.startswith(prefix):
+            return s[len(prefix):]
+    return s
+
+
 def sync_opencode_active_model(settings: dict):
     """
     Ghi model hiệu dụng (base model + effort) vào ~/.config/opencode/opencode.json để
     terminal `opencode` mở thủ công luôn khớp với mức suy luận đang chọn trên UI Studio.
     Trước đây Studio chỉ lưu settings.json nên terminal vẫn chạy model cũ (thường là High).
+
+    - Model có biến thể effort (Gemini/Claude/GPT...) -> đổi hậu tố model id.
+    - Model không có biến thể (ví dụ DeepSeek) -> giữ nguyên model id và ghi
+      `options.reasoningEffort` để provider nhận đúng mức suy luận đã chọn.
     """
     try:
         if not isinstance(settings, dict):
-            return
-        if str(settings.get('engine') or '').strip().lower() != 'opencode':
-            return
-
-        config_path = os.path.expanduser('~/.config/opencode/opencode.json')
-        if not os.path.exists(config_path):
-            return
-
-        with open(config_path, 'r', encoding='utf-8') as f:
-            cfg = json.load(f)
-        if not isinstance(cfg, dict):
             return
 
         base = normalize_9router_model_id(str(settings.get('opencode_model') or '9router/ag/gemini-3.8-flash').strip())
@@ -539,8 +551,54 @@ def sync_opencode_active_model(settings: dict):
                 target = f"{base}-{effort}"
         target = normalize_9router_model_id(target)
 
+        # Đọc lại config SAU khi resolve (hàm trên có thể đã ghi thêm model variants).
+        config_path = os.path.expanduser('~/.config/opencode/opencode.json')
+        if not os.path.exists(config_path):
+            return
+
+        with open(config_path, 'r', encoding='utf-8') as f:
+            cfg = json.load(f)
+        if not isinstance(cfg, dict):
+            return
+
         changed = cfg.get('model') != target
         cfg['model'] = target
+
+        # Ghi lựa chọn effort vào state của OpenCode TUI để giao diện `opencode`
+        # hiển thị đúng mức đang chọn trong Studio (OpenCode lưu ở khóa 'variant').
+        save_opencode_model_variant(base, effort)
+        if target != base:
+            save_opencode_model_variant(target, effort)
+
+        base_key = _opencode_model_key(base)
+        target_key = _opencode_model_key(target)
+        is_free_or_agent = ('free' in base_key.lower()) or base_key.lower().endswith('-agent')
+        has_effort_variant = bool(re.search(r'-(low|medium|high|xhigh|max)$', target_key, re.IGNORECASE)) and target_key != base_key
+
+        if not is_free_or_agent:
+            nine_router = cfg.setdefault('provider', {}).setdefault('9router', {})
+            models = nine_router.setdefault('models', {})
+            entry = models.get(target_key)
+            if not isinstance(entry, dict):
+                entry = {
+                    'name': target_key,
+                    'modalities': {'input': ['text', 'image'], 'output': ['text']}
+                }
+                models[target_key] = entry
+                changed = True
+            options = entry.get('options')
+            if not isinstance(options, dict):
+                options = {}
+                entry['options'] = options
+
+            if has_effort_variant:
+                # Model id đã mang sẵn mức suy luận -> không cần options.reasoningEffort.
+                if 'reasoningEffort' in options:
+                    del options['reasoningEffort']
+                    changed = True
+            elif options.get('reasoningEffort') != effort:
+                options['reasoningEffort'] = effort
+                changed = True
 
         explorer = (cfg.get('agent') or {}).get('explorer')
         if isinstance(explorer, dict) and explorer.get('model') != target:
@@ -552,6 +610,143 @@ def sync_opencode_active_model(settings: dict):
             with open(tmp_path, 'w', encoding='utf-8') as f:
                 json.dump(cfg, f, indent=2)
             os.replace(tmp_path, config_path)
+    except Exception:
+        pass
+
+
+def _gemini_display_name(model_id: str) -> str:
+    """Chuyển 'gemini-3.8-flash' thành 'Gemini 3.8 Flash' để khớp settings.json của Gemini CLI."""
+    parts = [p for p in re.split(r'[-_]+', str(model_id or '').strip()) if p]
+    words = []
+    for part in parts:
+        if part.lower() == 'gemini':
+            words.append('Gemini')
+        elif re.fullmatch(r'\d+(?:\.\d+)*', part):
+            words.append(part)
+        elif re.fullmatch(r'[a-z]+\d+', part.lower()):
+            words.append(part.upper())
+        else:
+            words.append(part.capitalize())
+    return ' '.join(words)
+
+
+def sync_gemini_cli_active_model(settings: dict):
+    """
+    Đồng bộ model + mức suy luận đang chọn vào ~/.gemini/antigravity-cli/settings.json
+    để terminal `agy` mở thủ công cũng dùng đúng effort như trên UI Studio.
+    Chỉ áp dụng cho các model Gemini (CLI lưu effort trong tên model, ví dụ
+    'Gemini 3.8 Flash (High)').
+    """
+    try:
+        if not isinstance(settings, dict):
+            return
+        model = str(settings.get('model') or '').strip()
+        if not model or 'gemini' not in model.lower():
+            return
+        effort = str(settings.get('effort') or 'high').strip().lower()
+        base = re.sub(r'-(low|medium|high|xhigh|max)$', '', model, flags=re.IGNORECASE)
+        level = {'low': 'Low', 'medium': 'Medium', 'high': 'High'}.get(effort, 'High')
+        target = f"{_gemini_display_name(base)} ({level})"
+
+        settings_file = os.path.expanduser('~/.gemini/antigravity-cli/settings.json')
+        if not os.path.exists(settings_file):
+            return
+        with open(settings_file, 'r', encoding='utf-8') as f:
+            cfg = json.load(f)
+        if not isinstance(cfg, dict) or cfg.get('model') == target:
+            return
+        cfg['model'] = target
+        tmp_path = settings_file + '.tmp'
+        with open(tmp_path, 'w', encoding='utf-8') as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, settings_file)
+    except Exception:
+        pass
+
+
+def _opencode_state_model_path() -> str:
+    return os.path.expanduser('~/.local/state/opencode/model.json')
+
+
+def get_opencode_model_variant(model_id: str) -> str:
+    """
+    Đọc mức suy luận (variant/effort) người dùng đã chọn trong OpenCode TUI.
+    OpenCode lưu lựa chọn này trong ~/.local/state/opencode/model.json tại khóa
+    'variant', dạng {'9router/ds/deepseek-v4.1-flash': 'medium'}.
+    """
+    try:
+        state_path = _opencode_state_model_path()
+        if not os.path.exists(state_path):
+            return ''
+        with open(state_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        variants = data.get('variant') if isinstance(data, dict) else None
+        if not isinstance(variants, dict):
+            return ''
+
+        valid = ('low', 'medium', 'high', 'xhigh', 'max')
+        mid = str(model_id or '').strip()
+        candidates = []
+        if mid:
+            normalized = normalize_9router_model_id(mid)
+            candidates.extend([mid, normalized])
+            stripped = re.sub(r'-(low|medium|high|xhigh|max)$', '', mid, flags=re.IGNORECASE)
+            candidates.extend([stripped, normalize_9router_model_id(stripped) if stripped else stripped])
+        for key in candidates:
+            if not key:
+                continue
+            value = variants.get(key)
+            if isinstance(value, str) and value.strip().lower() in valid:
+                return value.strip().lower()
+    except Exception:
+        pass
+    return ''
+
+
+def save_opencode_model_variant(model_id: str, effort: str):
+    """Ghi mức suy luận đang chọn vào state của OpenCode TUI để giao diện `opencode` khớp với Studio."""
+    try:
+        effort = str(effort or '').strip().lower()
+        if effort not in ('low', 'medium', 'high', 'xhigh', 'max'):
+            return
+        mid = str(model_id or '').strip()
+        if not mid:
+            return
+        state_path = _opencode_state_model_path()
+        if not os.path.exists(state_path):
+            return
+        with open(state_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return
+        variants = data.get('variant')
+        if not isinstance(variants, dict):
+            variants = {}
+            data['variant'] = variants
+
+        normalized = normalize_9router_model_id(mid)
+        keys = []
+        for key in (mid, normalized):
+            if key and key not in keys:
+                keys.append(key)
+        # Nếu state đang dùng khóa không có tiền tố provider, cập nhật luôn khóa đó.
+        if mid.startswith('9router/'):
+            bare = mid[len('9router/'):]
+            if bare in variants and bare not in keys:
+                keys.append(bare)
+
+        changed = False
+        for key in keys:
+            if variants.get(key) != effort:
+                variants[key] = effort
+                changed = True
+        if not changed:
+            return
+
+        tmp_path = state_path + '.tmp'
+        with open(tmp_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, state_path)
     except Exception:
         pass
 
@@ -651,6 +846,8 @@ def get_opencode_models() -> list:
                     full_id = f'9router/{base_mid}'
                     is_gemini = ('gemini' in base_mid.lower())
                     is_free = ('free' in base_mid.lower())
+                    caps = m.get('capabilities') or {}
+                    effort_supported = bool(caps.get('thinkingEffortSupported'))
 
                     if full_id not in models_map:
                         models_map[full_id] = {
@@ -659,9 +856,12 @@ def get_opencode_models() -> list:
                             'provider': '9router',
                             'is_gemini': is_gemini and not is_free,
                             'is_free': is_free,
+                            'effort_supported': False,
                             'raw_variants': set()
                         }
                     models_map[full_id]['raw_variants'].add(clean_mid)
+                    if effort_supported:
+                        models_map[full_id]['effort_supported'] = True
         except Exception:
             pass
 
@@ -705,6 +905,7 @@ def get_opencode_models() -> list:
                                 'provider': provider,
                                 'is_gemini': is_gemini and not is_free,
                                 'is_free': is_free,
+                                'effort_supported': False,
                                 'raw_variants': set()
                             }
                         models_map[full_id]['raw_variants'].add(clean_mid)
@@ -944,6 +1145,9 @@ def save_settings(settings_dict: dict):
         # Đồng bộ effort/model sang cấu hình toàn cục của OpenCode CLI
         # để terminal `opencode` mở tay không bị lệch mức suy luận so với UI.
         sync_opencode_active_model(curr)
+        # Đồng bộ effort/model sang Gemini CLI (Antigravity settings.json)
+        # để terminal `agy` mở tay cũng dùng đúng mức suy luận.
+        sync_gemini_cli_active_model(curr)
 
         try:
             import config

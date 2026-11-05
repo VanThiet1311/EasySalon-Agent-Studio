@@ -12,7 +12,21 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from studio.state import load_settings, STORAGE_DIR
+
+
+def _parse_jira_datetime(dt_str: str):
+    """Phân tích chuỗi ngày giờ ISO 8601 từ Jira (hỗ trợ cả múi giờ +0700 và Z)."""
+    if not dt_str:
+        return None
+    try:
+        return datetime.fromisoformat(dt_str)
+    except Exception:
+        try:
+            return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+        except Exception:
+            return None
 
 
 def get_jira_config() -> dict:
@@ -311,56 +325,65 @@ def _html_to_markdown(html_str: str) -> str:
     return s.strip()
 
 
+_ATTACHMENT_ID_MAP = {}
+
+
 def _format_jira_text(text: str) -> str:
-    """Tự động phân đoạn và định dạng văn bản Jira theo chuẩn BDD / Gherkin & Markdown rõ ràng."""
+    """Tự động phân đoạn và định dạng văn bản Jira theo chuẩn BDD / Gherkin rõ ràng, loại bỏ ký tự lạ **, //, #, [], và gạch đầu dòng mồ côi."""
     if not text:
         return ""
     s = str(text).strip()
     s = s.replace("\r\n", "\n").replace("\r", "\n")
 
-    # Format Acceptance Criteria headers
+    # Loại bỏ link markdown hình ảnh & video vì đã được hiển thị trên gallery ảnh minh chứng
+    s = re.sub(r'\[([^\]]*\.(?:png|jpg|jpeg|gif|webp|svg|mp4|webm|mov|mkv))\]\([^)]+\)', '', s, flags=re.IGNORECASE)
+    s = re.sub(r'\[Ảnh minh chứng:[^\]]*\]', '', s, flags=re.IGNORECASE)
+    s = re.sub(r'\[[^\]]*\.(?:png|jpg|jpeg|gif|webp|svg|mp4|webm|mov|mkv)\]', '', s, flags=re.IGNORECASE)
+
+    # Tạm thời bảo vệ URL
+    urls = []
+    def _save_url(m):
+        urls.append(m.group(0))
+        return f"___URL_PLACEHOLDER_{len(urls) - 1}___"
+    s = re.sub(r'https?://[^\s)\]]+|/api/jira/attachment[^\s)\]]+', _save_url, s)
+
+    # 1. Loại bỏ các ký tự in đậm ** (ví dụ: **Là** -> Là, **Tôi muốn** -> Tôi muốn, **Given** -> Given)
+    s = re.sub(r'\*\*([^*]+)\*\*', r'\1', s)
+    s = s.replace('**', '')
+
+    # 2. Loại bỏ các ký tự in nghiêng // hoặc // lạ không phải URL
+    s = re.sub(r'(^|[^\w:])//([^\n/]+)//', r'\1\2', s)
+    s = re.sub(r'(^|\s)//(?!\w+:)(\s|$)', r'\1\2', s)
+
+    # 3. Loại bỏ dấu ngoặc vuông quanh email [email@domain.com] -> email@domain.com
+    s = re.sub(r'\[([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)\]', r'\1', s)
+
+    # 4. Loại bỏ các ký tự thăng #, ##, ###, #### của Markdown tiêu đề
+    s = re.sub(r'^[ \t]*#{1,6}[ \t]*', '', s, flags=re.MULTILINE)
+
+    # Format Acceptance Criteria headers không dùng dấu #
     s = re.sub(
         r"(?:^|\n|\s+)(Acceptance Criteria[^\n]*?|Tiêu chí chấp nhận[^\n]*?)(?=(?:\s+(?:AC\s*\d+|Kịch bản|Scenario)|$|\n))",
-        r"\n\n### \1\n",
+        r"\n\n\1:\n",
         s,
         flags=re.IGNORECASE
     )
 
-    # Format AC1, AC2, AC3 / Kịch bản 1 / Scenario 1
+    # Format AC1, AC2, AC3 / Kịch bản 1 / Scenario 1 không dùng dấu #
     s = re.sub(
         r"(?:^|\n|\s+)((?:AC\s*\d+|Kịch bản\s*\d+|Scenario\s*\d+)[\s:\-]+[^\n]*?)(?=(?:\s+(?:Given|When|Then|And|But)\b|$|\n))",
-        r"\n\n#### \1\n",
+        r"\n\n\1:\n",
         s
     )
 
-    # Format BDD Given / When / Then / And / But
-    s = re.sub(
-        r"(?:^|\n|\s+)\b(Given)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:When|Then|And|But|AC\s*\d+|Kịch bản|Scenario)\b|$|\n))",
-        r"\n- **Given**: \2",
-        s
-    )
-    s = re.sub(
-        r"(?:^|\n|\s+)\b(When)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:Then|And|But|AC\s*\d+|Given|Kịch bản|Scenario)\b|$|\n))",
-        r"\n- **When**: \2",
-        s
-    )
-    s = re.sub(
-        r"(?:^|\n|\s+)\b(Then)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:And|But|AC\s*\d+|Given|When|Kịch bản|Scenario)\b|$|\n))",
-        r"\n- **Then**: \2",
-        s
-    )
-    s = re.sub(
-        r"(?:^|\n|\s+)\b(And)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:And|But|AC\s*\d+|Given|When|Then|Kịch bản|Scenario)\b|$|\n))",
-        r"\n  - **And**: \2",
-        s
-    )
-    s = re.sub(
-        r"(?:^|\n|\s+)\b(But)\b\s*[:\-]?\s*([^\n]*?)(?=(?:\s+\b(?:And|But|AC\s*\d+|Given|When|Then|Kịch bản|Scenario)\b|$|\n))",
-        r"\n  - **But**: \2",
-        s
-    )
+    # Format BDD Given / When / Then / And / But không dùng dấu - mồ côi
+    s = re.sub(r'^[ \t]*[-*•]?[ \t]*\b(Given)\b\s*[:\-]?\s*', 'Given: ', s, flags=re.MULTILINE | re.IGNORECASE)
+    s = re.sub(r'^[ \t]*[-*•]?[ \t]*\b(When)\b\s*[:\-]?\s*', 'When: ', s, flags=re.MULTILINE | re.IGNORECASE)
+    s = re.sub(r'^[ \t]*[-*•]?[ \t]*\b(Then)\b\s*[:\-]?\s*', 'Then: ', s, flags=re.MULTILINE | re.IGNORECASE)
+    s = re.sub(r'^[ \t]*[-*•]?[ \t]*\b(And)\b\s*[:\-]?\s*', '  And: ', s, flags=re.MULTILINE | re.IGNORECASE)
+    s = re.sub(r'^[ \t]*[-*•]?[ \t]*\b(But)\b\s*[:\-]?\s*', '  But: ', s, flags=re.MULTILINE | re.IGNORECASE)
 
-    # Đề mục phổ biến trong issue Jira nếu dính liền
+    # Đề mục phổ biến trong issue Jira nếu dính liền (không dùng dấu #)
     headings = [
         "Hiện tượng lỗi", "Mô tả lỗi", "Bug description",
         "Các bước tái hiện", "Steps to reproduce",
@@ -372,10 +395,26 @@ def _format_jira_text(text: str) -> str:
     ]
     for h in headings:
         pattern = r"(?:^|\n|(?<=[.!?])\s+)(" + re.escape(h) + r")\s*:\s*"
-        s = re.sub(pattern, r"\n\n### \1:\n", s, flags=re.IGNORECASE)
+        s = re.sub(pattern, r"\n\n\1:\n", s, flags=re.IGNORECASE)
+
+    # Loại bỏ các dòng chỉ chứa dấu gạch ngang mồ côi hoặc ký tự thăng
+    s = re.sub(r'^[ \t]*[-*•#]+[ \t]*$', '', s, flags=re.MULTILINE)
+
+    # Xóa trùng lặp dấu gạch đầu dòng '- - ' -> '- '
+    s = re.sub(r'^[ \t]*[-*•][ \t]+[-*•][ \t]+', '- ', s, flags=re.MULTILINE)
+
+    # Xử lý trường hợp Then: - Thành phần -> Then:\n- Thành phần
+    s = re.sub(r'\b(Then:)[ \t]*-[ \t]+', r'\1\n- ', s)
+
+    # Loại bỏ ngoặc vuông rỗng []
+    s = re.sub(r'\[\s*\]', '', s)
+
+    # Khôi phục URL
+    for idx, u in enumerate(urls):
+        s = s.replace(f"___URL_PLACEHOLDER_{idx}___", u)
 
     # Làm sạch dòng và khoảng trắng
-    lines = [re.sub(r"[ \t]+", " ", line).rstrip() for line in s.split("\n")]
+    lines = [line.replace("\t", "    ").rstrip() for line in s.split("\n")]
     s = "\n".join(lines)
     s = re.sub(r"\n{3,}", "\n\n", s)
     return s.strip()
@@ -402,9 +441,10 @@ def _adf_to_markdown(node) -> str:
             for m in marks:
                 mtype = m.get("type")
                 if mtype == "strong":
-                    text = f"**{text.strip()}** " if text.endswith(" ") else f"**{text.strip()}**"
+                    # Không chèn ** để giữ văn bản thuần sạch, tránh ký tự lạ
+                    text = f"{text.strip()} " if text.endswith(" ") else text.strip()
                 elif mtype == "em":
-                    text = f"*{text.strip()}*"
+                    text = text.strip()
                 elif mtype == "code":
                     text = f"`{text.strip()}`"
                 elif mtype == "strike":
@@ -440,17 +480,15 @@ def _adf_to_markdown(node) -> str:
             return inner.strip()
 
         if node_type == "heading":
-            level = (node.get("attrs") or {}).get("level", 2)
-            prefix = "#" * max(1, min(6, level))
             inner = "".join(_adf_to_markdown(c) for c in content).strip()
-            return f"{prefix} {inner}"
+            return inner
 
         if node_type == "bulletList":
             lines = []
             for item in content:
                 item_text = _adf_to_markdown(item).strip()
-                if item_text:
-                    lines.append(f"- {item_text}")
+                if item_text and item_text != "-":
+                    lines.append(f"- {item_text}" if not item_text.startswith(("- ", "* ", "• ")) else item_text)
             return "\n".join(lines)
 
         if node_type == "orderedList":
@@ -497,9 +535,16 @@ def _adf_to_markdown(node) -> str:
 
         if node_type == "media":
             attrs = node.get("attrs", {})
-            media_id = attrs.get("id") or ""
+            media_id = str(attrs.get("id") or "").strip()
             alt_text = attrs.get("alt") or "Tệp đính kèm"
-            return f"[{alt_text}](/api/jira/attachment?id={media_id}&name={urllib.parse.quote(alt_text)})"
+            real_id = media_id
+            if alt_text and alt_text.lower() in _ATTACHMENT_ID_MAP:
+                real_id = _ATTACHMENT_ID_MAP[alt_text.lower()]
+                if media_id:
+                    _ATTACHMENT_ID_MAP[media_id] = real_id
+            elif media_id in _ATTACHMENT_ID_MAP:
+                real_id = _ATTACHMENT_ID_MAP[media_id]
+            return f"[{alt_text}](/api/jira/attachment?id={real_id}&name={urllib.parse.quote(alt_text)})"
 
         # Default fallback for doc or other containers
         parts = [_adf_to_markdown(c) for c in content]
@@ -611,9 +656,22 @@ def _rewrite_jira_html_media(html_str: str, attachments: list) -> str:
 def stream_jira_attachment(handler, attachment_id: str, filename: str = "", is_thumb: bool = False):
     """Proxy và stream trực tiếp tệp đính kèm (video/hình ảnh/tài liệu) từ Jira Cloud về trình duyệt."""
     attachment_id = str(attachment_id or "").strip()
-    if not attachment_id:
+    filename = str(filename or "").strip()
+    if not attachment_id and not filename:
         handler.send_error(400, "Thiếu attachment ID")
         return
+
+    # Tự động phân giải media UUID hoặc filename sang ID attachment Jira dạng số
+    if not attachment_id.isdigit():
+        if attachment_id in _ATTACHMENT_ID_MAP:
+            attachment_id = _ATTACHMENT_ID_MAP[attachment_id]
+        elif filename and filename.lower() in _ATTACHMENT_ID_MAP:
+            attachment_id = _ATTACHMENT_ID_MAP[filename.lower()]
+        elif filename:
+            for k, v in list(_ATTACHMENT_ID_MAP.items()):
+                if k.lower() == filename.lower() or filename.lower().endswith(k.lower()):
+                    attachment_id = v
+                    break
 
     cfg = get_jira_config()
     if not cfg["is_configured"]:
@@ -1033,6 +1091,15 @@ def get_jira_issue_detail(issue_key: str) -> dict:
             data = json.loads(resp.read().decode("utf-8"))
             f = data.get("fields", {})
             rf = data.get("renderedFields", {})
+
+            # Đăng ký tệp đính kèm vào map phân giải ID trước khi chuyển đổi mô tả
+            raw_attachments = f.get("attachment") or []
+            for att in raw_attachments:
+                aid = str(att.get("id") or "")
+                fn = (att.get("filename") or "").lower()
+                if aid and fn:
+                    _ATTACHMENT_ID_MAP[fn] = aid
+                    _ATTACHMENT_ID_MAP[aid] = aid
 
             # Clean / Rendered description
             desc_html = rf.get("description") or ""
@@ -1633,6 +1700,7 @@ def _generate_heuristic_rovo_analysis(key: str, summary: str, desc: str, issuety
 _JIRA_SEEN_CACHE = {
     "initialized": False,
     "issues": set(),
+    "issue_updates": {},
     "comments": set(),
     "last_check": 0.0
 }
@@ -1934,6 +2002,8 @@ def delete_jira_subtask(subtask_key: str) -> dict:
             # Mã 204 No Content hoặc 200 biểu thị xóa thành công
             if skey in _JIRA_SEEN_CACHE.get("issues", set()):
                 _JIRA_SEEN_CACHE["issues"].discard(skey)
+            if "issue_updates" in _JIRA_SEEN_CACHE and skey in _JIRA_SEEN_CACHE["issue_updates"]:
+                _JIRA_SEEN_CACHE["issue_updates"].pop(skey, None)
             if skey in _SELF_CREATED_SUBTASKS:
                 _SELF_CREATED_SUBTASKS.discard(skey)
             return {
@@ -1959,6 +2029,7 @@ def check_jira_updates(force_refresh: bool = False) -> dict:
     """
     Kiểm tra các cập nhật thời gian thực trên Jira Cloud:
     - Khi có Task mới vừa log (Ticket mới tạo)
+    - Khi có cập nhật tài liệu / nội dung Task cũ ("Cập nhật doc")
     - Khi có Bình luận mới trên các Ticket
     Trả về danh sách notifications để client hiển thị banner tương tác.
     Đặc biệt: Không thông báo khi chính bản thân người dùng tạo Sub-task.
@@ -1974,22 +2045,40 @@ def check_jira_updates(force_refresh: bool = False) -> dict:
     payload = json.dumps({
         "jql": "project in (EAS, SSLN, IZI, ESORG) ORDER BY updated DESC",
         "maxResults": 15,
-        "fields": ["summary", "status", "issuetype", "updated", "created", "comment", "reporter", "assignee"]
+        "fields": ["summary", "status", "issuetype", "updated", "created", "comment", "reporter", "assignee"],
+        "expand": "changelog"
     }).encode("utf-8")
 
     url = f"{host}/rest/api/3/search/jql"
     try:
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        try:
+            resp = urllib.request.urlopen(req, timeout=10)
+        except urllib.error.HTTPError as he:
+            if he.code == 400 and b"expand" in payload:
+                # Fallback nếu Jira server không hỗ trợ expand changelog trong JQL search
+                fallback_payload = json.dumps({
+                    "jql": "project in (EAS, SSLN, IZI, ESORG) ORDER BY updated DESC",
+                    "maxResults": 15,
+                    "fields": ["summary", "status", "issuetype", "updated", "created", "comment", "reporter", "assignee"]
+                }).encode("utf-8")
+                req_fallback = urllib.request.Request(url, data=fallback_payload, headers=headers, method="POST")
+                resp = urllib.request.urlopen(req_fallback, timeout=10)
+            else:
+                raise
+
+        with resp:
             data = json.loads(resp.read().decode("utf-8"))
             issues = data.get("issues", [])
 
             # Nếu là lần chạy đầu tiên (chưa khởi tạo cache)
             if not _JIRA_SEEN_CACHE["initialized"]:
+                _JIRA_SEEN_CACHE.setdefault("issue_updates", {})
                 for it in issues:
                     k = it.get("key")
                     if k:
                         _JIRA_SEEN_CACHE["issues"].add(k)
+                        _JIRA_SEEN_CACHE["issue_updates"][k] = (it.get("fields") or {}).get("updated") or ""
                     comments = (it.get("fields", {}).get("comment") or {}).get("comments", [])
                     for c in comments:
                         cid = str(c.get("id") or "")
@@ -1999,62 +2088,30 @@ def check_jira_updates(force_refresh: bool = False) -> dict:
                 _JIRA_SEEN_CACHE["last_check"] = time.time()
                 return {"success": True, "notifications": [], "initialized": True}
 
-            # Lần gọi tiếp theo: phát hiện task mới hoặc comment mới
+            # Lần gọi tiếp theo: phát hiện task mới, cập nhật doc hoặc comment mới
             notifications = []
             my_id = _get_current_user_account_id(cfg)
             my_email = (cfg.get("email") or "").strip().lower()
+            _JIRA_SEEN_CACHE.setdefault("issue_updates", {})
 
+            # 1. Phát hiện Bình luận mới trước để tránh duplicate thông báo cập nhật doc cho cùng 1 bình luận
+            comment_issue_keys = set()
             for it in issues:
                 k = it.get("key")
                 f = it.get("fields") or {}
                 if not k:
                     continue
-
-                is_new_issue = k not in _JIRA_SEEN_CACHE["issues"]
-                if is_new_issue:
-                    _JIRA_SEEN_CACHE["issues"].add(k)
-
-                type_obj = f.get("issuetype") or {}
-                tname = type_obj.get("name") or "Task"
-                is_subtask = bool(type_obj.get("subtask") or (tname.lower() in ("sub-task", "subtask")))
-
-                reporter_obj = f.get("reporter") or {}
-                rep_id = str(reporter_obj.get("accountId") or "")
-                rep_email = str(reporter_obj.get("emailAddress") or "").strip().lower()
-
-                # Nhận diện nếu chính bản thân tạo subtask
-                is_self_created = (
-                    k in _SELF_CREATED_SUBTASKS
-                    or (my_id and rep_id == my_id)
-                    or (my_email and rep_email == my_email)
-                )
-
-                # 1. Phát hiện Task/Subtask mới vừa log
-                if is_new_issue:
-                    # Bản thân tôi tạo subtask thì không cần phải thông báo
-                    if is_subtask and is_self_created:
-                        pass
-                    else:
-                        rep_name = reporter_obj.get("displayName") or "Thành viên"
-                        notifications.append({
-                            "id": f"task_{k}",
-                            "type": "issue_created",
-                            "key": k,
-                            "title": f"Task mới vừa log: {k}",
-                            "issuetype": tname,
-                            "summary": f.get("summary") or "",
-                            "author": rep_name,
-                            "created": f.get("created") or "",
-                            "message": f"{rep_name} vừa log {tname} [{k}]: {f.get('summary', '')[:80]}"
-                        })
-
-                # 2. Phát hiện Bình luận mới
                 comments = (f.get("comment") or {}).get("comments", [])
                 for c in comments:
                     cid = str(c.get("id") or "")
                     if cid and cid not in _JIRA_SEEN_CACHE["comments"]:
                         _JIRA_SEEN_CACHE["comments"].add(cid)
-                        c_author = (c.get("author") or {}).get("displayName") or "Thành viên"
+                        comment_issue_keys.add(k)
+                        c_author_obj = c.get("author") or {}
+                        c_author = c_author_obj.get("displayName") or "Thành viên"
+                        c_author_id = str(c_author_obj.get("accountId") or "")
+                        c_author_email = str(c_author_obj.get("emailAddress") or "").strip().lower()
+                        is_my_comment = bool((my_id and c_author_id == my_id) or (my_email and c_author_email == my_email))
                         c_body = _clean_text_from_adf(c.get("body"))
                         notifications.append({
                             "id": f"comment_{cid}",
@@ -2065,7 +2122,124 @@ def check_jira_updates(force_refresh: bool = False) -> dict:
                             "author": c_author,
                             "comment_body": c_body[:120],
                             "created": c.get("created") or "",
+                            "is_self": is_my_comment,
                             "message": f"{c_author} vừa bình luận trên [{k}]: \"{c_body[:80]}...\""
+                        })
+
+            # 2. Phát hiện Task mới vừa log hoặc Cập nhật doc
+            for it in issues:
+                k = it.get("key")
+                f = it.get("fields") or {}
+                if not k:
+                    continue
+
+                created_str = f.get("created") or ""
+                updated_str = f.get("updated") or ""
+
+                is_new_issue = k not in _JIRA_SEEN_CACHE["issues"]
+                prev_updated = _JIRA_SEEN_CACHE["issue_updates"].get(k)
+                is_updated_issue = bool(prev_updated and updated_str and updated_str != prev_updated)
+
+                # Cập nhật cache
+                _JIRA_SEEN_CACHE["issues"].add(k)
+                _JIRA_SEEN_CACHE["issue_updates"][k] = updated_str
+
+                # Nếu vừa có bình luận mới trên task này thì ưu tiên thông báo bình luận, không spam thêm cập nhật doc
+                if k in comment_issue_keys:
+                    continue
+
+                # Nếu không phải issue mới xuất hiện và cũng không có thay đổi updated -> bỏ qua
+                if not is_new_issue and not is_updated_issue:
+                    continue
+
+                type_obj = f.get("issuetype") or {}
+                tname = type_obj.get("name") or "Task"
+                is_subtask = bool(type_obj.get("subtask") or (tname.lower() in ("sub-task", "subtask")))
+
+                reporter_obj = f.get("reporter") or {}
+                rep_id = str(reporter_obj.get("accountId") or "")
+                rep_email = str(reporter_obj.get("emailAddress") or "").strip().lower()
+                rep_name = reporter_obj.get("displayName") or "Thành viên"
+
+                # Lấy người cập nhật gần nhất từ changelog nếu có
+                updater_name = ""
+                updater_id = ""
+                updater_email = ""
+                histories = (it.get("changelog") or {}).get("histories", [])
+                if histories:
+                    h_author = histories[0].get("author") or {}
+                    updater_name = h_author.get("displayName") or ""
+                    updater_id = str(h_author.get("accountId") or "")
+                    updater_email = str(h_author.get("emailAddress") or "").strip().lower()
+
+                author_name = updater_name or rep_name
+
+                # Nhận diện nếu chính bản thân tạo hoặc cập nhật
+                is_self_action = bool(
+                    (my_id and (updater_id == my_id or rep_id == my_id))
+                    or (my_email and (updater_email == my_email or rep_email == my_email))
+                )
+                is_self_created = bool(
+                    k in _SELF_CREATED_SUBTASKS
+                    or (my_id and rep_id == my_id)
+                    or (my_email and rep_email == my_email)
+                )
+
+                # Phân biệt Task mới vừa log vs Task đã log từ lâu rồi vào update lại ("Cập nhật doc")
+                created_dt = _parse_jira_datetime(created_str)
+                updated_dt = _parse_jira_datetime(updated_str)
+
+                is_doc_update = False
+                if is_updated_issue:
+                    is_doc_update = True
+                elif is_new_issue:
+                    # Nếu task tạo từ trước và thời gian updated cách thời gian tạo > 5 phút (300 giây)
+                    if created_dt and updated_dt:
+                        diff_sec = (updated_dt - created_dt).total_seconds()
+                        if diff_sec > 300:
+                            is_doc_update = True
+                    # Hoặc task tạo từ lâu (> 30 phút) nhưng VỪA mới được cập nhật (trong 30 phút).
+                    # Bắt buộc updated phải gần hiện tại để tránh gắn nhầm "Cập nhật doc" cho
+                    # những task cũ chỉ đơn thuần mới lọt vào cửa sổ JQL.
+                    if not is_doc_update and created_dt and updated_dt:
+                        now_tz = datetime.now(created_dt.tzinfo) if created_dt.tzinfo else datetime.now()
+                        created_age = (now_tz - created_dt).total_seconds()
+                        updated_age = (now_tz - updated_dt).total_seconds()
+                        if created_age > 1800 and updated_age <= 1800:
+                            is_doc_update = True
+
+                if is_doc_update:
+                    update_suffix = re.sub(r'[^a-zA-Z0-9]', '', updated_str)[-8:] if updated_str else str(int(time.time()))
+                    notifications.append({
+                        "id": f"task_update_{k}_{update_suffix}",
+                        "type": "issue_updated",
+                        "key": k,
+                        "title": f"Cập nhật doc: {k}",
+                        "issuetype": tname,
+                        "summary": f.get("summary") or "",
+                        "author": author_name,
+                        "created": created_str,
+                        "updated": updated_str,
+                        "is_self": is_self_action,
+                        "message": f"{author_name} vừa cập nhật doc {tname} [{k}]: {f.get('summary', '')[:80]}"
+                    })
+                else:
+                    # Task mới vừa log
+                    if is_subtask and is_self_created:
+                        pass
+                    else:
+                        notifications.append({
+                            "id": f"task_{k}",
+                            "type": "issue_created",
+                            "key": k,
+                            "title": f"Task mới vừa log: {k}",
+                            "issuetype": tname,
+                            "summary": f.get("summary") or "",
+                            "author": rep_name,
+                            "created": created_str,
+                            "updated": updated_str,
+                            "is_self": is_self_created,
+                            "message": f"{rep_name} vừa log {tname} [{k}]: {f.get('summary', '')[:80]}"
                         })
 
             _JIRA_SEEN_CACHE["last_check"] = time.time()

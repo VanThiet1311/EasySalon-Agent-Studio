@@ -280,3 +280,39 @@ function navigateToGitCheckoutBranch(branchName) {
   }
 }
 window.navigateToGitCheckoutBranch = navigateToGitCheckoutBranch;
+
+/**
+ * Mở modal xem trước ảnh phóng to (Lightbox Modal)
+ */
+function openImagePreviewModal(url, title = '') {
+  if (!url) return;
+  const root = document.getElementById('imagePreviewModalRoot');
+  const img = document.getElementById('imagePreviewModalImg');
+  const titleEl = document.getElementById('imagePreviewModalTitle');
+  const link = document.getElementById('imagePreviewModalLink');
+  if (!root || !img) return;
+
+  img.src = url;
+  if (titleEl) titleEl.textContent = title || 'Ảnh minh chứng';
+  if (link) link.href = url;
+  root.classList.remove('hidden');
+}
+window.openImagePreviewModal = openImagePreviewModal;
+
+/**
+ * Đóng modal xem trước ảnh
+ */
+function closeImagePreviewModal() {
+  const root = document.getElementById('imagePreviewModalRoot');
+  const img = document.getElementById('imagePreviewModalImg');
+  if (!root) return;
+  root.classList.add('hidden');
+  if (img) img.src = '';
+}
+window.closeImagePreviewModal = closeImagePreviewModal;
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeImagePreviewModal();
+  }
+});

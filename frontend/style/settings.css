@@ -433,7 +433,7 @@ body.light-mode .model-family-tab.is-active .tab-pill {
 .api-provider-btn:not(.is-active) {
   background-color: #0c1628;
   border: 1px solid #244170;
-  color: #94a3b8;
+  color: #cbd5e1;
 }
 .api-provider-btn:not(.is-active):hover {
   border-color: #1677ff;
@@ -444,6 +444,10 @@ body.light-mode .api-provider-btn:not(.is-active) {
   background-color: #f1f5f9 !important;
   border-color: #cbd5e1 !important;
   color: #475569 !important;
+}
+.api-provider-btn:not(.is-active) .text-xs.font-bold,
+.api-provider-btn:not(.is-active) .text-\[10px\].text-slate-400 {
+  color: #cbd5e1 !important;
 }
 body.light-mode .api-provider-btn:not(.is-active):hover {
   border-color: #1677ff !important;
@@ -461,6 +465,37 @@ body.light-mode .api-provider-btn.is-active {
 .api-provider-btn.is-active *,
 body.light-mode .api-provider-btn.is-active * {
   color: #ffffff !important;
+}
+
+/* ============================================================
+   PROVIDER STATUS PILL ON OVERVIEW BUTTONS
+   ============================================================ */
+.provider-status-pill {
+  transition: all 0.15s ease-in-out;
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  background-color: rgba(15, 23, 42, 0.6);
+  color: #cbd5e1;
+}
+.provider-status-pill.is-connected {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+body.light-mode .provider-status-pill {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+body.light-mode .provider-status-pill.is-connected {
+  background-color: #ecfdf5 !important;
+  color: #059669 !important;
+  border-color: #a7f3d0 !important;
+}
+.api-provider-btn.is-active .provider-status-pill,
+body.light-mode .api-provider-btn.is-active .provider-status-pill {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
 }
 
 /* ============================================================
@@ -1199,6 +1234,13 @@ body.light-mode #settingsPanel_api label:not(.text-slate-400) {
 }
 body.light-mode #settingsPanel_api p {
   color: #475569 !important;
+}
+.api-key-item-box {
+  border: none !important;
+  transition: background-color 0.15s ease;
+}
+.api-key-item-box p.text-\[11px\].text-slate-400 {
+  color: #94a3b8 !important;
 }
 body.light-mode .api-key-item-box {
   background-color: #f8fafc !important;

@@ -274,6 +274,156 @@ body.light-mode div[id$="_running"] .text-slate-400 {
 }
 
 /* ====================================================================
+   AI THINKING & PROCESSING CARD (LIGHT & DARK MODE)
+   ==================================================================== */
+.thinking-card-box {
+  background-color: #070d18;
+  border: 1px solid rgba(22, 119, 255, 0.4);
+}
+.thinking-card-box .thinking-card-title {
+  color: #67e8f9;
+}
+.thinking-card-box .thinking-card-badge {
+  background-color: rgba(8, 51, 68, 0.8);
+  border-color: #155e75;
+  color: #22d3ee;
+}
+.thinking-card-box .thinking-card-cmd {
+  background-color: #040810;
+  border-color: #1e3458;
+}
+.thinking-card-box .thinking-card-cmd-text {
+  color: #e2e8f0;
+}
+
+body.light-mode .thinking-card-box {
+  background-color: #f8fafc !important;
+  border: 1px solid #bfdbfe !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.08) !important;
+}
+body.light-mode .thinking-card-box .thinking-card-title {
+  color: #0958d9 !important;
+  font-weight: 600 !important;
+}
+body.light-mode .thinking-card-box .thinking-card-badge {
+  background-color: #e6f4ff !important;
+  border: 1px solid #91caff !important;
+  color: #0958d9 !important;
+}
+body.light-mode .thinking-card-box .thinking-card-cmd {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+body.light-mode .thinking-card-box .thinking-card-cmd-text {
+  color: #334155 !important;
+}
+body.light-mode .thinking-card-box .wave-dot {
+  background-color: #1677ff !important;
+}
+body.light-mode .thinking-card-box .thinking-card-bars div {
+  background: linear-gradient(90deg, rgba(22, 119, 255, 0.3) 0%, rgba(9, 88, 217, 0.1) 100%) !important;
+}
+
+/* Tool step box in light mode - deep contrast cleanup */
+body.light-mode .tool-step-box span.text-cyan-300,
+body.light-mode .tool-step-box span.text-cyan-400 {
+  color: #0958d9 !important;
+}
+body.light-mode .tool-step-box .wave-dot {
+  background-color: #1677ff !important;
+}
+body.light-mode .tool-step-box span.text-slate-200,
+body.light-mode .tool-step-box span.text-slate-300,
+body.light-mode .tool-step-box span.text-slate-100 {
+  color: #0f172a !important;
+}
+
+/* Turn images strip in light mode */
+body.light-mode .turn-images-strip {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+body.light-mode .turn-images-strip > div {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+body.light-mode .turn-images-strip > div:hover {
+  border-color: #1677ff !important;
+}
+body.light-mode .turn-images-strip span {
+  color: #334155 !important;
+}
+
+/* Continuation Box (sessContinueBox) in light mode */
+body.light-mode [id^="sessContinueBox_"] {
+  border-top-color: #e2e8f0 !important;
+}
+body.light-mode [id^="sessContinueBox_"] .text-cyan-300 {
+  color: #0958d9 !important;
+}
+body.light-mode [id^="sessContinueBox_"] .text-slate-400 {
+  color: #64748b !important;
+}
+body.light-mode [id^="sessContinueBox_"] input[type="text"] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+body.light-mode [id^="sessContinueBox_"] input[type="text"]::placeholder {
+  color: #94a3b8 !important;
+}
+body.light-mode [id^="sessContinueBox_"] input[type="text"]:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15) !important;
+}
+body.light-mode [id^="sessContinueBox_"] .continue-images-container {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+body.light-mode [id^="sessContinueBox_"] .continue-image-item {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+body.light-mode [id^="sessContinueBox_"] .continue-image-item:hover {
+  border-color: #1677ff !important;
+}
+body.light-mode [id^="sessContinueBox_"] .continue-image-item .continue-image-name {
+  color: #334155 !important;
+}
+body.light-mode [id^="sessContinueBox_"] .continue-image-item > div:first-child {
+  background-color: #f1f5f9 !important;
+}
+body.light-mode [id^="sessContinueBox_"] .continue-image-item > div:last-child {
+  background-color: #ffffff !important;
+  border-top-color: #e2e8f0 !important;
+}
+
+/* Task prompt images in light mode */
+body.light-mode #taskPromptImagesContainer {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+body.light-mode #taskPromptImagesContainer .group {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+body.light-mode #taskPromptImagesContainer .group:hover {
+  border-color: #1677ff !important;
+}
+body.light-mode #taskPromptImagesContainer .group > div:first-child {
+  background-color: #f1f5f9 !important;
+}
+body.light-mode #taskPromptImagesContainer .group > div:last-child {
+  background-color: #ffffff !important;
+  border-top-color: #e2e8f0 !important;
+}
+body.light-mode #taskPromptImagesContainer span.text-slate-300 {
+  color: #334155 !important;
+}
+
+/* ====================================================================
    IN-APP FILE EDITOR MODAL (VS CODE SIMULATED EDITOR)
    ==================================================================== */
 #fileEditorModalCard {
@@ -951,6 +1101,15 @@ body.light-mode #btnStartTaskText,
 body.light-mode [id^="sessContinueBox_"] button,
 body.light-mode [id^="sessContinueBox_"] button * {
   color: #ffffff !important;
+}
+
+[id^="sessContinueBox_"] button,
+body.light-mode [id^="sessContinueBox_"] button {
+  background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%) !important;
+}
+[id^="sessContinueBox_"] button:hover,
+body.light-mode [id^="sessContinueBox_"] button:hover {
+  background: linear-gradient(135deg, #4096ff 0%, #1677ff 100%) !important;
 }
 
 /* ====================================================================

@@ -143,7 +143,11 @@ def get_all_mcp_servers() -> list:
             or "mssql" in name.lower()
             or any("sqlserver" in k.lower() for k in env.keys())
             or "mcp-sqlserver" in " ".join([command] + [str(a) for a in args])
-            or "mysql" in name.lower()
+        )
+        is_mysql = (
+            "mysql" in name.lower()
+            or "mariadb" in name.lower()
+            or any(k.upper().startswith("MYSQL_") for k in env.keys())
             or "server-mysql" in " ".join([command] + [str(a) for a in args])
         )
         is_gitlab = (
@@ -156,7 +160,7 @@ def get_all_mcp_servers() -> list:
             or "SLACK_BOT_TOKEN" in env
             or "server-slack" in " ".join([command] + [str(a) for a in args])
         )
-        preset_name = "jira" if is_jira else ("github" if is_github else ("postgres" if is_postgres else ("sqlserver" if is_sqlserver else ("gitlab" if is_gitlab else ("slack" if is_slack else "custom")))))
+        preset_name = "jira" if is_jira else ("github" if is_github else ("postgres" if is_postgres else ("sqlserver" if is_sqlserver else ("mysql" if is_mysql else ("gitlab" if is_gitlab else ("slack" if is_slack else "custom"))))))
 
         # Full command string for display
         cmd_str = ""
@@ -184,7 +188,7 @@ def get_all_mcp_servers() -> list:
             "disabled": disabled,
             "in_gemini": name in gemini_servers,
             "in_opencode": name in opencode_servers,
-            "preset": "jira" if is_jira else "custom",
+            "preset": preset_name,
             "status": computed_status,
             "live_status": live_status,
             "live_detail": live_detail,
@@ -825,48 +829,232 @@ def test_sqlserver_connection(
     }
 
 
+def parse_mysql_connection_string(conn_str: str) -> dict:
+    """Phân tích MySQL Connection URL (mysql://...) hoặc chuỗi key=value kiểu Workbench (host=...;port=...;user=...;password=...;database=...)."""
+    import urllib.parse
+
+    conn_str = (conn_str or "").strip()
+    res = {
+        "host": "",
+        "port": 3306,
+        "user": "",
+        "password": "",
+        "database": "",
+    }
+    if not conn_str:
+        return res
+
+    # 1. Chuỗi key=value (host=...;port=...;user=...;password=...;database=...)
+    if ";" in conn_str or ("=" in conn_str and not conn_str.startswith("mysql://")):
+        for part in [p.strip() for p in conn_str.split(";") if p.strip()]:
+            if "=" not in part:
+                continue
+            k, v = part.split("=", 1)
+            k = k.strip().lower()
+            v = v.strip()
+            if k in ("host", "server", "hostname", "data source", "address", "addr"):
+                if ":" in v:
+                    h, pt = v.rsplit(":", 1)
+                    res["host"] = h.strip()
+                    try:
+                        res["port"] = int(pt.strip())
+                    except Exception:
+                        pass
+                else:
+                    res["host"] = v
+            elif k == "port":
+                try:
+                    res["port"] = int(v)
+                except Exception:
+                    pass
+            elif k in ("user", "username", "uid", "user id"):
+                res["user"] = v
+            elif k in ("password", "pwd", "pass"):
+                res["password"] = v
+            elif k in ("database", "db", "schema", "initial catalog"):
+                res["database"] = v
+        return res
+
+    # 2. URL mysql://user:pass@host:port/database
+    m = re.match(
+        r"^mysql:\/\/(?:([^:@/]+)(?::([^@]*))?@)?([^:\/\?#]+)(?::(\d+))?(?:\/([^?#]*))?(?:\?(.*))?$",
+        conn_str,
+        re.IGNORECASE,
+    )
+    if m:
+        u, p, h, pt, db, _q = m.groups()
+        if u:
+            res["user"] = urllib.parse.unquote(u)
+        if p:
+            res["password"] = urllib.parse.unquote(p)
+        if h:
+            res["host"] = h
+        if pt:
+            try:
+                res["port"] = int(pt)
+            except Exception:
+                pass
+        if db:
+            res["database"] = urllib.parse.unquote(db)
+    return res
+
+
 def save_mysql_mcp_preset(
     conn_url: str = "",
-    server_name: str = "sqlserver",
+    server_name: str = "mysql",
     host: str = "",
-    port: int = 1433,
+    port: int = 3306,
     user: str = "",
     password: str = "",
     database: str = "",
+    ssl: bool = True,
     **kwargs,
 ) -> dict:
-    """Backward compatibility alias cho save_sqlserver_mcp_preset."""
-    return save_sqlserver_mcp_preset(
-        conn_url=conn_url,
-        server_name=server_name,
-        host=host,
-        port=port,
-        user=user,
-        password=password,
-        database=database,
-        **kwargs,
-    )
+    """Helper cấu hình nhanh MySQL / MariaDB MCP Server chuẩn stdio npx @benborla29/mcp-server-mysql."""
+    parsed = parse_mysql_connection_string(conn_url)
+    h = (host or parsed.get("host") or "127.0.0.1").strip()
+    try:
+        p = int(port or parsed.get("port") or 3306)
+    except Exception:
+        p = 3306
+    u = (user or parsed.get("user") or "root").strip()
+    pwd = str(password if password != "" else parsed.get("password") or "")
+    db = (database or parsed.get("database") or "").strip()
+
+    if not h or not u:
+        raise ValueError("Vui lòng nhập thông tin kết nối MySQL (Host, User, Port).")
+
+    env = {
+        "MYSQL_HOST": h,
+        "MYSQL_PORT": str(p),
+        "MYSQL_USER": u,
+        "MYSQL_PASS": pwd,
+        # Bật SSL/TLS giống MySQL Workbench (useSSL=1), có thể tắt cho server local
+        "MYSQL_SSL": "true" if ssl else "false",
+        # Mặc định chỉ đọc để Agent không tự ý sửa dữ liệu production
+        "ALLOW_INSERT_OPERATION": "false",
+        "ALLOW_UPDATE_OPERATION": "false",
+        "ALLOW_DELETE_OPERATION": "false",
+    }
+    if db:
+        env["MYSQL_DB"] = db
+
+    cfg = {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "@benborla29/mcp-server-mysql"],
+        "env": env,
+        "disabled": False,
+    }
+    return save_mcp_server(server_name, cfg, target="both")
 
 
 def test_mysql_connection(
     host: str = "127.0.0.1",
-    port: int = 1433,
-    user: str = "sa",
+    port: int = 3306,
+    user: str = "root",
     password: str = "",
-    database: str = "master",
+    database: str = "",
     conn_url: str = "",
+    ssl: bool = True,
     **kwargs,
 ) -> dict:
-    """Backward compatibility alias cho test_sqlserver_connection."""
-    return test_sqlserver_connection(
-        host=host,
-        port=port,
-        user=user,
-        password=password,
-        database=database,
-        conn_url=conn_url,
-        **kwargs,
-    )
+    """Kiểm tra kết nối và xác thực tới MySQL / MariaDB Server."""
+    import socket
+    import subprocess
+
+    conn_url = (conn_url or "").strip()
+    if conn_url:
+        parsed = parse_mysql_connection_string(conn_url)
+        if parsed.get("host"):
+            host = parsed["host"]
+        if parsed.get("port"):
+            port = parsed["port"]
+        if parsed.get("user"):
+            user = parsed["user"]
+        if parsed.get("password") != "":
+            password = parsed["password"]
+        if parsed.get("database"):
+            database = parsed["database"]
+
+    host = (host or "127.0.0.1").strip()
+    try:
+        port_int = int(port or 3306)
+    except Exception:
+        port_int = 3306
+
+    user = (user or "root").strip()
+    password = str(password or "")
+    database = str(database or "").strip()
+
+    # 1. Kiểm tra mở cổng TCP (Socket Port Check)
+    try:
+        sock = socket.create_connection((host, port_int), timeout=4)
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Không thể kết nối đến máy chủ MySQL tại {host}:{port_int}. Chi tiết lỗi: {str(e)}",
+        }
+
+    # 2. Đọc gói Handshake để lấy phiên bản MySQL (không cần xác thực)
+    server_version = ""
+    try:
+        data = sock.recv(1024)
+        if len(data) > 5 and data[4] in (9, 10):
+            null_idx = data.find(b"\x00", 5)
+            if null_idx != -1:
+                server_version = data[5:null_idx].decode("latin1", errors="ignore")
+    except Exception:
+        pass
+    finally:
+        sock.close()
+
+    # 3. Xác thực bằng MySQL CLI nếu máy có sẵn (tránh lộ mật khẩu qua tham số dòng lệnh)
+    if shutil.which("mysql"):
+        try:
+            cmd = ["mysql", "-h", host, "-P", str(port_int), "-u", user, "--connect-timeout=3"]
+            if ssl:
+                cmd.append("--ssl-mode=REQUIRED")
+            if database:
+                cmd.append(database)
+            cmd.extend(["-e", "SELECT 1;"])
+            env = os.environ.copy()
+            if password:
+                env["MYSQL_PWD"] = password
+            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=6, env=env)
+            if proc.returncode == 0:
+                info_parts = [f"Máy chủ: {host}:{port_int}"]
+                if server_version:
+                    info_parts.append(f"MySQL version: {server_version}")
+                if user:
+                    info_parts.append(f"User: {user}")
+                if database:
+                    info_parts.append(f"Database: {database}")
+                return {
+                    "success": True,
+                    "message": f"Kết nối và xác thực MySQL thành công! ({', '.join(info_parts)})",
+                    "version": server_version,
+                }
+            err = (proc.stderr or proc.stdout).strip()
+            err_clean = "\n".join(
+                line for line in err.splitlines()
+                if "Using a password on the command line interface can be insecure" not in line
+            ).strip()
+            return {
+                "success": False,
+                "message": f"Máy chủ {host}:{port_int} phản hồi, nhưng xác thực thất bại: {err_clean}",
+            }
+        except Exception:
+            pass
+
+    info_parts = [f"Máy chủ: {host}:{port_int}"]
+    if server_version:
+        info_parts.append(f"Phiên bản: {server_version}")
+    return {
+        "success": True,
+        "message": f"Kết nối cổng dịch vụ MySQL thành công! ({', '.join(info_parts)})",
+        "version": server_version,
+    }
 
 
 def save_gitlab_mcp_preset(host: str, token: str, server_name: str = "gitlab") -> dict:

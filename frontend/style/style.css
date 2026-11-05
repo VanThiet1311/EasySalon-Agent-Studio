@@ -458,6 +458,12 @@ body.light-mode #notifDropdownMenu {
   color: #0958d9 !important;
 }
 .notif-tag-jira-task:hover { background-color: #bae0ff !important; }
+.notif-tag-jira-doc {
+  background-color: #e6fffb !important;
+  border: 1px solid #87e8de !important;
+  color: #08979c !important;
+}
+.notif-tag-jira-doc:hover { background-color: #b5f5ec !important; }
 .notif-tag-jira-comment {
   background-color: #f9f0ff !important;
   border: 1px solid #d3adf7 !important;

@@ -14,7 +14,7 @@ import traceback
 import urllib.parse
 import uuid
 
-from config import BASE_DIR, FE_WORKSPACE, BE_WORKSPACE, get_fe_workspace, get_be_workspace, get_workspace
+from config import BASE_DIR, STORAGE_DIR, FE_WORKSPACE, BE_WORKSPACE, get_fe_workspace, get_be_workspace, get_workspace
 from studio.state import (
     app_state,
     state_lock,
@@ -24,6 +24,8 @@ from studio.state import (
     add_work_log,
     load_settings,
     save_settings,
+    SETTINGS_FILE,
+    get_opencode_model_variant,
     is_nine_router_online,
     get_gemini_cli_status,
     start_nine_router_background,
@@ -313,9 +315,10 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 }
             self.send_json(data)
         elif path == '/api/settings':
-            from studio.state import detect_opencode_active_model, save_settings
+            from studio.state import detect_opencode_active_model, save_settings, get_opencode_model_variant
             from studio.terminals import sync_active_task_models
             detected = detect_opencode_active_model()
+            persist_changes = False
             with state_lock:
                 st = dict(app_state.get('settings', load_settings()))
                 if detected:
@@ -324,11 +327,34 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                     if clean_detected and st.get('opencode_model') != clean_detected:
                         st['opencode_model'] = clean_detected
                         app_state['settings'] = st
+                        persist_changes = True
+
+                # Đồng bộ effort người dùng vừa chọn trong OpenCode TUI (~/.local/state/opencode/model.json)
+                if str(st.get('engine') or '').strip().lower() == 'opencode':
+                    variant_effort = get_opencode_model_variant(st.get('opencode_model') or detected)
+                    if variant_effort:
+                        stored_effort = ''
                         try:
-                            save_settings(st)
-                            sync_active_task_models(st)
+                            with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
+                                stored_effort = str((json.load(f) or {}).get('effort') or '').strip().lower()
                         except Exception:
-                            pass
+                            stored_effort = ''
+                        if variant_effort != stored_effort:
+                            st['effort'] = variant_effort
+                            app_state['settings'] = st
+                            persist_changes = True
+                        elif st.get('effort') != variant_effort:
+                            st['effort'] = variant_effort
+                            app_state['settings'] = st
+
+            # Ghi file & đồng bộ session NGOÀI state_lock để tránh deadlock
+            # (sync_active_task_models cũng cần state_lock).
+            if persist_changes:
+                try:
+                    save_settings(st)
+                    sync_active_task_models(st)
+                except Exception:
+                    pass
             from config import get_agy_bin, get_opencode_bin
             current_fe = get_fe_workspace()
             current_be = get_be_workspace()
@@ -509,6 +535,39 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             import studio.jira_ops as jira_ops
             jira_ops.stream_jira_attachment(self, att_id)
             return
+        elif path.startswith('/api/uploads/'):
+            filename = os.path.basename(path)
+            upload_dir = os.path.join(STORAGE_DIR, 'uploads')
+            file_path = os.path.join(upload_dir, filename)
+            if not os.path.isfile(file_path):
+                tmp_file = os.path.join('/tmp/antigravity/screenshots', filename)
+                if os.path.isfile(tmp_file):
+                    file_path = tmp_file
+                else:
+                    self.send_error(404, "File Not Found")
+                    return
+            ext = os.path.splitext(filename)[1].lower()
+            content_types = {
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.webp': 'image/webp',
+                '.gif': 'image/gif',
+                '.svg': 'image/svg+xml'
+            }
+            ct = content_types.get(ext, 'application/octet-stream')
+            try:
+                with open(file_path, 'rb') as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header('Content-Type', ct)
+                self.send_header('Content-Length', str(len(content)))
+                self.send_header('Cache-Control', 'public, max-age=86400')
+                self.end_headers()
+                self.wfile.write(content)
+            except Exception as e:
+                self.send_error(500, str(e))
+            return
         elif path == '/api/notes':
             from studio.services.notes_service import get_all_notes
             notes = get_all_notes()
@@ -597,13 +656,13 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             })
         elif path == '/api/git/conflict/status':
             qs = urllib.parse.parse_qs(parsed.query)
-            target = qs.get('target', ['fe'])[0]
+            target = qs.get('target', qs.get('role', ['fe']))[0]
             ws = get_workspace(target)
             data = get_git_active_conflict_status(ws)
             self.send_json(data)
         elif path == '/api/git/conflict/file':
             qs = urllib.parse.parse_qs(parsed.query)
-            target = qs.get('target', ['fe'])[0]
+            target = qs.get('target', qs.get('role', ['fe']))[0]
             file_path = qs.get('file', [''])[0]
             ws = get_workspace(target)
             data = get_git_conflict_file_info(ws, file_path)
@@ -721,7 +780,75 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
         except Exception:
             body = {}
 
-        if path in ('/api/task', '/api/discuss'):
+        if path == '/api/upload-image':
+            image_data = (body.get('image') or body.get('data') or '').strip()
+            raw_filename = (body.get('filename') or body.get('name') or 'screenshot.png').strip()
+            if not image_data:
+                self.send_json({'success': False, 'message': 'Không tìm thấy dữ liệu ảnh để tải lên.'}, 400)
+                return
+
+            ext = '.png'
+            if ',' in image_data and ';base64' in image_data:
+                header, base64_str = image_data.split(',', 1)
+                if 'image/jpeg' in header or 'image/jpg' in header:
+                    ext = '.jpg'
+                elif 'image/webp' in header:
+                    ext = '.webp'
+                elif 'image/gif' in header:
+                    ext = '.gif'
+                elif 'image/svg+xml' in header:
+                    ext = '.svg'
+            else:
+                base64_str = image_data
+                if '.' in raw_filename:
+                    ext = os.path.splitext(raw_filename)[1].lower() or '.png'
+
+            import base64
+            try:
+                img_bytes = base64.b64decode(base64_str)
+            except Exception as e:
+                self.send_json({'success': False, 'message': f'Dữ liệu base64 không hợp lệ: {str(e)}'}, 400)
+                return
+
+            upload_dir = os.path.join(STORAGE_DIR, 'uploads')
+            os.makedirs(upload_dir, exist_ok=True)
+            tmp_ss_dir = '/tmp/antigravity/screenshots'
+            try:
+                os.makedirs(tmp_ss_dir, exist_ok=True)
+            except Exception:
+                pass
+
+            ts_str = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            uid_str = uuid.uuid4().hex[:6]
+            safe_basename = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', os.path.splitext(raw_filename)[0]) or 'screenshot'
+            file_name = f"{safe_basename}_{ts_str}_{uid_str}{ext}"
+            file_path = os.path.join(upload_dir, file_name)
+
+            try:
+                with open(file_path, 'wb') as f:
+                    f.write(img_bytes)
+                try:
+                    tmp_file_path = os.path.join(tmp_ss_dir, file_name)
+                    with open(tmp_file_path, 'wb') as tf:
+                        tf.write(img_bytes)
+                except Exception:
+                    pass
+            except Exception as e:
+                self.send_json({'success': False, 'message': f'Lỗi khi lưu file ảnh: {str(e)}'}, 500)
+                return
+
+            rel_url = f"/api/uploads/{file_name}"
+            self.send_json({
+                'success': True,
+                'url': rel_url,
+                'local_path': os.path.abspath(file_path),
+                'filename': file_name,
+                'name': raw_filename,
+                'size': len(img_bytes)
+            })
+            return
+
+        elif path in ('/api/task', '/api/discuss'):
             prompt = body.get('prompt', '').strip()
             error_log = body.get('error_log', '').strip()
             original_prompt = body.get('original_prompt', '').strip()
@@ -781,6 +908,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'prompt': prompt,
                 'original_prompt': original_prompt,
                 'error_log': error_log,
+                'images': body.get('images', []),
                 'createdAt': datetime.datetime.now().strftime('%H:%M:%S')
             })
             is_queued = (q_res['queue_status'] == 'queued')
@@ -848,6 +976,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
                 'fix_desc': description,
                 'original_prompt': original_prompt,
                 'fix_err': error_log,
+                'images': body.get('images', []),
                 'continuation': is_continuation,
                 'createdAt': datetime.datetime.now().strftime('%H:%M:%S')
             })
@@ -1152,52 +1281,79 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
 
         elif path in ('/api/mcp/add-sqlserver', '/api/mcp/add-mysql'):
             import studio.mcp_ops as mcp_ops
+            is_mysql = path.endswith('add-mysql')
             conn_url = str(body.get('url') or body.get('conn_url') or '').strip()
-            name = str(body.get('name') or 'sqlserver').strip()
+            name = str(body.get('name') or ('mysql' if is_mysql else 'sqlserver')).strip()
             host = str(body.get('host') or '').strip()
-            port = body.get('port') or 1433
+            port = body.get('port') or (3306 if is_mysql else 1433)
             user = str(body.get('user') or body.get('username') or '').strip()
             password = str(body.get('password') or '')
             database = str(body.get('database') or body.get('schema') or '').strip()
             encrypt = body.get('encrypt', True)
             trust_cert = body.get('trust_cert', True)
+            ssl = body.get('ssl', True)
             try:
-                res = mcp_ops.save_sqlserver_mcp_preset(
-                    conn_url=conn_url,
-                    server_name=name,
-                    host=host,
-                    port=port,
-                    user=user,
-                    password=password,
-                    database=database,
-                    encrypt=encrypt,
-                    trust_cert=trust_cert,
-                )
+                if is_mysql:
+                    res = mcp_ops.save_mysql_mcp_preset(
+                        conn_url=conn_url,
+                        server_name=name,
+                        host=host,
+                        port=port,
+                        user=user,
+                        password=password,
+                        database=database,
+                        ssl=ssl,
+                    )
+                else:
+                    res = mcp_ops.save_sqlserver_mcp_preset(
+                        conn_url=conn_url,
+                        server_name=name,
+                        host=host,
+                        port=port,
+                        user=user,
+                        password=password,
+                        database=database,
+                        encrypt=encrypt,
+                        trust_cert=trust_cert,
+                    )
                 self.send_json(res)
             except Exception as e:
                 self.send_json({'success': False, 'message': str(e)}, 400)
 
         elif path in ('/api/mcp/test-sqlserver', '/api/mcp/test-mysql'):
             import studio.mcp_ops as mcp_ops
+            is_mysql = path.endswith('test-mysql')
             conn_url = str(body.get('url') or body.get('conn_url') or '').strip()
             host = str(body.get('host') or '').strip()
-            port = body.get('port') or 1433
+            port = body.get('port') or (3306 if is_mysql else 1433)
             user = str(body.get('user') or body.get('username') or '').strip()
             password = str(body.get('password') or '')
             database = str(body.get('database') or body.get('schema') or '').strip()
             encrypt = body.get('encrypt', True)
             trust_cert = body.get('trust_cert', True)
+            ssl = body.get('ssl', True)
             try:
-                res = mcp_ops.test_sqlserver_connection(
-                    host=host,
-                    port=port,
-                    user=user,
-                    password=password,
-                    database=database,
-                    conn_url=conn_url,
-                    encrypt=encrypt,
-                    trust_cert=trust_cert,
-                )
+                if is_mysql:
+                    res = mcp_ops.test_mysql_connection(
+                        host=host,
+                        port=port,
+                        user=user,
+                        password=password,
+                        database=database,
+                        conn_url=conn_url,
+                        ssl=ssl,
+                    )
+                else:
+                    res = mcp_ops.test_sqlserver_connection(
+                        host=host,
+                        port=port,
+                        user=user,
+                        password=password,
+                        database=database,
+                        conn_url=conn_url,
+                        encrypt=encrypt,
+                        trust_cert=trust_cert,
+                    )
                 self.send_json(res)
             except Exception as e:
                 self.send_json({'success': False, 'message': str(e)}, 400)
@@ -1940,14 +2096,14 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             })
 
         elif path == '/api/git/conflict/resolve':
-            target = body.get('target', 'fe')
+            target = body.get('target') or body.get('role') or 'fe'
             file_path = body.get('file', '').strip()
             action = body.get('action', 'accept_current')
             block_index = body.get('block_index')
             ws = get_workspace(target)
             repo_label = 'Frontend' if target == 'fe' else 'Backend'
             res = resolve_git_conflict_file(ws, file_path, action, block_index=block_index)
-            if res.get('file_staged'):
+            if res.get('file_staged') or res.get('resolved_files_count'):
                 add_work_log(
                     'GIT_CONFLICT_RESOLVED',
                     f"Giải quyết xong conflict file {file_path} ({repo_label})",
@@ -1958,7 +2114,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             self.send_json(res)
 
         elif path == '/api/git/conflict/abort':
-            target = body.get('target', 'fe')
+            target = body.get('target') or body.get('role') or 'fe'
             ws = get_workspace(target)
             repo_label = 'Frontend' if target == 'fe' else 'Backend'
             res = abort_git_conflict(ws)
@@ -1975,7 +2131,7 @@ class AgentStudioHandler(http.server.BaseHTTPRequestHandler):
             self.send_json(res)
 
         elif path == '/api/git/conflict/continue':
-            target = body.get('target', 'fe')
+            target = body.get('target') or body.get('role') or 'fe'
             commit_message = body.get('commit_message')
             ws = get_workspace(target)
             repo_label = 'Frontend' if target == 'fe' else 'Backend'
